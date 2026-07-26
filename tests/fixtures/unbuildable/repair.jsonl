@@ -1,0 +1,3 @@
+{"action": "initial_build", "detail": "/scratch/md5344/evmbench/agent4vul/tests/fixtures/unbuildable/Broken.sol", "ok": false, "error": "Slither compilation failed for /scratch/md5344/evmbench/agent4vul/tests/fixtures/unbuildable/Broken.sol: Invalid compilation: \n[Errno 2] No such file or directory: 'solc'", "ts": 1784839512.8412247}
+{"action": "solc_select", "detail": "switched to 0.8.20", "ok": true, "error": null, "ts": 1784839512.8450327}
+{"action": "retry_after_solc_version", "detail": "0.8.20", "ok": false, "error": "Slither compilation failed for /scratch/md5344/evmbench/agent4vul/tests/fixtures/unbuildable/Broken.sol: Invalid compilation: \n[Errno 2] No such file or directory: 'solc'", "ts": 1784839512.8467414}

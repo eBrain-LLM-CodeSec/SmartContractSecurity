@@ -1,0 +1,4 @@
+[
+  {"contract": "A", "function": "reenter", "vuln_type": "reentrancy"},
+  {"contract": "C", "function": "pay", "vuln_type": "unchecked_call"}
+]

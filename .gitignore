@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Environment / build artifacts
+.venv/
+.container_home/
+
+# Generated run outputs (large, includes vendored third-party checkouts and
+# LLM response caches) -- keep only the small evidence files from the
+# validated real run, everything else here is reproducible via scripts/run_one.py
+out/**
+!out/2023-07-pooltogether/
+!out/2023-07-pooltogether/audit.md
+!out/2023-07-pooltogether/grade.json
+
+# GNN/dataset ETL working data (downloaded/generated, not source -- raw/ in
+# particular holds dataset files with no confirmed license for redistribution)
+data/
+
+# stray SLURM log files
+logs_gnn_smoke.*
+*.out
+*.err

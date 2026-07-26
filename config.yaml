@@ -1,0 +1,39 @@
+# agent4vul configuration -- thresholds/weights here are placeholders until
+# tuned on the Phase-3a dev set (see plan: freeze before the full 40-audit run).
+
+llm:
+  base_url: https://openrouter.ai/api/v1
+  api_key_file: /scratch/md5344/evmbench/run/task5_secrets/openrouter.key
+  # judge model is fixed by the upstream grader contract; not configured here.
+  commentator_model: openai/gpt-5.1-codex-max
+  auditor_model: openai/gpt-5.1-codex-max
+
+embedding:
+  provider: voyage          # voyage | local
+  voyage_model: voyage-code-3
+  voyage_key_file: /scratch/md5344/evmbench/run/task5_secrets/voyage.key
+  local_fallback_model: cisco-ai/SecureBERT2.0-biencoder
+
+repair:
+  max_attempts: 6
+  max_wall_clock_seconds: 1800
+
+ranking:
+  threshold_mode: percentile   # percentile | gap
+  percentile: 0.7
+  strong_signal_always_keep: true
+
+auditor:
+  per_audit_token_ceiling: 1500000
+  per_audit_tool_call_ceiling: 150
+  per_candidate_soft_cap_tokens: 60000
+  per_candidate_soft_cap_iterations: 20
+
+fpsl:
+  strategies_default: 1
+
+paths:
+  audits_dir: /scratch/md5344/evmbench/repo/frontier-evals/project/evmbench/audits
+  splits_dir: /scratch/md5344/evmbench/repo/frontier-evals/project/evmbench/splits
+  out_dir: /scratch/md5344/evmbench/agent4vul/out
+  corpus_external_dir: /scratch/md5344/evmbench/agent4vul/corpus/external

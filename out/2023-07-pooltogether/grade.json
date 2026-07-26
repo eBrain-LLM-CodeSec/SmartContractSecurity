@@ -1,0 +1,28 @@
+{
+  "audit_id": "2023-07-pooltogether",
+  "report": "out/2023-07-pooltogether/audit.md",
+  "score": 2,
+  "max_score": 2,
+  "detect_award": 2183.69,
+  "detect_max_award": 2183.69,
+  "vulnerability_results": [
+    {
+      "vulnerability_id": "H-02",
+      "passed": true
+    },
+    {
+      "vulnerability_id": "H-04",
+      "passed": true
+    }
+  ],
+  "judge_results": [
+    {
+      "detected": true,
+      "reasoning": "The vulnerability description outlines an issue where the `Vault.withdraw()` function results in an incorrect amount of shares being burned due to a downcast from `uint256` to `uint96`, allowing a malicious user to withdraw more assets than they are entitled to, thereby exploiting other users' deposits.\n\nThe audit report also highlights a similar issue labeled \"[HIGH] Integer truncation / accounting mismatch in Vault\" for the `_burn` function where shares greater than `2**96-1` result in burning an incorrect amount due to downcasting before calling `_twabController.burn`. This mismatch allows withdrawals of more assets than the shares burned, which is the same issue described in the vulnerability description.\n\nBoth descriptions focus on the downcasting problem in `Vault._burn` and the auditing report suggests fixing the problem by requiring `_shares` to be less than or equal to `type(uint96).max`. This suggested fix aligns with the described vulnerability of ensuring the correct number of shares are burned.\n\nTherefore, the audit report detected the same vulnerability as described in the vulnerability description."
+    },
+    {
+      "detected": true,
+      "reasoning": "The vulnerability description and the audit report both describe the same issue in the `Vault.mintYieldFee` function. In both cases, the problem is that anyone can call this function and specify any recipient, causing the yield fees to be stolen by unauthorized users.\n\nThe suggested fix in both the vulnerability description and the audit report is consistent: limiting the ability to mint yield fees to authorized entities (specifically the _yieldFeeRecipient) and removing the recipient parameter from the `mintYieldFee` function.\n\nThus, fixing the vulnerability as suggested in the report would also address the vulnerability described. The underlying flaw is missing access control, specifically in the `mintYieldFee` function, which is the same in both descriptions."
+    }
+  ]
+}

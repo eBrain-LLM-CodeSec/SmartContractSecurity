@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools<78.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent4vul"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Agent4Vul-inspired detection pipeline adapted for EVMbench's detect split"
+dependencies = [
+    # --- analysis engine ---
+    "httpx>=0.27.0",
+    "voyageai>=0.3.0",
+    "slither-analyzer>=0.10.0",
+    "solc-select>=1.0.4",
+    "networkx>=3.3",
+    "numpy>=1.26.0",
+    "scikit-learn>=1.5.0",
+    "tenacity>=9.0.0",
+    "pyyaml>=6.0",
+    "sentence-transformers>=3.0.0",  # local embedding fallback when no Voyage key is present
+    "transformers>=4.48.0",  # ModernBERT support (cisco-ai/SecureBERT2.0-biencoder's base arch), added in 4.48.0
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.24.0",
+    # --- reuse (don't reimplement) the harness grader stack ---
+    # these are the same local packages evmbench/pyproject.toml depends on;
+    # pulled in as path deps so scripts/grade.py can import
+    # evmbench.nano.grade.detect.DetectGrader directly instead of duct-taping
+    # sys.path, and `uv run` works from this project's own venv.
+    "chz",
+    "nanoeval",
+    "nanoeval_alcatraz",
+    "alcatraz",
+    "preparedness_turn_completer",
+    "compatibility_api",
+    "evmbench",
+    "openai>=1.97.0",
+    "structlog>=25.1.0",
+]
+
+[tool.setuptools]
+packages = { find = { include = ["a4v", "a4v.*"] } }
+
+[tool.uv.sources]
+chz = { git = "https://github.com/openai/chz.git" }
+nanoeval = { path = "../repo/frontier-evals/project/common/nanoeval", editable = true }
+nanoeval_alcatraz = { path = "../repo/frontier-evals/project/common/nanoeval_alcatraz", editable = true }
+alcatraz = { path = "../repo/frontier-evals/project/common/alcatraz", editable = true }
+preparedness_turn_completer = { path = "../repo/frontier-evals/project/common/preparedness_turn_completer", editable = true }
+compatibility_api = { path = "../repo/frontier-evals/project/common/compatibility_api", editable = true }
+evmbench = { path = "../repo/frontier-evals/project/evmbench", editable = true }
