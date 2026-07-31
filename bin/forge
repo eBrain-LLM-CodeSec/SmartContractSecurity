@@ -7,6 +7,19 @@
 # read-write, same bind-per-call pattern used for the Codex invocations.
 set -euo pipefail
 SIF=/scratch/md5344/evmbench/containers/evmbench-worker.sif
+# Several EVMbench audits pin a specific Foundry release/nightly in their
+# own Dockerfile (`foundryup --install v0.3.0`, a specific nightly SHA,
+# etc.) that differs from whatever forge ships baked into evmbench-worker.sif
+# (1.7.1). FORGE_VERSION lets a caller select a version pre-installed under
+# agent4vul/.venv/.foundry-versions/<version>/ (installed the same way
+# solc-select versions are: `foundryup --install <version>` with
+# FOUNDRY_DIR pointed at that directory) -- falls back to the image's
+# baked-in forge if the requested version was never installed there.
+FOUNDRY_VERSIONS="/scratch/md5344/evmbench/agent4vul/.venv/.foundry-versions"
+FORGE_BIN_OVERRIDE=()
+if [[ -n "${FORGE_VERSION:-}" ]] && [[ -x "${FOUNDRY_VERSIONS}/${FORGE_VERSION}/bin/forge" ]]; then
+  FORGE_BIN_OVERRIDE=("${FOUNDRY_VERSIONS}/${FORGE_VERSION}/bin/forge")
+fi
 # forge/svm need a real writable $HOME (for ~/.svm solc-version cache etc.).
 # SINGULARITYENV_HOME is rejected outright by this Singularity build; -H
 # src:dest is the flag that actually works, binding a real host dir as the
@@ -69,8 +82,16 @@ if [[ -n "${FORGE_GIT_ROOT:-}" ]]; then
   GIT_ROOT_BIND=(--bind "${FORGE_GIT_ROOT}:${FORGE_GIT_ROOT}")
 fi
 
+# See bin/npm's comment: -H's $HOME binding is unreliable on this
+# Singularity build (confirmed to silently not mount/export at all) -- use
+# a plain --bind + explicit export instead, same as bin/npm/bin/npx.
+FORGE_CMD="forge"
+if [[ "${#FORGE_BIN_OVERRIDE[@]}" -gt 0 ]]; then
+  FORGE_CMD="${FORGE_BIN_OVERRIDE[0]}"
+fi
+
 exec singularity exec --containall --no-home --pwd "${PWD}" \
-  -H "${CONTAINER_HOME}:/home/build_home" \
+  --bind "${CONTAINER_HOME}:/home/build_home" \
   --bind "${PWD}:${PWD}" --bind "/scratch/md5344/evmbench/agent4vul:/scratch/md5344/evmbench/agent4vul" \
   "${GIT_ROOT_BIND[@]}" \
-  "${SIF}" forge "$@" "${EXTRA_ARGS[@]}"
+  "${SIF}" bash -c 'export HOME=/home/build_home; exec "$1" "${@:2}"' bash "${FORGE_CMD}" "$@" "${EXTRA_ARGS[@]}"
