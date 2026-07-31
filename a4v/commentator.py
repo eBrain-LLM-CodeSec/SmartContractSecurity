@@ -18,7 +18,7 @@ class Comment:
     severity: str | None
     rationale: str
     lines: list[int] = field(default_factory=list)
-    strategy: int = 5
+    strategy: int | str = 5
     prompt_tokens: int = 0
     completion_tokens: int = 0
 
@@ -41,11 +41,11 @@ def _bundle_context_text(bundle: ContextBundle) -> str:
 
 
 class Commentator:
-    def __init__(self, chat_client: ChatClient, strategies: list[int] | None = None):
+    def __init__(self, chat_client: ChatClient, strategies: list[int | str] | None = None):
         self.chat_client = chat_client
         self.strategies = strategies or [5]
 
-    def comment_source(self, source: str, context: str | None = None, strategy: int | None = None) -> Comment:
+    def comment_source(self, source: str, context: str | None = None, strategy: int | str | None = None) -> Comment:
         strat = strategy or self.strategies[0]
         messages = fpsl.build_prompt(strat, source, context)
         data, result = self.chat_client.complete_json(messages)
@@ -61,7 +61,7 @@ class Commentator:
             completion_tokens=result.completion_tokens,
         )
 
-    def comment_bundle(self, bundle: ContextBundle, strategy: int | None = None) -> Comment:
+    def comment_bundle(self, bundle: ContextBundle, strategy: int | str | None = None) -> Comment:
         raw_source = bundle.source_excerpts.get(bundle.seed, "")
         start_line = bundle.source_excerpt_start_lines.get(bundle.seed, 1)
         source = numbered_source(raw_source, start_line)

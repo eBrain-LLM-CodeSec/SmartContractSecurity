@@ -1,0 +1,94 @@
+# MGPR routing specification -- deterministic Commentator-stage router.
+#
+# Frozen taxonomy is P0-P15 (see the MGPR planning document,
+# /scratch/md5344/.claude/plans/effervescent-inventing-teapot.md). Only
+# P1/P2/P5 are SPECIFIED in this first implementation slice; every other
+# family is stubbed NOT_YET_SPECIFIED -- the router and feasibility study
+# both skip families in that state rather than guessing at a gate.
+#
+# Predicate DSL: each gate's `predicate` is {all: [item, item, ...]}, where
+# each item is either a boolean predicate name (from
+# a4v/mgpr/router.py:BOOLEAN_PREDICATES) or {equals: {name: VALUE}} for an
+# enum-valued predicate (a4v/mgpr/router.py:ENUM_PREDICATES) -- used for
+# authorization_control_state, which is a four-state resolution
+# (PRESENT/ABSENT/UNRESOLVED_BY_EXTRACTION/NOT_APPLICABLE), not a boolean.
+# A gate fires only if every item's evaluated status is SATISFIED; an
+# UNRESOLVED status on any item blocks firing without being treated as
+# MISSING (see a4v/mgpr/resolution.py).
+
+version: 1
+
+families:
+  P1_AUTHORIZATION:
+    status: SPECIFIED
+    seed_types: [function]
+    # authorization_search_max_helper_depth: bounded internal-helper BFS
+    # depth for authorization_control_state's search chain (plan section 5)
+    # -- a routing_spec.yaml-level parameter, not silently unlimited.
+    params:
+      authorization_search_max_helper_depth: 2
+    gates:
+      - id: P1_STATE_CHANGE_NO_AUTH_DOMINATOR
+        predicate:
+          all:
+            - visibility_is_public_or_external
+            - state_write_exists
+            - not_constructor
+            - equals: {authorization_control_state: ABSENT}
+        # Deliberately coarse in this slice: fires on any public/external,
+        # non-constructor, state-writing function with a confirmed-ABSENT
+        # authorization_control_state. Does not distinguish writes affecting
+        # only the caller's own state from writes affecting other users' or
+        # global state (would need parameter-to-storage dataflow, not built
+        # in this slice). Never fires on UNRESOLVED_BY_EXTRACTION.
+    context_policy:
+      include: [seed_function, applied_modifiers, modifier_bodies, base_contract_modifier_defs]
+      stop: [no_new_modifier_definitions, base_contract_root_reached]
+    prompt_id: P1_AUTHORIZATION_v1
+
+  P2_REENTRANCY:
+    status: SPECIFIED
+    seed_types: [function]
+    gates:
+      - id: P2_CALL_BEFORE_WRITE
+        predicate:
+          all:
+            - external_call_exists
+            - write_after_external_call_exists
+    context_policy:
+      include: [seed_function, external_call_site, writes_before_and_after_call,
+                functions_touching_affected_state]
+      stop: [no_new_state_variables_reachable_via_state_read_or_state_write,
+             do_not_expand_external_implementation]
+      # requires callback_potential extraction, not built in this slice
+      deferred: [callback_reachable_entrypoints]
+    prompt_id: P2_REENTRANCY_v1
+
+  P5_ARITHMETIC_PRECISION:
+    status: SPECIFIED
+    seed_types: [function]
+    gates:
+      - id: P5_NARROWING_CAST
+        predicate:
+          all:
+            - unsafe_cast_count_gt_zero
+    context_policy:
+      include: [seed_function, cast_sites]
+      stop: [single_function_scope]
+    prompt_id: P5_ARITHMETIC_PRECISION_v1
+
+  # --- not yet specified in this slice (see graph-requirement matrix in the
+  # planning document for why each is BLOCKED/PARTIAL today) ---
+  P0_DETERMINISTIC_SYNTACTIC: {status: NOT_YET_SPECIFIED}
+  P3_SIGNATURES_REPLAY: {status: NOT_YET_SPECIFIED}
+  P4_ORACLE_VALUATION: {status: NOT_YET_SPECIFIED}
+  P6_ACCOUNTING_SOLVENCY: {status: NOT_YET_SPECIFIED}
+  P7_LIFECYCLE_STATE_MACHINE: {status: NOT_YET_SPECIFIED}
+  P8_EXTERNAL_INTEGRATION: {status: NOT_YET_SPECIFIED}
+  P9_TX_ORDERING_FRONTRUNNING: {status: NOT_YET_SPECIFIED}
+  P10_DOS_GRIEFING_LOCKED_ASSETS: {status: NOT_YET_SPECIFIED}
+  P11_CROSS_CHAIN_MESSAGING: {status: NOT_YET_SPECIFIED}
+  P12_PROXY_INIT_UPGRADE: {status: NOT_YET_SPECIFIED}
+  P13_ARRAYS_INDEXES_SETS: {status: NOT_YET_SPECIFIED}
+  P14_GOVERNANCE_VOTING_CHECKPOINTS: {status: NOT_YET_SPECIFIED}
+  P15_PROTOCOL_SHARED_STATE_INVARIANTS: {status: NOT_YET_SPECIFIED}

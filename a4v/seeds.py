@@ -10,6 +10,9 @@ from dataclasses import dataclass, field
 from a4v.commentator import Comment, Commentator
 from a4v.features import NodeFeatures
 from a4v.graph import ProgramGraph
+from a4v.mgpr.context import build_context
+from a4v.mgpr.router import fired_routes, route_all
+from a4v.mgpr.spec import RoutingSpec
 from a4v.slice import BundleBuilder
 
 
@@ -53,14 +56,49 @@ class SeedGenerator:
                 seeds.append(SeedNode(node_id=node_id, reasons=["commentator"], comment=comment))
         return seeds, comments
 
+    def mgpr_commentator_seeds(self, raw_features: dict[str, NodeFeatures],
+                                routing_spec: RoutingSpec) -> tuple[list[SeedNode], dict[str, Comment]]:
+        """MGPR-routed replacement for `commentator_seeds`'s fixed-hops full
+        scan: evaluates `routing_spec`'s gates via `mgpr.router.route_all`,
+        and for each FIRED route builds family-specific context via
+        `mgpr.context.build_context` instead of
+        `BundleBuilder.expand(seed, hops=1)`, then calls the Commentator
+        with that route's family-specific `prompt_id`. A routing unit that
+        fires multiple families' gates gets one Commentator call per fired
+        route (multi-label, plan section 6.1) -- not one per unit, and not
+        a call for every in-scope function regardless of any signal.
+        """
+        if self.commentator is None:
+            raise ValueError("no Commentator configured -- pass one to SeedGenerator or skip mgpr_commentator_seeds")
+        seeds: list[SeedNode] = []
+        comments: dict[str, Comment] = {}
+        for route in fired_routes(route_all(self.pg, raw_features, routing_spec)):
+            bundle, _record = build_context(self.pg, route)
+            comment = self.commentator.comment_bundle(bundle, strategy=route.prompt_id)
+            # keyed by (unit, family), not just unit -- a single function
+            # can produce multiple comments under multi-label routing, and
+            # a plain node_id key would silently overwrite one with another.
+            comments[f"{route.routing_unit}::{route.family}"] = comment
+            if comment.suspicious:
+                seeds.append(SeedNode(
+                    node_id=route.routing_unit,
+                    reasons=[f"mgpr:{route.family}:{route.gate}"],
+                    comment=comment,
+                ))
+        return seeds, comments
+
     def generate(self, raw_features: dict[str, NodeFeatures], run_commentator: bool = True,
-                 strategy: int | None = None) -> tuple[list[SeedNode], dict[str, Comment]]:
+                 strategy: int | None = None,
+                 routing_spec: RoutingSpec | None = None) -> tuple[list[SeedNode], dict[str, Comment]]:
         static_seeds = self.static_rule_seeds(raw_features)
 
         comments: dict[str, Comment] = {}
         commentator_seed_list: list[SeedNode] = []
         if run_commentator and self.commentator is not None:
-            commentator_seed_list, comments = self.commentator_seeds(list(raw_features.keys()), strategy=strategy)
+            if routing_spec is not None:
+                commentator_seed_list, comments = self.mgpr_commentator_seeds(raw_features, routing_spec)
+            else:
+                commentator_seed_list, comments = self.commentator_seeds(list(raw_features.keys()), strategy=strategy)
 
         combined: dict[str, SeedNode] = {}
         for s in static_seeds + commentator_seed_list:

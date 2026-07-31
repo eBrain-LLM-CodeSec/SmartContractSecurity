@@ -32,6 +32,14 @@ auditor:
 fpsl:
   strategies_default: 1
 
+# MGPR (Metric-Gated Prompt Routing): deterministic Commentator-stage router,
+# opt-in via SeedGenerator.generate(routing_spec=...) -- fpsl.strategies_default
+# above still applies whenever routing_spec is not passed. See
+# a4v/mgpr/ and routing_spec.yaml for the P1/P2/P5 v1 slice.
+mgpr:
+  enabled: false
+  routing_spec_path: /scratch/md5344/evmbench/agent4vul/routing_spec.yaml
+
 paths:
   audits_dir: /scratch/md5344/evmbench/repo/frontier-evals/project/evmbench/audits
   splits_dir: /scratch/md5344/evmbench/repo/frontier-evals/project/evmbench/splits

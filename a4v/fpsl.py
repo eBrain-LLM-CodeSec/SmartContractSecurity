@@ -131,16 +131,64 @@ def strategy_5_vulnerability_customized_cot(
     return _wrap(system, source, context)
 
 
+def prompt_p1_authorization(source: str, context: str | None = None) -> list[dict]:
+    system = (
+        "You are a smart contract security auditor reviewing a function that a deterministic "
+        "static-analysis router flagged as a state-changing, public/external function with no "
+        "authorization control found (no protective modifier, no msg.sender check, in the function "
+        "body, its applied modifiers, or bounded internal-helper calls). Confirm or refute this: "
+        f"{CORE_RULES['access_control']}\n"
+        "The router's flag is a coarse signal, not a verdict -- some functions are legitimately "
+        "open to any caller (e.g. a user acting on their own funds/state). Assess whether THIS "
+        "specific function's lack of an authorization check is actually exploitable, citing the "
+        "concrete privileged operation and exact lines if so."
+    )
+    return _wrap(system, source, context)
+
+
+def prompt_p2_reentrancy(source: str, context: str | None = None) -> list[dict]:
+    system = (
+        "You are a smart contract security auditor reviewing a function that a deterministic "
+        "static-analysis router flagged for an external call followed by a state write on some "
+        "control-flow path (call-before-write ordering). Confirm or refute this: "
+        f"{CORE_RULES['reentrancy']}\n"
+        "The additional context below lists the external call site, the state written "
+        "before/after it, and other functions touching the same state -- use it to assess whether "
+        "a reentrant callback could actually exploit the ordering, citing exact lines if so."
+    )
+    return _wrap(system, source, context)
+
+
+def prompt_p5_arithmetic_precision(source: str, context: str | None = None) -> list[dict]:
+    system = (
+        "You are a smart contract security auditor reviewing a function that a deterministic "
+        "static-analysis router flagged for a narrowing integer type conversion. Confirm or refute "
+        f"this: {CORE_RULES['arithmetic_downcast']}\n"
+        "The additional context below cites the exact cast site(s) found. Assess whether the "
+        "narrowing is actually reachable with values large enough to truncate, citing exact lines "
+        "if so."
+    )
+    return _wrap(system, source, context)
+
+
 STRATEGIES = {
     1: strategy_1_simple_description,
     2: strategy_2_detailed_description,
     3: strategy_3_role_playing,
     4: strategy_4_cot,
     5: strategy_5_vulnerability_customized_cot,
+    # MGPR per-family specialist prompts (string keys, additive -- selected
+    # via a4v/mgpr/router.py's Route.family -> FamilySpec.prompt_id, not by
+    # config.yaml's fpsl.strategies_default). Reuses the existing CORE_RULES
+    # hint text for the families that already have a current analog
+    # (access_control/reentrancy/arithmetic_downcast).
+    "P1_AUTHORIZATION_v1": prompt_p1_authorization,
+    "P2_REENTRANCY_v1": prompt_p2_reentrancy,
+    "P5_ARITHMETIC_PRECISION_v1": prompt_p5_arithmetic_precision,
 }
 
 
-def build_prompt(strategy: int, source: str, context: str | None = None) -> list[dict]:
+def build_prompt(strategy: int | str, source: str, context: str | None = None) -> list[dict]:
     if strategy not in STRATEGIES:
-        raise ValueError(f"unknown FPSL strategy {strategy!r}; must be one of {sorted(STRATEGIES)}")
+        raise ValueError(f"unknown FPSL strategy {strategy!r}; must be one of {sorted(STRATEGIES, key=str)}")
     return STRATEGIES[strategy](source, context)
