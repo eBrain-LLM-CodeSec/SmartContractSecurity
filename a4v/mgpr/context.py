@@ -135,10 +135,15 @@ def _p2_context(pg: ProgramGraph, seed: str) -> ContextRecord:
 
     write_after = pg.neighbors_by_kind(seed, WRITE_AFTER_EXTERNAL_CALL)
     ext_calls = pg.neighbors_by_kind(seed, EXTERNAL_CALL)
-    for v in ext_calls:
+    # sorted, not raw iteration order -- Slither's own high_level_calls/
+    # low_level_calls iteration order is not guaranteed stable across
+    # processes (confirmed live: identical membership, differing order,
+    # across two runs with the sorted-frontier fix already applied below).
+    # Membership is unaffected; this only fixes output-list determinism.
+    for v in sorted(ext_calls):
         included.append(f"{v} (external_call_site)")
         included_ids.append(v)
-    for v in write_after:
+    for v in sorted(write_after):
         included.append(f"{v} (writes_before_and_after_call)")
         included_ids.append(v)
 
@@ -151,10 +156,17 @@ def _p2_context(pg: ProgramGraph, seed: str) -> ContextRecord:
     frontier = set(affected)
     while frontier:
         next_frontier: set[str] = set()
-        for var_id in frontier:
+        # Iterate in sorted order, not raw set order -- Python's per-process
+        # string hash randomization otherwise makes the traversal (and
+        # therefore this record's `included` list order) non-deterministic
+        # across runs, even though the resulting MEMBERSHIP is unaffected.
+        # Confirmed live: two independent runs of the same study produced
+        # byte-identical gate_evaluation.jsonl/route_manifest.jsonl but
+        # differing entry order in context_manifest.jsonl's P2 records.
+        for var_id in sorted(frontier):
             readers = pg.neighbors_by_kind(var_id, STATE_READ, direction="in")
             writers = pg.neighbors_by_kind(var_id, STATE_WRITE, direction="in")
-            for fn_id in set(readers) | set(writers):
+            for fn_id in sorted(set(readers) | set(writers)):
                 if fn_id in seen_functions:
                     continue
                 seen_functions.add(fn_id)
