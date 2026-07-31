@@ -2,12 +2,19 @@ from pathlib import Path
 
 import networkx as nx
 
+from a4v.features import FeatureExtractor
 from a4v.graph import ProgramGraph
+from a4v.mgpr.spec import load_routing_spec
 from scripts.mgpr.run_feasibility_study import (
     assign_expected_family,
+    build_route_and_context_manifests,
     find_routing_units_for_citation,
     resolve_citation,
 )
+
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+VAULT_SOL = FIXTURES / "multi_contract" / "Vault.sol"
+ROUTING_SPEC = Path(__file__).resolve().parents[2] / "routing_spec.yaml"
 
 
 # --- assign_expected_family -------------------------------------------------
@@ -120,3 +127,90 @@ def test_slither_synthetic_functions_excluded(tmp_path):
     g.add_node("fn::Vault.real()", kind="function", name="real", file=f, lines=[50, 60])
     pg = ProgramGraph(g, slither=None)
     assert find_routing_units_for_citation(pg, Path(f), 55, 55) == ["fn::Vault.real()"]
+
+
+# --- build_route_and_context_manifests (real Vault.sol graph) --------------
+
+
+def _synthetic_finding(finding_id: str, line_range: str) -> dict:
+    # points at the REAL fixture file via checkout_root/run_cmd_dir join in
+    # the test below, not a live GitHub URL -- this is offline unit testing.
+    return {
+        "finding_id": finding_id,
+        "description": "synthetic test finding",
+        "github_cited_locations": [f"https://github.com/fake/repo/blob/deadbeef/Vault.sol#{line_range}"],
+        "findings_md_path": None,
+    }
+
+
+def test_route_manifest_covers_whole_graph_not_just_findings():
+    """route_manifest rows must cover every fired route in the compiled
+    graph -- withdraw fires both P1 and P2, deposit fires P1 -- regardless
+    of whether any finding cites them."""
+    pg = ProgramGraph.build(VAULT_SOL)
+    features = FeatureExtractor.compute(pg)
+    spec = load_routing_spec(ROUTING_SPEC)
+    checkout_root, run_cmd_dir = FIXTURES, "multi_contract"
+
+    route_rows, _context_rows = build_route_and_context_manifests(
+        "fake-audit", pg, features, spec, findings=[], checkout_root=checkout_root, run_cmd_dir=run_cmd_dir
+    )
+    pairs = {(r["routing_unit"], r["family"]) for r in route_rows}
+    assert ("fn::Vault.withdraw(uint256)", "P1_AUTHORIZATION") in pairs
+    assert ("fn::Vault.withdraw(uint256)", "P2_REENTRANCY") in pairs
+    assert ("fn::Vault.deposit()", "P1_AUTHORIZATION") in pairs
+    # setOracle is protected -- must not appear as a fired P1 route
+    assert not any(r["routing_unit"] == "fn::Vault.setOracle(address)" for r in route_rows)
+
+
+def test_context_manifest_records_ground_truth_match_when_finding_cites_the_unit():
+    pg = ProgramGraph.build(VAULT_SOL)
+    features = FeatureExtractor.compute(pg)
+    spec = load_routing_spec(ROUTING_SPEC)
+    checkout_root, run_cmd_dir = FIXTURES, "multi_contract"
+    finding = _synthetic_finding("fake-audit/H-01", "L34-L43")  # covers withdraw()'s span
+
+    _route_rows, context_rows = build_route_and_context_manifests(
+        "fake-audit", pg, features, spec, findings=[finding], checkout_root=checkout_root, run_cmd_dir=run_cmd_dir
+    )
+    withdraw_p2 = next(
+        r for r in context_rows if r["routing_unit"] == "fn::Vault.withdraw(uint256)" and r["family"] == "P2_REENTRANCY"
+    )
+    assert withdraw_p2["matching_finding_ids"] == ["fake-audit/H-01"]
+    assert withdraw_p2["ground_truth_cited_locations"] == finding["github_cited_locations"]
+    assert withdraw_p2["ground_truth_locations_in_included"] is True
+    assert withdraw_p2["ground_truth_locations_in_excluded_or_unresolved"] is False
+
+
+def test_context_manifest_leaves_ground_truth_fields_null_when_no_finding_cites_the_unit():
+    pg = ProgramGraph.build(VAULT_SOL)
+    features = FeatureExtractor.compute(pg)
+    spec = load_routing_spec(ROUTING_SPEC)
+    checkout_root, run_cmd_dir = FIXTURES, "multi_contract"
+
+    _route_rows, context_rows = build_route_and_context_manifests(
+        "fake-audit", pg, features, spec, findings=[], checkout_root=checkout_root, run_cmd_dir=run_cmd_dir
+    )
+    deposit_p1 = next(
+        r for r in context_rows if r["routing_unit"] == "fn::Vault.deposit()" and r["family"] == "P1_AUTHORIZATION"
+    )
+    assert deposit_p1["matching_finding_ids"] == []
+    assert deposit_p1["ground_truth_cited_locations"] == []
+    assert deposit_p1["ground_truth_locations_in_included"] is None
+    assert deposit_p1["ground_truth_locations_in_excluded_or_unresolved"] is None
+
+
+def test_route_manifest_gates_fired_matches_router_gate_ids():
+    pg = ProgramGraph.build(VAULT_SOL)
+    features = FeatureExtractor.compute(pg)
+    spec = load_routing_spec(ROUTING_SPEC)
+    checkout_root, run_cmd_dir = FIXTURES, "multi_contract"
+
+    route_rows, _ = build_route_and_context_manifests(
+        "fake-audit", pg, features, spec, findings=[], checkout_root=checkout_root, run_cmd_dir=run_cmd_dir
+    )
+    withdraw_p2 = next(
+        r for r in route_rows if r["routing_unit"] == "fn::Vault.withdraw(uint256)" and r["family"] == "P2_REENTRANCY"
+    )
+    assert withdraw_p2["gates_fired"] == ["P2_CALL_BEFORE_WRITE"]
+    assert withdraw_p2["prompt_id"] == "P2_REENTRANCY_v1"

@@ -9,6 +9,19 @@ constructed context would have included the finding's own cited lines --
 never whether that context was "enough." Interpretation is the user's
 (plan section 8), not this script's.
 
+Produces all six of the plan's per-run artifacts (section 17) from a single
+coherent compile pass per audit (each audit is compiled exactly once, not
+once per artifact):
+  - build_manifest.jsonl / graph_manifest.jsonl (compile status + graph metadata)
+  - gate_evaluation.jsonl (ground-truth-finding-focused predicate trace)
+  - route_manifest.jsonl (every fired route across the WHOLE compiled graph,
+    not just ground-truth-cited units -- what MGPR would actually route in
+    production for this audit)
+  - context_manifest.jsonl (constructed context per fired route, cross-
+    referenced against ground truth where a finding cites that routing unit)
+  - feasibility_report.json (aggregate raw counts)
+(benchmark_registry.jsonl itself is produced separately by build_registry.py.)
+
 Explicitly out of scope here: whether a Commentator flags the bug, whether
 SuspicionRanker ranks it, whether the Agentic Auditor confirms it, final
 EVMbench score. No LLM calls, no grading -- purely static/deterministic.
@@ -28,8 +41,9 @@ from pathlib import Path
 
 from a4v.features import FeatureExtractor
 from a4v.graph import FUNCTION, ProgramGraph
-from a4v.mgpr.router import evaluate_gate
-from a4v.mgpr.spec import load_routing_spec, RoutingSpec
+from a4v.mgpr.context import build_context
+from a4v.mgpr.router import KNOWN_PREDICATES, evaluate_gate, fired_routes, route_all
+from a4v.mgpr.spec import RoutingSpec, load_routing_spec
 from scripts.mgpr.build_manifests import _run_cmd_dir, build_manifest_for_audit
 
 _DEFAULT_EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
@@ -131,14 +145,34 @@ def find_routing_units_for_citation(pg: ProgramGraph, local_path: Path, start: i
     return [node_id for node_id, _span in matches]
 
 
+def _location_covered_by_nodes(pg: ProgramGraph, local_path: Path, start: int, end: int,
+                                node_ids: set[str]) -> bool:
+    for node_id in node_ids:
+        if node_id not in pg.graph:
+            continue
+        data = pg.graph.nodes[node_id]
+        node_file, node_lines = data.get("file"), data.get("lines") or []
+        if not node_file or not node_lines:
+            continue
+        try:
+            if Path(node_file).resolve() != local_path:
+                continue
+        except OSError:
+            continue
+        node_start, node_end = min(node_lines), max(node_lines)
+        if node_start <= end and start <= node_end:
+            return True
+    return False
+
+
 def _evaluate_finding(
     finding: dict, pg: ProgramGraph, features: dict, spec: RoutingSpec,
     checkout_root: Path, run_cmd_dir: str,
-) -> tuple[list[dict], list[dict]]:
-    """Returns (gate_evaluation_rows, context_manifest_rows) for one
-    finding. Always emits at least one gate_evaluation row, even when the
-    family is unassigned or the citation is unresolved -- unresolved cases
-    are recorded explicitly (plan section 6), never dropped."""
+) -> list[dict]:
+    """Returns gate_evaluation_rows for one finding. Always emits at least
+    one row, even when the family is unassigned or the citation is
+    unresolved -- unresolved cases are recorded explicitly (plan section
+    6), never dropped."""
     audit_id, _, vuln = finding["finding_id"].partition("/")
     full_text = None
     if finding.get("findings_md_path"):
@@ -157,7 +191,7 @@ def _evaluate_finding(
             "reason": "NOT_APPLICABLE: description did not match any P1/P2/P5 labeling keyword "
                       "(may belong to a NOT_YET_SPECIFIED family)",
             "unresolved_or_missing": [],
-        }], []
+        }]
 
     citations = finding.get("github_cited_locations") or []
     if not citations:
@@ -169,12 +203,10 @@ def _evaluate_finding(
             "reason": "UNRESOLVED: no GitHub line citation found in the finding's own writeup "
                       "to resolve a routing unit from",
             "unresolved_or_missing": [],
-        }], []
+        }]
 
     gate_rows: list[dict] = []
-    context_rows: list[dict] = []
     family_spec = spec.families[family]
-    resolved_any_unit = False
 
     for citation in citations:
         resolved = resolve_citation(citation, checkout_root, run_cmd_dir)
@@ -203,7 +235,6 @@ def _evaluate_finding(
             })
             continue
 
-        resolved_any_unit = True
         # every overlapping unit is reported -- an ambiguous (>1) match is
         # itself evidence to report, not silently collapsed to one.
         for node_id in units:
@@ -221,19 +252,100 @@ def _evaluate_finding(
                     "citation_ambiguous": len(units) > 1,
                 })
 
-    return gate_rows, context_rows
+    return gate_rows
+
+
+def build_route_and_context_manifests(
+    audit_id: str, pg: ProgramGraph, features: dict, spec: RoutingSpec,
+    findings: list[dict], checkout_root: Path, run_cmd_dir: str,
+) -> tuple[list[dict], list[dict]]:
+    """route_manifest.jsonl / context_manifest.jsonl rows for every fired
+    route across the ENTIRE compiled graph -- not just ground-truth-cited
+    units. This is what MGPR would actually route in production for this
+    audit, independent of whether a route happens to match a known
+    finding. When a fired route's routing unit is cited by one of this
+    audit's ground-truth findings, the context_manifest row additionally
+    records whether that finding's OTHER cited locations (not just the
+    seed itself) landed inside the constructed context; otherwise those
+    fields are null, not fabricated as true/false.
+    """
+    grouped: dict[tuple[str, str], list] = {}
+    for route in fired_routes(route_all(pg, features, spec)):
+        grouped.setdefault((route.routing_unit, route.family), []).append(route)
+
+    route_rows: list[dict] = []
+    context_rows: list[dict] = []
+    for (routing_unit, family), routes in sorted(grouped.items()):
+        gates_fired = sorted({r.gate for r in routes})
+        route_rows.append({
+            "audit_id": audit_id, "routing_unit": routing_unit, "unit_type": "function",
+            "family": family, "gates_fired": gates_fired, "prompt_id": routes[0].prompt_id,
+            "resolution_notes": [],
+        })
+
+        bundle, record = build_context(pg, routes[0])
+        included_node_ids = set(bundle.neighborhood) | {routing_unit}
+
+        relevant_findings = []
+        for finding in findings:
+            for citation in finding.get("github_cited_locations") or []:
+                resolved = resolve_citation(citation, checkout_root, run_cmd_dir)
+                if resolved is None:
+                    continue
+                local_path, start, end = resolved
+                if routing_unit in find_routing_units_for_citation(pg, local_path, start, end):
+                    relevant_findings.append(finding)
+                    break
+
+        if relevant_findings:
+            all_cited: list[str] = []
+            any_included, any_excluded_or_unresolved = False, False
+            for finding in relevant_findings:
+                for citation in finding.get("github_cited_locations") or []:
+                    all_cited.append(citation)
+                    resolved = resolve_citation(citation, checkout_root, run_cmd_dir)
+                    if resolved is None:
+                        continue
+                    local_path, start, end = resolved
+                    if _location_covered_by_nodes(pg, local_path, start, end, included_node_ids):
+                        any_included = True
+                    else:
+                        any_excluded_or_unresolved = True
+            context_rows.append({
+                "audit_id": audit_id, "routing_unit": routing_unit, "family": family,
+                "included": record.included, "excluded": record.excluded, "unresolved": record.unresolved,
+                "matching_finding_ids": [f["finding_id"] for f in relevant_findings],
+                "ground_truth_cited_locations": all_cited,
+                "ground_truth_locations_in_included": any_included,
+                "ground_truth_locations_in_excluded_or_unresolved": any_excluded_or_unresolved,
+            })
+        else:
+            context_rows.append({
+                "audit_id": audit_id, "routing_unit": routing_unit, "family": family,
+                "included": record.included, "excluded": record.excluded, "unresolved": record.unresolved,
+                "matching_finding_ids": [],
+                "ground_truth_cited_locations": [],
+                "ground_truth_locations_in_included": None,
+                "ground_truth_locations_in_excluded_or_unresolved": None,
+            })
+
+    return route_rows, context_rows
 
 
 def run_study(
-    registry: list[dict], build_manifest_rows: dict[str, dict], routing_spec: RoutingSpec,
-    checkouts_dir: Path, evmbench_root: Path, repair,
-) -> tuple[list[dict], dict]:
-    """Returns (gate_evaluation_rows, feasibility_report_dict). Only audits
-    with status COMPILED in build_manifest_rows are evaluated; every other
-    audit is reported (in the feasibility report's per-audit-status counts)
-    but contributes no gate_evaluation rows -- gated, not silently omitted.
+    registry: list[dict], compiled_audits: dict[str, tuple[ProgramGraph, dict]],
+    build_manifest_rows: dict[str, dict], routing_spec: RoutingSpec,
+    checkouts_dir: Path, evmbench_root: Path,
+) -> tuple[list[dict], list[dict], list[dict], dict]:
+    """Returns (gate_evaluation_rows, route_manifest_rows,
+    context_manifest_rows, feasibility_report_dict). Only audits present in
+    `compiled_audits` are evaluated; every other audit is reported (in the
+    feasibility report's per-audit-status counts) but contributes no rows
+    to any of the three per-unit artifacts -- gated, not silently omitted.
     """
     all_gate_rows: list[dict] = []
+    all_route_rows: list[dict] = []
+    all_context_rows: list[dict] = []
     audit_status_counts: dict[str, int] = {}
     per_family: dict[str, dict] = {
         name: {"findings_considered": 0, "predicate_status_counts": {}, "route_fire_count": 0,
@@ -249,21 +361,22 @@ def run_study(
         audit_id = audit["audit_id"]
         status = build_manifest_rows.get(audit_id, {}).get("status", "SKIPPED")
         audit_status_counts[status] = audit_status_counts.get(status, 0) + 1
-        if status != "COMPILED":
+        if audit_id not in compiled_audits:
             continue
         findings_reached += len(audit["findings"])
 
+        pg, features = compiled_audits[audit_id]
         checkout_root = checkouts_dir / audit_id
         run_cmd_dir = _run_cmd_dir(evmbench_root, audit_id)
-        _build_row, _graph_row, pg = build_manifest_for_audit(audit_id, evmbench_root, checkouts_dir, repair)
-        if pg is None:
-            continue  # should not happen given status==COMPILED, but never assume
-        features = FeatureExtractor.compute(pg)
+
+        route_rows, context_rows = build_route_and_context_manifests(
+            audit_id, pg, features, routing_spec, audit["findings"], checkout_root, run_cmd_dir
+        )
+        all_route_rows.extend(route_rows)
+        all_context_rows.extend(context_rows)
 
         for finding in audit["findings"]:
-            gate_rows, _context_rows = _evaluate_finding(
-                finding, pg, features, routing_spec, checkout_root, run_cmd_dir
-            )
+            gate_rows = _evaluate_finding(finding, pg, features, routing_spec, checkout_root, run_cmd_dir)
             all_gate_rows.extend(gate_rows)
 
             family = gate_rows[0]["expected_primary_family"] if gate_rows else None
@@ -300,9 +413,10 @@ def run_study(
         "findings_reached_compiled_audits": findings_reached,
         "findings_blocked_by_audit_compile_status": total_findings_in_registry - findings_reached,
         "findings_not_applicable_to_p1_p2_p5": not_applicable_count,
+        "total_fired_routes_across_compiled_audits": len(all_route_rows),
         "per_family": per_family,
     }
-    return all_gate_rows, feasibility_report
+    return all_gate_rows, all_route_rows, all_context_rows, feasibility_report
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -321,30 +435,43 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     registry = [json.loads(line) for line in args.registry.read_text().splitlines() if line.strip()]
-    from a4v.mgpr.router import KNOWN_PREDICATES
     routing_spec = load_routing_spec(args.routing_spec, known_predicates=KNOWN_PREDICATES)
     repair = EnvRepair()
 
-    build_manifest_rows: dict[str, dict] = {}
+    # Each audit is compiled exactly ONCE here -- build_manifest.jsonl /
+    # graph_manifest.jsonl and the study below both come from this same
+    # pass, so they can never disagree with each other about compile status.
+    build_rows, graph_rows = [], []
+    compiled_audits: dict[str, tuple[ProgramGraph, dict]] = {}
     for audit in registry:
-        row, _graph_row, _graph = build_manifest_for_audit(
-            audit["audit_id"], args.evmbench_root, args.checkouts_dir, repair
-        )
-        build_manifest_rows[audit["audit_id"]] = row
-        print(f"{audit['audit_id']}: {row['status']}")
+        audit_id = audit["audit_id"]
+        build_row, graph_row, pg = build_manifest_for_audit(audit_id, args.evmbench_root, args.checkouts_dir, repair)
+        build_rows.append(build_row)
+        graph_rows.append(graph_row)
+        print(f"{audit_id}: {build_row['status']}")
+        if pg is not None:
+            compiled_audits[audit_id] = (pg, FeatureExtractor.compute(pg))
 
-    gate_rows, feasibility_report = run_study(
-        registry, build_manifest_rows, routing_spec, args.checkouts_dir, args.evmbench_root, repair
+    build_manifest_rows = {r["audit_id"]: r for r in build_rows}
+    gate_rows, route_rows, context_rows, feasibility_report = run_study(
+        registry, compiled_audits, build_manifest_rows, routing_spec, args.checkouts_dir, args.evmbench_root
     )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    (args.out_dir / "gate_evaluation.jsonl").write_text(
-        "\n".join(json.dumps(r, sort_keys=True) for r in gate_rows) + ("\n" if gate_rows else "")
-    )
-    (args.out_dir / "feasibility_report.json").write_text(json.dumps(feasibility_report, indent=2, sort_keys=True))
 
+    def _write_jsonl(name: str, rows: list[dict]) -> None:
+        path = args.out_dir / name
+        path.write_text("\n".join(json.dumps(r, sort_keys=True) for r in rows) + ("\n" if rows else ""))
+        print(f"-> {path} ({len(rows)} row(s))")
+
+    _write_jsonl("build_manifest.jsonl", build_rows)
+    _write_jsonl("graph_manifest.jsonl", graph_rows)
+    _write_jsonl("gate_evaluation.jsonl", gate_rows)
+    _write_jsonl("route_manifest.jsonl", route_rows)
+    _write_jsonl("context_manifest.jsonl", context_rows)
+
+    (args.out_dir / "feasibility_report.json").write_text(json.dumps(feasibility_report, indent=2, sort_keys=True))
     print(json.dumps(feasibility_report, indent=2, sort_keys=True))
-    print(f"-> {args.out_dir / 'gate_evaluation.jsonl'}")
     print(f"-> {args.out_dir / 'feasibility_report.json'}")
     return 0
 
