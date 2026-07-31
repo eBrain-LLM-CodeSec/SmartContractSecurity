@@ -28,20 +28,49 @@ mkdir -p "${CONTAINER_HOME}"
 SOLC_SELECT_ARTIFACTS="/scratch/md5344/evmbench/agent4vul/.venv/.solc-select/artifacts"
 EXTRA_ARGS=()
 SUBCOMMAND="${1:-}"
-if [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]]; then
-  # foundry.toml pins an exact version (e.g. `solc = "0.8.17"`); reuse
-  # whichever versions are already installed via `uv run solc-select install`.
+if [[ -n "${FORGE_FORCE_SOLC:-}" ]] && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]]; then
+  # Caller-supplied override for projects with no single parseable pin in
+  # foundry.toml (e.g. `auto_detect_solc = true`, version resolved instead
+  # by scanning `pragma solidity` statements in the checkout) -- skips the
+  # foundry.toml grep below entirely.
+  d="${SOLC_SELECT_ARTIFACTS}/solc-${FORGE_FORCE_SOLC}"
+  if [[ -d "$d" ]]; then
+    EXTRA_ARGS=(--use "${d}/solc-${FORGE_FORCE_SOLC}")
+  fi
+fi
+if [[ "${#EXTRA_ARGS[@]}" -eq 0 ]] && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]]; then
+  # foundry.toml pins an exact version under either key name -- `solc =
+  # "0.8.17"` or `solc_version = "0.8.17"` (both are valid Foundry config,
+  # confirmed live: 2024-01-canto uses the latter and was silently falling
+  # through to the broken svm auto-install path below even though 0.8.17 was
+  # already cached, because the old pattern only matched the `solc` key).
+  # Anchored to the start of the line (after optional leading whitespace) so
+  # `auto_detect_solc = false` doesn't false-match on the `solc` substring.
   for d in "${SOLC_SELECT_ARTIFACTS}"/solc-*; do
     [[ -d "$d" ]] || continue
     v="$(basename "$d" | sed 's/^solc-//')"
-    if grep -q "solc[[:space:]]*=[[:space:]]*[\"']${v}[\"']" foundry.toml 2>/dev/null; then
+    if grep -qE "^[[:space:]]*solc(_version)?[[:space:]]*=[[:space:]]*[\"']${v}[\"']" foundry.toml 2>/dev/null; then
       EXTRA_ARGS=(--use "${d}/solc-${v}")
       break
     fi
   done
 fi
 
+# For audits whose Foundry project lives in a subdirectory of the git repo
+# (config.yaml's run_cmd_dir != "."), `forge install`'s internal `git
+# submodule` calls need to see the repo's actual .git, which lives one or
+# more levels above $PWD -- outside the `--bind $PWD:$PWD` below. Confirmed
+# live: 2024-01-renft (run_cmd_dir=smart-contracts) failed `forge install`
+# with "fatal: not a git repository ... Stopping at filesystem boundary",
+# because only smart-contracts/ was bound, not its parent's .git. Callers
+# that know the real git root set FORGE_GIT_ROOT to get it bound too.
+GIT_ROOT_BIND=()
+if [[ -n "${FORGE_GIT_ROOT:-}" ]]; then
+  GIT_ROOT_BIND=(--bind "${FORGE_GIT_ROOT}:${FORGE_GIT_ROOT}")
+fi
+
 exec singularity exec --containall --no-home --pwd "${PWD}" \
   -H "${CONTAINER_HOME}:/home/build_home" \
   --bind "${PWD}:${PWD}" --bind "/scratch/md5344/evmbench/agent4vul:/scratch/md5344/evmbench/agent4vul" \
+  "${GIT_ROOT_BIND[@]}" \
   "${SIF}" forge "$@" "${EXTRA_ARGS[@]}"

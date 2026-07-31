@@ -10,6 +10,7 @@ to regex parsing or a partial graph.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -87,6 +88,17 @@ def _ensure_solc(version: str, log_path: Path) -> RepairAttempt:
         if version not in installed:
             ss.install_artifacts([version], silent=True)
         ss.switch_global_version(version, always_install=True, silent=True)
+        # For directory targets, crytic-compile auto-detects Foundry/Hardhat
+        # and shells out to `forge`/`npx hardhat` (graph.py:_compile never
+        # passes a `solc` kwarg in that case) -- solc-select's *global*
+        # version this call just switched is never consulted by those
+        # subprocess calls, so it alone has zero effect there. `bin/forge`
+        # reads FORGE_FORCE_SOLC instead; setting it here is what actually
+        # makes this repair action do anything for a real audit checkout
+        # (confirmed live: previously, all pragma-driven retries against a
+        # Foundry project directory failed identically every time, since
+        # nothing forge-side ever changed between attempts).
+        os.environ["FORGE_FORCE_SOLC"] = version
         attempt = RepairAttempt(action="solc_select", detail=f"switched to {version}", ok=True)
     except Exception as e:  # noqa: BLE001
         attempt = RepairAttempt(action="solc_select", detail=f"tried {version}", ok=False, error=str(e))
@@ -140,6 +152,9 @@ class EnvRepair:
         log_path = repair_log_path or (project_dir / "repair.jsonl")
         attempts: list[RepairAttempt] = []
         start = time.monotonic()
+        # A prior build_until_success call in this same process may have set
+        # this for a different audit's checkout; never let it leak forward.
+        os.environ.pop("FORGE_FORCE_SOLC", None)
 
         # Attempt 0: try as-is first (covers the common case where nothing needs repair).
         try:

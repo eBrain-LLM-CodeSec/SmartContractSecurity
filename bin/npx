@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Transparent shim: routes `npx` calls through the evmbench-worker.sif
+# container -- same rationale/bind pattern as bin/npm (this file's sibling).
+set -euo pipefail
+SIF=/scratch/md5344/evmbench/containers/evmbench-worker.sif
+CONTAINER_HOME="/scratch/md5344/evmbench/agent4vul/.container_home"
+mkdir -p "${CONTAINER_HOME}"
+
+# See bin/npm's comment: -H's $HOME binding is unreliable on this
+# Singularity build -- use a plain --bind + explicit export instead.
+exec singularity exec --containall --no-home --pwd "${PWD}" \
+  --bind "${CONTAINER_HOME}:/home/build_home" \
+  --bind "${PWD}:${PWD}" --bind "/scratch/md5344/evmbench/agent4vul:/scratch/md5344/evmbench/agent4vul" \
+  "${SIF}" bash -c 'export HOME=/home/build_home; exec npx "$@"' bash "$@"
