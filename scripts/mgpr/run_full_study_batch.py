@@ -1,0 +1,395 @@
+"""Extends the MGPR feasibility study (previously only ever run against 4
+audits with pre-existing local checkouts: pooltogether, phi, liquid-ron,
+tempo-feeamm) across all 27 audits now known to compile after this
+session's build-infra fixes. Reuses run_feasibility_study.py's own
+per-finding/per-route evaluation functions UNMODIFIED -- this script only
+adds the orchestration (clone -> audit-specific setup recipe -> compile ->
+evaluate -> delete checkout) needed to reach 27 audits instead of 4,
+processing exactly one audit's checkout on disk at a time (never all 27
+simultaneously) to stay within the account's file-count quota -- the same
+constraint that caused the earlier 92,912-file container-cache incident.
+
+Citation resolution only needs Path string comparison (resolve_citation +
+find_routing_units_for_citation), never file content, so deleting a
+checkout immediately after evaluating it does not affect this study's
+results -- confirmed by reading resolve_citation's implementation: it never
+opens the file, only builds and compares Path objects against the `file`
+attribute Slither already recorded on each graph node at compile time.
+"""
+import json
+import re
+import shutil
+import subprocess
+import sys
+from collections import Counter
+from pathlib import Path
+
+sys.path.insert(0, "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2")
+
+import yaml
+
+from a4v.features import FeatureExtractor
+from a4v.graph import BuildFailed, ProgramGraph
+from a4v.mgpr.router import KNOWN_PREDICATES
+from a4v.mgpr.spec import load_routing_spec
+from a4v.repair import EnvRepair
+from scripts.mgpr.build_manifests import _run_cmd_dir
+from scripts.mgpr.run_dockerfile_recipes import clear_container_home_caches, sh
+from scripts.mgpr.run_feasibility_study import (
+    _evaluate_finding,
+    build_route_and_context_manifests,
+)
+
+EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
+AGENT4VUL_ROOT = Path("/scratch/md5344/evmbench/agent4vul")
+ROUTING_SPEC_PATH = Path("/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/routing_spec.yaml")
+WORK_DIR = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/study_checkouts")
+OUT_DIR = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/study_full")
+REGISTRY_PATH = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_deliverables/benchmark_registry.jsonl")
+SOLC_DISCOVERY = json.loads(
+    Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/solc_discovery.json").read_text()
+)
+
+_PRAGMA_RE = re.compile(r"pragma\s+solidity\s+([^;]+);")
+_EXACT_VERSION_RE = re.compile(r"(\d+\.\d+\.\d+)")
+
+GENERIC_AUDITS = [
+    "2023-07-pooltogether", "2025-04-forte", "2026-01-tempo-feeamm", "2024-08-phi", "2025-01-liquid-ron",
+    "2025-06-panoptic", "2026-01-tempo-mpp-streams", "2026-01-tempo-stablecoin-dex", "2024-01-canto",
+    "2024-05-loop", "2024-06-vultisig", "2025-10-sequence", "2024-07-basin", "2024-07-benddao",
+    "2024-12-secondswap", "2024-05-munchables", "2024-01-renft", "2025-02-thorwallet",
+]
+BESPOKE_AUDITS = [
+    "2023-10-nextgen", "2024-01-curves", "2024-07-traitforge", "2025-04-virtuals", "2025-05-blackhole",
+    "2023-12-ethereumcreditguild", "2024-06-thorchain", "2024-06-size", "2024-04-noya",
+]
+ALL_27 = GENERIC_AUDITS + BESPOKE_AUDITS
+
+
+def clone(audit_id: str, dest: Path) -> tuple[bool, str]:
+    url = f"https://github.com/evmbench-org/{audit_id}.git"
+    r = subprocess.run(["git", "clone", "--quiet", "--recurse", url, str(dest)],
+                        capture_output=True, text=True, timeout=900)
+    return r.returncode == 0, r.stderr[-500:]
+
+
+def needs_npm_install(target: Path) -> bool:
+    foundry_toml = target / "foundry.toml"
+    if not foundry_toml.exists():
+        return False
+    text = foundry_toml.read_text(errors="ignore")
+    return "node_modules" in text and (target / "package.json").exists()
+
+
+def detect_pragma_solc(target: Path) -> str | None:
+    counts = Counter()
+    for sol_file in target.rglob("*.sol"):
+        if "lib" in sol_file.parts or "node_modules" in sol_file.parts:
+            continue
+        try:
+            text = sol_file.read_text(errors="ignore")
+        except OSError:
+            continue
+        for m in _PRAGMA_RE.finditer(text):
+            for v in _EXACT_VERSION_RE.findall(m.group(1)):
+                counts[v] += 1
+    return counts.most_common(1)[0][0] if counts else None
+
+
+def compile_generic(audit_id: str, dest: Path, repair: EnvRepair) -> ProgramGraph:
+    import os
+    rcd = _run_cmd_dir(EVMBENCH_ROOT, audit_id)
+    target = dest / rcd
+    os.environ["FORGE_GIT_ROOT"] = str(dest)
+    try:
+        if needs_npm_install(target):
+            ok, out = sh("npm install --no-audit --no-fund", target, git_root=dest, timeout=900)
+            if not ok:
+                raise BuildFailed(f"npm install (hybrid npm+forge deps) failed: {out[-1000:]}")
+        ok, out = sh("forge install", target, git_root=dest, timeout=600)
+        if not ok:
+            raise BuildFailed(f"forge install failed: {out[-1000:]}")
+        pinned = SOLC_DISCOVERY.get(audit_id, {}).get("solc")
+        if pinned:
+            os.environ["FORGE_FORCE_SOLC"] = pinned
+        else:
+            guessed = detect_pragma_solc(target)
+            if guessed:
+                os.environ["FORGE_FORCE_SOLC"] = guessed
+            else:
+                os.environ.pop("FORGE_FORCE_SOLC", None)
+        result = repair.build_until_success(target)
+        return result.graph
+    finally:
+        os.environ.pop("FORGE_FORCE_SOLC", None)
+        os.environ.pop("FORGE_GIT_ROOT", None)
+
+
+def compile_generic_hardhat(audit_id: str, dest: Path) -> ProgramGraph:
+    rcd = _run_cmd_dir(EVMBENCH_ROOT, audit_id)
+    target = dest / rcd
+    ok, out = sh("npm install --no-audit --no-fund", target, git_root=dest, timeout=900)
+    if not ok:
+        raise BuildFailed(f"npm install failed: {out[-1000:]}")
+    return ProgramGraph.build(target)
+
+
+def compile_npm_hardhat_force(audit_id: str, dest: Path, subdir: str = ".", extra: list[str] | None = None) -> ProgramGraph:
+    target = dest / subdir
+    ok, out = sh("npm install --force", target, git_root=dest, timeout=900)
+    if not ok:
+        raise BuildFailed(f"npm install failed: {out[-1000:]}")
+    for cmd in (extra or []):
+        sh(cmd, target, git_root=dest, timeout=300)
+    ok, out = sh("npx hardhat compile", target, git_root=dest, timeout=900)
+    if not ok:
+        raise BuildFailed(f"npx hardhat compile failed: {out[-1000:]}")
+    return ProgramGraph.build(target)
+
+
+def compile_ethereumcreditguild(dest: Path) -> ProgramGraph:
+    import os
+    os.environ["FORGE_VERSION"] = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a"
+    os.environ["FORGE_GIT_ROOT"] = str(dest)
+    try:
+        ok, out = sh("forge install", dest, git_root=dest, timeout=600)
+        if not ok:
+            raise BuildFailed(f"forge install failed: {out[-1000:]}")
+        ok, out = sh("npm install", dest, git_root=dest, timeout=900)
+        if not ok:
+            raise BuildFailed(f"npm install failed: {out[-1000:]}")
+        return ProgramGraph.build(dest)
+    finally:
+        os.environ.pop("FORGE_VERSION", None)
+        os.environ.pop("FORGE_GIT_ROOT", None)
+
+
+def compile_size(dest: Path) -> ProgramGraph:
+    import os
+    os.environ["FORGE_VERSION"] = "v0.3.0"
+    os.environ["FORGE_GIT_ROOT"] = str(dest)
+    try:
+        ok, out = sh("forge install", dest, git_root=dest, timeout=600)
+        if not ok:
+            raise BuildFailed(f"forge install failed: {out[-1000:]}")
+        return ProgramGraph.build(dest)
+    finally:
+        os.environ.pop("FORGE_VERSION", None)
+        os.environ.pop("FORGE_GIT_ROOT", None)
+
+
+def compile_noya(dest: Path) -> ProgramGraph:
+    sh("npm install --force", dest, git_root=dest, timeout=900)
+    sh("npx hardhat compile", dest, git_root=dest, timeout=900)
+    sh("forge install", dest, git_root=dest, timeout=600)
+    return ProgramGraph.build(dest)
+
+
+def compile_thorchain(dest: Path) -> dict[str, ProgramGraph]:
+    """Returns {subdir_name: graph} -- thorchain builds TWO independent
+    Hardhat projects (ethereum/, avalanche/); ground-truth findings only
+    cite files under ethereum/contracts/, but both are real compiled units
+    MGPR would route in production, so both contribute route_manifest rows
+    tagged to this audit_id; only 'ethereum' can ever match a citation."""
+    graphs = {}
+    for sub in ("ethereum", "avalanche"):
+        target = dest / sub
+        cfg_src = EVMBENCH_ROOT / "audits" / "2024-06-thorchain" / sub / "hardhat.config.js"
+        dst_name = "hardhat.config.js" if sub == "ethereum" else "hardhat.config.ts"
+        if cfg_src.exists():
+            shutil.copy(cfg_src, target / dst_name)
+        ok, out = sh("npm install --legacy-peer-deps", target, git_root=dest, timeout=900)
+        if not ok:
+            print(f"  thorchain/{sub}: npm install failed, skipping this subgraph: {out[-300:]}")
+            continue
+        sh("npx hardhat clean", target, git_root=dest, timeout=300)
+        ok, out = sh("npx hardhat compile", target, git_root=dest, timeout=900)
+        if not ok:
+            print(f"  thorchain/{sub}: hardhat compile failed, skipping this subgraph: {out[-300:]}")
+            continue
+        try:
+            graphs[sub] = ProgramGraph.build(target)
+        except BuildFailed as e:
+            print(f"  thorchain/{sub}: ProgramGraph.build failed, skipping this subgraph: {e}")
+    return graphs
+
+
+def evaluate_and_accumulate(audit_id, pg, checkout_root, run_cmd_dir, registry_by_id, spec,
+                             all_gate_rows, all_route_rows, all_context_rows, per_family, not_applicable_counter,
+                             evaluate_findings=True):
+    """`evaluate_findings=False` skips gate_evaluation.jsonl / feasibility_report
+    contributions for this call -- used for multi-subgraph audits (thorchain:
+    ethereum/ + avalanche/, two independently compiled projects under one
+    audit_id) so each ground-truth finding is evaluated exactly once, against
+    whichever subgraph its citation actually resolves in, instead of once per
+    subgraph (which double-counted every thorchain finding in an earlier
+    version of this script -- confirmed live: findings_considered summed to
+    52 instead of the correct 50 before this fix). route_manifest/
+    context_manifest rows are NOT subject to this double-count risk (each
+    subgraph's fired routes are genuinely distinct routing units) and are
+    always recorded regardless of this flag.
+    """
+    features = FeatureExtractor.compute(pg)
+    audit = registry_by_id.get(audit_id)
+    findings = audit["findings"] if audit else []
+
+    route_rows, context_rows = build_route_and_context_manifests(
+        audit_id, pg, features, spec, findings, checkout_root, run_cmd_dir
+    )
+    all_route_rows.extend(route_rows)
+    all_context_rows.extend(context_rows)
+    if not evaluate_findings:
+        return 0
+
+    for finding in findings:
+        gate_rows = _evaluate_finding(finding, pg, features, spec, checkout_root, run_cmd_dir)
+        all_gate_rows.extend(gate_rows)
+        family = gate_rows[0]["expected_primary_family"] if gate_rows else None
+        if family is None:
+            not_applicable_counter[0] += 1
+            continue
+        fam_report = per_family[family]
+        fam_report["findings_considered"] += 1
+        fired_any = False
+        for row in gate_rows:
+            if row["routing_unit"] is None:
+                fam_report["unresolved_routing_unit_count"] += 1
+                continue
+            for pred in row["predicates"]:
+                key = f"{pred['predicate']}:{pred['status']}"
+                fam_report["predicate_status_counts"][key] = fam_report["predicate_status_counts"].get(key, 0) + 1
+            if row["route_would_fire"]:
+                fired_any = True
+            else:
+                blocker = row["reason"].split(":")[0]
+                fam_report["blocking_reason_histogram"][blocker] = fam_report["blocking_reason_histogram"].get(blocker, 0) + 1
+        if fired_any:
+            fam_report["route_fire_count"] += 1
+        else:
+            fam_report["route_not_fire_count"] += 1
+    return len(findings)
+
+
+def main():
+    WORK_DIR.mkdir(parents=True, exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    registry = [json.loads(l) for l in REGISTRY_PATH.read_text().splitlines() if l.strip()]
+    registry_by_id = {a["audit_id"]: a for a in registry}
+    spec = load_routing_spec(ROUTING_SPEC_PATH, known_predicates=KNOWN_PREDICATES)
+    repair = EnvRepair()
+
+    build_rows = []
+    graph_rows = []
+    all_gate_rows, all_route_rows, all_context_rows = [], [], []
+    per_family = {
+        name: {"findings_considered": 0, "predicate_status_counts": {}, "route_fire_count": 0,
+               "route_not_fire_count": 0, "unresolved_routing_unit_count": 0, "blocking_reason_histogram": {}}
+        for name in ("P1_AUTHORIZATION", "P2_REENTRANCY", "P5_ARITHMETIC_PRECISION")
+    }
+    not_applicable_counter = [0]
+    findings_reached = 0
+
+    for audit_id in ALL_27:
+        print(f"\n--- STUDY {audit_id} ---", flush=True)
+        dest = WORK_DIR / audit_id
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        ok, err = clone(audit_id, dest)
+        if not ok:
+            print(f"CLONE FAILED (unexpected for a known-compiling audit): {err}")
+            build_rows.append({"audit_id": audit_id, "status": "COMPILE_FAILED", "reason": f"reclone failed: {err}"})
+            continue
+
+        try:
+            if audit_id == "2024-06-thorchain":
+                graphs = compile_thorchain(dest)
+                rcd = "."  # citation paths already include "ethereum/..." prefix
+                # findings only cite ethereum/contracts/... -- evaluate
+                # ground-truth findings against that subgraph ONLY (else
+                # every finding gets double-counted: once resolved against
+                # ethereum, once spuriously UNRESOLVED against avalanche).
+                # route_manifest/context_manifest still get BOTH subgraphs'
+                # fired routes, via evaluate_findings=False on avalanche.
+                n_findings = 0
+                for sub, pg in sorted(graphs.items()):
+                    n_findings = evaluate_and_accumulate(
+                        audit_id, pg, dest, rcd, registry_by_id, spec,
+                        all_gate_rows, all_route_rows, all_context_rows, per_family, not_applicable_counter,
+                        evaluate_findings=(sub == "ethereum"),
+                    )
+                findings_reached += n_findings
+                nc = {}
+                for pg in graphs.values():
+                    for _, d in pg.graph.nodes(data=True):
+                        nc[d.get("kind", "unknown")] = nc.get(d.get("kind", "unknown"), 0) + 1
+                build_rows.append({"audit_id": audit_id, "status": "COMPILED", "reason": f"subgraphs: {sorted(graphs)}"})
+                graph_rows.append({"audit_id": audit_id, "status": "COMPILED", "node_counts": nc})
+                print(f"COMPILED (2 subgraphs) {audit_id}: {nc}", flush=True)
+            else:
+                if audit_id in GENERIC_AUDITS:
+                    if audit_id == "2025-02-thorwallet":
+                        pg = compile_generic_hardhat(audit_id, dest)
+                    else:
+                        pg = compile_generic(audit_id, dest, repair)
+                elif audit_id in ("2023-10-nextgen",):
+                    pg = compile_npm_hardhat_force(audit_id, dest, subdir="hardhat", extra=["npm up hardhat"])
+                elif audit_id in ("2024-01-curves", "2024-07-traitforge", "2025-04-virtuals", "2025-05-blackhole"):
+                    pg = compile_npm_hardhat_force(audit_id, dest, subdir=".")
+                elif audit_id == "2023-12-ethereumcreditguild":
+                    pg = compile_ethereumcreditguild(dest)
+                elif audit_id == "2024-06-size":
+                    pg = compile_size(dest)
+                elif audit_id == "2024-04-noya":
+                    pg = compile_noya(dest)
+                else:
+                    raise RuntimeError(f"no recipe registered for {audit_id}")
+
+                rcd = _run_cmd_dir(EVMBENCH_ROOT, audit_id)
+                checkout_root = dest
+                n_findings = evaluate_and_accumulate(
+                    audit_id, pg, checkout_root, rcd, registry_by_id, spec,
+                    all_gate_rows, all_route_rows, all_context_rows, per_family, not_applicable_counter,
+                )
+                findings_reached += n_findings
+                nc = {}
+                for _, d in pg.graph.nodes(data=True):
+                    nc[d.get("kind", "unknown")] = nc.get(d.get("kind", "unknown"), 0) + 1
+                build_rows.append({"audit_id": audit_id, "status": "COMPILED", "reason": None})
+                graph_rows.append({"audit_id": audit_id, "status": "COMPILED", "node_counts": nc})
+                print(f"COMPILED {audit_id}: {nc}", flush=True)
+        except BuildFailed as e:
+            reason = str(e)[:1000]
+            build_rows.append({"audit_id": audit_id, "status": "COMPILE_FAILED", "reason": reason})
+            graph_rows.append({"audit_id": audit_id, "status": "COMPILE_FAILED", "node_counts": {}})
+            print(f"COMPILE_FAILED (unexpected -- was known-compiling) {audit_id}: {reason[:300]}", flush=True)
+        finally:
+            shutil.rmtree(dest, ignore_errors=True)
+            clear_container_home_caches()
+
+        (OUT_DIR / "build_manifest.jsonl").write_text("\n".join(json.dumps(r, sort_keys=True) for r in build_rows) + "\n")
+        (OUT_DIR / "graph_manifest.jsonl").write_text("\n".join(json.dumps(r, sort_keys=True) for r in graph_rows) + "\n")
+        (OUT_DIR / "gate_evaluation.jsonl").write_text("\n".join(json.dumps(r, sort_keys=True) for r in all_gate_rows) + "\n")
+        (OUT_DIR / "route_manifest.jsonl").write_text("\n".join(json.dumps(r, sort_keys=True) for r in all_route_rows) + "\n")
+        (OUT_DIR / "context_manifest.jsonl").write_text("\n".join(json.dumps(r, sort_keys=True) for r in all_context_rows) + "\n")
+
+    total_findings_in_registry = sum(len(a["findings"]) for a in registry)
+    feasibility_report = {
+        "registry_size": len(registry),
+        "audits_attempted_this_study": len(ALL_27),
+        "audits_compiled": sum(1 for r in build_rows if r["status"] == "COMPILED"),
+        "total_findings_in_registry": total_findings_in_registry,
+        "findings_reached_compiled_audits": findings_reached,
+        "findings_blocked_by_audit_compile_status": total_findings_in_registry - findings_reached,
+        "findings_not_applicable_to_p1_p2_p5": not_applicable_counter[0],
+        "total_fired_routes_across_compiled_audits": len(all_route_rows),
+        "per_family": per_family,
+    }
+    (OUT_DIR / "feasibility_report.json").write_text(json.dumps(feasibility_report, indent=2, sort_keys=True))
+
+    print("\n=== FULL STUDY DONE ===")
+    print(json.dumps(feasibility_report, indent=2, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()
