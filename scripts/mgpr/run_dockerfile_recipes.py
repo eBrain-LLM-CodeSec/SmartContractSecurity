@@ -12,20 +12,35 @@ not attempted: forcing a generic build on them would not be "replicating
 the recipe", since the recipe has none.
 """
 import json
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2")
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
 
 from a4v.graph import ProgramGraph, BuildFailed
 
 SIF = "/scratch/md5344/evmbench/containers/evmbench-worker.sif"
-AGENT4VUL = "/scratch/md5344/evmbench/agent4vul"
-CONTAINER_HOME = f"{AGENT4VUL}/.container_home"
-FOUNDRY_VERSIONS = f"{AGENT4VUL}/.venv/.foundry-versions"
-REAL_TMP = "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/container_tmp"
+AGENT4VUL = str(_REPO_ROOT)
+# CONTAINER_HOME/REAL_TMP default to the same shared, mutable locations
+# this script has always used (backward compatible for interactive/
+# debugging use), but are overridable via env vars -- the hermetic offline
+# runner (scripts/benchmark/run_offline.py) always sets both to a fresh,
+# run-scoped directory under .benchmark/runs/<run_id>/, never a previous
+# session's job-scratch path. REAL_TMP previously hardcoded exactly such a
+# path (a specific prior session's /scratch/.../jobs/506f33b3/tmp/...),
+# which does not exist in a fresh session -- confirmed live as one of this
+# repo's own instances of the session-state-dependency problem this work
+# exists to eliminate.
+CONTAINER_HOME = os.environ.get("BENCHMARK_CONTAINER_HOME", f"{AGENT4VUL}/.container_home")
+FOUNDRY_VERSIONS = os.environ.get("BENCHMARK_FOUNDRY_VERSIONS", f"{AGENT4VUL}/.venv/.foundry-versions")
+REAL_TMP = os.environ.get("BENCHMARK_CONTAINER_TMP", f"{AGENT4VUL}/.container_tmp")
+# singularity's --bind requires every source path to already exist.
+Path(CONTAINER_HOME).mkdir(parents=True, exist_ok=True)
+Path(REAL_TMP).mkdir(parents=True, exist_ok=True)
 EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
 WORK_DIR = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/checkout_scratch3")
 OUT_DIR = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2")

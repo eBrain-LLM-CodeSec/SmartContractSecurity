@@ -53,7 +53,14 @@ from scripts.mgpr.citation_resolution import (  # noqa: F401 -- resolve_citation
 )
 
 _DEFAULT_EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
-_AGENT4VUL_ROOT = Path("/scratch/md5344/evmbench/agent4vul")
+# Resolved from this file's own location, NOT hardcoded to the main
+# checkout -- confirmed live during this work's own infra investigation
+# that hardcoding this to /scratch/md5344/evmbench/agent4vul (rather than
+# resolving whichever checkout/worktree this script actually lives in)
+# silently pointed `PATH` at a stale, less-capable bin/forge, causing
+# audits (e.g. 2024-01-canto, 2025-04-forte) to fail here that compile
+# cleanly with the current worktree's own bin/forge on PATH.
+_AGENT4VUL_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_ROUTING_SPEC = _AGENT4VUL_ROOT / "routing_spec.yaml"
 
 # Dataset-construction labeling heuristic, NOT a router decision and NOT an

@@ -1,0 +1,44 @@
+{
+  "schema": "environment-manifest/v1",
+  "os": "Linux cn223 4.18.0-193.6.3.el8_2.x86_64 #1 SMP Wed Jun 10 11:09:32 UTC 2020 x86_64",
+  "container_runtime": {
+    "type": "Singularity",
+    "version": "3.6.4",
+    "image_path": "/scratch/md5344/evmbench/containers/evmbench-worker.sif",
+    "image_sha256": "30f5990a3f291fbde3596c2a97756c705969fd4460f41a29a41cad827cbea7df",
+    "note": "Pinned by digest here, not just by mutable filename/tag, per this task's requirement -- the .sif itself is not yet distributed as an OCI image with a registry digest in this deployment, so the digest recorded is this file's own sha256 at validation time; re-verify this hash before trusting a future run against the same path."
+  },
+  "python_version": "3.11.15",
+  "venv_path": "/scratch/md5344/evmbench/agent4vul/.venv",
+  "foundry": {
+    "baked_in_image_version": "1.7.1",
+    "baked_in_commit_sha": "4072e48705af9d93e3c0f6e29e93b5e9a40caed8",
+    "pinned_overrides_available": [
+      "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a",
+      "nightly-de33b6af53005037b463318d2628b5cfcaf39916",
+      "v0.3.0"
+    ],
+    "pinned_overrides_location": "/scratch/md5344/evmbench/agent4vul/.venv/.foundry-versions",
+    "note": "Foundry TOOL-version provisioning (distinct from Solidity COMPILER-version provisioning, which this work's Phase 1-3 fully covers) was not extended in this pass -- see the accompanying report's 'known remaining gaps' section."
+  },
+  "npm_version": "10.9.8",
+  "node_version": "not directly queryable on the host (routed through bin/npx inside the same Singularity image as forge)",
+  "git_commit_this_worktree": "84e7c60d81cd7f348f9f1112f8a117db2edd9190",
+  "git_branch_this_worktree": "worktree-mgpr-router2",
+  "relevant_environment_variables": {
+    "BENCHMARK_WORK_DIR": "per-run mutable checkout scratch, default .benchmark/runs/<run>/study_checkouts",
+    "BENCHMARK_OUT_DIR": "per-run generated artifacts, default .benchmark/runs/<run>/study_full",
+    "BENCHMARK_TOOLCHAIN_DIR": "immutable, checksum-verified, shared across runs, default .benchmark/toolchains",
+    "BENCHMARK_CONTAINER_HOME": "per-run Singularity $HOME bind target",
+    "BENCHMARK_CONTAINER_TMP": "per-run Singularity /tmp bind target",
+    "BENCHMARK_REGISTRY_PATH": "path to benchmark_registry.jsonl for this run",
+    "BENCHMARK_SOLC_DISCOVERY_HINT": "optional legacy hint file, superseded by scripts.benchmark.compiler_resolver",
+    "BENCHMARK_STRICT_OFFLINE": "1 to hard-fail (TOOLCHAIN_NOT_PROVISIONED) instead of falling back to forge/svm auto-detection when no explicit compiler was resolved",
+    "BENCHMARK_SOLC_PATH": "set per-compile-invocation by compile_generic() from the provisioned toolchain-lock; consumed by bin/forge",
+    "FORGE_FORCE_SOLC": "legacy fallback, still consulted by bin/forge only when BENCHMARK_SOLC_PATH is unset",
+    "FORGE_VERSION": "selects a pinned Foundry TOOL build under .venv/.foundry-versions/<version>/bin/forge"
+  },
+  "provisioned_toolchain_dir": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains",
+  "provisioned_toolchain_dir_size_bytes_approx": 101711872,
+  "generated_at": "2026-08-03T00:55:00Z"
+}

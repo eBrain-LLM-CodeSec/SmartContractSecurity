@@ -20,6 +20,15 @@ out/**
 # particular holds dataset files with no confirmed license for redistribution)
 data/
 
+# Hermetic benchmark toolchain provisioning (scripts/benchmark/): the
+# provisioned solc binaries (large, regenerable via provision_toolchains.py)
+# and per-run mutable scratch (checkouts, container home/tmp -- ephemeral by
+# design) never belong in git. The small, genuinely-deliverable JSON/JSONL
+# artifacts (toolchain-lock.json, audit-build-manifest.jsonl,
+# environment-manifest.json) are kept.
+.benchmark/toolchains/
+.benchmark/runs/
+
 # stray SLURM log files
 logs_gnn_smoke.*
 *.out

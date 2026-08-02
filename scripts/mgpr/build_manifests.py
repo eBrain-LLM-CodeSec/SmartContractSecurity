@@ -25,7 +25,9 @@ from a4v.graph import BuildFailed, ProgramGraph
 from a4v.repair import EnvRepair
 
 _DEFAULT_EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
-_AGENT4VUL_ROOT = Path("/scratch/md5344/evmbench/agent4vul")
+# Resolved from this file's own location, not hardcoded to the main
+# checkout -- see run_feasibility_study.py's identical fix for why.
+_AGENT4VUL_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _run_cmd_dir(evmbench_root: Path, audit_id: str) -> str:

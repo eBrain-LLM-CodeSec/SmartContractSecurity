@@ -17,6 +17,7 @@ opens the file, only builds and compares Path objects against the `file`
 attribute Slither already recorded on each graph node at compile time.
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -24,7 +25,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-sys.path.insert(0, "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import yaml
 
@@ -33,6 +34,8 @@ from a4v.graph import BuildFailed, ProgramGraph
 from a4v.mgpr.router import KNOWN_PREDICATES
 from a4v.mgpr.spec import load_routing_spec
 from a4v.repair import EnvRepair
+from scripts.benchmark.compiler_resolver import CompilerResolutionStatus, resolve_compiler
+from scripts.benchmark.provision_toolchains import provision_solc, _fetch_official_checksums
 from scripts.mgpr.build_manifests import _run_cmd_dir
 from scripts.mgpr.run_dockerfile_recipes import clear_container_home_caches, sh
 from scripts.mgpr.run_feasibility_study import (
@@ -41,14 +44,41 @@ from scripts.mgpr.run_feasibility_study import (
 )
 
 EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
-AGENT4VUL_ROOT = Path("/scratch/md5344/evmbench/agent4vul")
-ROUTING_SPEC_PATH = Path("/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/routing_spec.yaml")
-WORK_DIR = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/study_checkouts")
-OUT_DIR = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/study_full")
-REGISTRY_PATH = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_deliverables/benchmark_registry.jsonl")
-SOLC_DISCOVERY = json.loads(
-    Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/solc_discovery.json").read_text()
-)
+# Resolved from this file's own location -- not hardcoded to the main
+# checkout. See run_feasibility_study.py's identical fix: hardcoding this
+# to /scratch/md5344/evmbench/agent4vul silently pointed PATH at a stale
+# bin/forge lacking this worktree's own solc_version-key/FORGE_FORCE_SOLC
+# fixes, causing audits that compile cleanly with the correct bin/forge on
+# PATH (confirmed live: 2024-01-canto, 2025-04-forte) to fail here instead.
+AGENT4VUL_ROOT = Path(__file__).resolve().parents[2]
+ROUTING_SPEC_PATH = AGENT4VUL_ROOT / "routing_spec.yaml"
+# WORK_DIR/OUT_DIR/REGISTRY_PATH previously hardcoded a *specific prior
+# session's* job-scratch path (/scratch/.../jobs/506f33b3/tmp/...), which
+# does not exist in a fresh session -- the exact "session-specific state"
+# problem this benchmark-infrastructure work exists to eliminate. Now
+# overridable via env vars, defaulting to a location under this repo's own
+# .benchmark/ directory rather than any one session's scratch.
+_DEFAULT_RUN_ROOT = AGENT4VUL_ROOT / ".benchmark" / "runs" / "default"
+WORK_DIR = Path(os.environ.get("BENCHMARK_WORK_DIR", str(_DEFAULT_RUN_ROOT / "study_checkouts")))
+OUT_DIR = Path(os.environ.get("BENCHMARK_OUT_DIR", str(_DEFAULT_RUN_ROOT / "study_full")))
+REGISTRY_PATH = Path(os.environ.get(
+    "BENCHMARK_REGISTRY_PATH", str(AGENT4VUL_ROOT / "data" / "mgpr" / "benchmark_registry.jsonl")
+))
+# SOLC_DISCOVERY (a hand-curated, one-off JSON of {audit_id: {"solc": "X.Y.Z"}}
+# guesses from a prior session) is superseded by
+# scripts.benchmark.compiler_resolver's deterministic, multi-format resolver
+# (Phase 1) -- kept only as an optional supplementary hint when its file
+# happens to exist, never required.
+_solc_discovery_path = Path(os.environ.get(
+    "BENCHMARK_SOLC_DISCOVERY_HINT", "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_full_run2/solc_discovery.json"
+))
+SOLC_DISCOVERY = json.loads(_solc_discovery_path.read_text()) if _solc_discovery_path.exists() else {}
+BENCHMARK_STRICT_OFFLINE = os.environ.get("BENCHMARK_STRICT_OFFLINE") == "1"
+# Immutable, checksum-verified, shared ACROSS runs (unlike WORK_DIR/OUT_DIR
+# above, which are per-run mutable state) -- see Phase 4's "separate:
+# immutable provisioned tools; per-run mutable build cache; generated
+# benchmark artifacts" in the accompanying report.
+TOOLCHAIN_DIR = Path(os.environ.get("BENCHMARK_TOOLCHAIN_DIR", str(AGENT4VUL_ROOT / ".benchmark" / "toolchains")))
 
 _PRAGMA_RE = re.compile(r"pragma\s+solidity\s+([^;]+);")
 _EXACT_VERSION_RE = re.compile(r"(\d+\.\d+\.\d+)")
@@ -64,6 +94,35 @@ BESPOKE_AUDITS = [
     "2023-12-ethereumcreditguild", "2024-06-thorchain", "2024-06-size", "2024-04-noya",
 ]
 ALL_27 = GENERIC_AUDITS + BESPOKE_AUDITS
+
+
+# Phase 5: structured failure taxonomy, replacing a single generic
+# COMPILE_FAILED bucket that collapsed together causes with very different
+# remedies (a toolchain never provisioned vs. an audit's own npm
+# dependency genuinely failing to install vs. Slither choking on a real
+# unsupported language construct vs. this deployment's own container
+# infrastructure being unavailable) -- distinguishing them post-hoc from
+# the raised BuildFailed's own message, since the raise sites already
+# each describe which step failed distinctly (see compile_generic et al.
+# above); not a full custom-exception-hierarchy rewrite, which would be a
+# much larger change for the same observability this already achieves.
+_FAILURE_CLASSIFIERS: list[tuple[str, tuple[str, ...]]] = [
+    ("TOOLCHAIN_NOT_PROVISIONED", ("TOOLCHAIN_NOT_PROVISIONED",)),
+    ("AMBIGUOUS_COMPILER_CONFIGURATION", ("AMBIGUOUS_COMPILER_CONFIGURATION",)),
+    ("NO_CONFIGURATION_FOUND", ("NO_CONFIGURATION_FOUND",)),
+    ("DEPENDENCY_INSTALL_FAILED", ("npm install", "forge install", "yarn install", "pnpm install")),
+    ("INFRASTRUCTURE_FAILURE", ("Read-only file system", "singularity", "Singularity",
+                                  "No such file or directory: 'solc'", "Exhausted repair budget")),
+    ("SLITHER_UNSUPPORTED_LANGUAGE_FEATURE", ("SlithIR", "not supported", "NotImplementedError",
+                                                "Impossible to generate IR")),
+]
+
+
+def classify_build_failure(reason: str) -> str:
+    for status, markers in _FAILURE_CLASSIFIERS:
+        if any(m in reason for m in markers):
+            return status
+    return "SOURCE_COMPILE_FAILED"
 
 
 def clone(audit_id: str, dest: Path) -> tuple[bool, str]:
@@ -96,8 +155,32 @@ def detect_pragma_solc(target: Path) -> str | None:
     return counts.most_common(1)[0][0] if counts else None
 
 
-def compile_generic(audit_id: str, dest: Path, repair: EnvRepair) -> ProgramGraph:
-    import os
+_official_checksums_cache: dict[str, str] | None = None
+
+
+def _official_checksums() -> dict[str, str]:
+    global _official_checksums_cache
+    if _official_checksums_cache is None:
+        _official_checksums_cache = _fetch_official_checksums()
+    return _official_checksums_cache
+
+
+def _resolve_and_provision_solc(target: Path, toolchain_dir: Path) -> tuple[str | None, str | None, str]:
+    """Returns (primary_version, provisioned_binary_path, detail). Uses
+    scripts.benchmark.compiler_resolver (Phase 1 -- deterministic,
+    multi-format: foundry.toml solc/solc_version under any profile,
+    Hardhat's solidity.compilers[].version, a Dockerfile's own solc-select
+    directive, pragma fallback only as a last resort) in place of the old
+    SOLC_DISCOVERY hand-curated JSON + single-pragma-scan fallback."""
+    resolution = resolve_compiler(target)
+    if resolution.status is not CompilerResolutionStatus.RESOLVED or resolution.primary_version is None:
+        return None, None, f"{resolution.status.value}: {resolution.detail}"
+    version = resolution.primary_version
+    entry = provision_solc(version, toolchain_dir, _official_checksums())
+    return version, entry.path, resolution.detail
+
+
+def compile_generic(audit_id: str, dest: Path, repair: EnvRepair, toolchain_dir: Path | None = None) -> ProgramGraph:
     rcd = _run_cmd_dir(EVMBENCH_ROOT, audit_id)
     target = dest / rcd
     os.environ["FORGE_GIT_ROOT"] = str(dest)
@@ -109,11 +192,27 @@ def compile_generic(audit_id: str, dest: Path, repair: EnvRepair) -> ProgramGrap
         ok, out = sh("forge install", target, git_root=dest, timeout=600)
         if not ok:
             raise BuildFailed(f"forge install failed: {out[-1000:]}")
-        pinned = SOLC_DISCOVERY.get(audit_id, {}).get("solc")
-        if pinned:
-            os.environ["FORGE_FORCE_SOLC"] = pinned
+
+        if toolchain_dir is not None:
+            # Explicit path (Phase 1-3): deterministic resolver + checksum-
+            # verified provisioning, never svm's own implicit download.
+            version, solc_path, detail = _resolve_and_provision_solc(target, toolchain_dir)
+            if solc_path:
+                os.environ["BENCHMARK_SOLC_PATH"] = solc_path
+                os.environ.pop("FORGE_FORCE_SOLC", None)
+            elif BENCHMARK_STRICT_OFFLINE:
+                raise BuildFailed(f"AMBIGUOUS_COMPILER_CONFIGURATION or NO_CONFIGURATION_FOUND for "
+                                   f"{audit_id}: {detail}")
+            else:
+                os.environ.pop("BENCHMARK_SOLC_PATH", None)
         else:
-            guessed = detect_pragma_solc(target)
+            # Legacy path (kept for callers that haven't opted into
+            # toolchain provisioning): the old hand-curated hint file plus
+            # a bare pragma scan, both strictly weaker than the resolver
+            # above -- superseded, not removed, so existing non-benchmark
+            # callers of this function are unaffected.
+            pinned = SOLC_DISCOVERY.get(audit_id, {}).get("solc")
+            guessed = pinned or detect_pragma_solc(target)
             if guessed:
                 os.environ["FORGE_FORCE_SOLC"] = guessed
             else:
@@ -122,6 +221,7 @@ def compile_generic(audit_id: str, dest: Path, repair: EnvRepair) -> ProgramGrap
         return result.graph
     finally:
         os.environ.pop("FORGE_FORCE_SOLC", None)
+        os.environ.pop("BENCHMARK_SOLC_PATH", None)
         os.environ.pop("FORGE_GIT_ROOT", None)
 
 
@@ -331,7 +431,7 @@ def main():
                     if audit_id == "2025-02-thorwallet":
                         pg = compile_generic_hardhat(audit_id, dest)
                     else:
-                        pg = compile_generic(audit_id, dest, repair)
+                        pg = compile_generic(audit_id, dest, repair, toolchain_dir=TOOLCHAIN_DIR)
                 elif audit_id in ("2023-10-nextgen",):
                     pg = compile_npm_hardhat_force(audit_id, dest, subdir="hardhat", extra=["npm up hardhat"])
                 elif audit_id in ("2024-01-curves", "2024-07-traitforge", "2025-04-virtuals", "2025-05-blackhole"):
@@ -360,9 +460,10 @@ def main():
                 print(f"COMPILED {audit_id}: {nc}", flush=True)
         except BuildFailed as e:
             reason = str(e)[:1000]
-            build_rows.append({"audit_id": audit_id, "status": "COMPILE_FAILED", "reason": reason})
-            graph_rows.append({"audit_id": audit_id, "status": "COMPILE_FAILED", "node_counts": {}})
-            print(f"COMPILE_FAILED (unexpected -- was known-compiling) {audit_id}: {reason[:300]}", flush=True)
+            status = classify_build_failure(reason)
+            build_rows.append({"audit_id": audit_id, "status": status, "reason": reason})
+            graph_rows.append({"audit_id": audit_id, "status": status, "node_counts": {}})
+            print(f"{status} {audit_id}: {reason[:300]}", flush=True)
         finally:
             shutil.rmtree(dest, ignore_errors=True)
             clear_container_home_caches()

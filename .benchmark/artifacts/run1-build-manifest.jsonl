@@ -1,0 +1,27 @@
+{"audit_id": "2023-07-pooltogether", "reason": null, "status": "COMPILED"}
+{"audit_id": "2025-04-forte", "reason": null, "status": "COMPILED"}
+{"audit_id": "2026-01-tempo-feeamm", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-08-phi", "reason": null, "status": "COMPILED"}
+{"audit_id": "2025-01-liquid-ron", "reason": null, "status": "COMPILED"}
+{"audit_id": "2025-06-panoptic", "reason": "AMBIGUOUS_COMPILER_CONFIGURATION or NO_CONFIGURATION_FOUND for 2025-06-panoptic: AMBIGUOUS_COMPILER_CONFIGURATION: no authoritative project setting, and a pragma scan found 2 conflicting exact versions with no dominant candidate: {'0.8.0': 3, '0.8.28': 3}", "status": "AMBIGUOUS_COMPILER_CONFIGURATION"}
+{"audit_id": "2026-01-tempo-mpp-streams", "reason": null, "status": "COMPILED"}
+{"audit_id": "2026-01-tempo-stablecoin-dex", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-01-canto", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-05-loop", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-06-vultisig", "reason": "AMBIGUOUS_COMPILER_CONFIGURATION or NO_CONFIGURATION_FOUND for 2024-06-vultisig: AMBIGUOUS_COMPILER_CONFIGURATION: no authoritative project setting, and a pragma scan found 7 conflicting exact versions with no dominant candidate: {'0.7.6': 20, '0.7.5': 4, '0.5.0': 9, '0.6.0': 1, '0.7.0': 1, '0.8.24': 13, '0.4.0': 1}", "status": "AMBIGUOUS_COMPILER_CONFIGURATION"}
+{"audit_id": "2025-10-sequence", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-07-basin", "reason": "AMBIGUOUS_COMPILER_CONFIGURATION or NO_CONFIGURATION_FOUND for 2024-07-basin: AMBIGUOUS_COMPILER_CONFIGURATION: no authoritative project setting, and a pragma scan found 4 conflicting exact versions with no dominant candidate: {'0.8.20': 105, '0.8.17': 12, '0.7.6': 1, '0.8.0': 1}", "status": "AMBIGUOUS_COMPILER_CONFIGURATION"}
+{"audit_id": "2024-07-benddao", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-12-secondswap", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-05-munchables", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-01-renft", "reason": null, "status": "COMPILED"}
+{"audit_id": "2025-02-thorwallet", "reason": null, "status": "COMPILED"}
+{"audit_id": "2023-10-nextgen", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-01-curves", "reason": null, "status": "COMPILED"}
+{"audit_id": "2024-07-traitforge", "reason": null, "status": "COMPILED"}
+{"audit_id": "2025-04-virtuals", "reason": null, "status": "COMPILED"}
+{"audit_id": "2025-05-blackhole", "reason": null, "status": "COMPILED"}
+{"audit_id": "2023-12-ethereumcreditguild", "reason": "Slither compilation failed for /scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2023-12-ethereumcreditguild: Invalid compilation: \nCompilation failed. Can you run build command?\n/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2023-12-ethereumcreditguild/out/build-info is not a directory.", "status": "SOURCE_COMPILE_FAILED"}
+{"audit_id": "2024-06-thorchain", "reason": "subgraphs: ['avalanche', 'ethereum']", "status": "COMPILED"}
+{"audit_id": "2024-06-size", "reason": "Slither compilation failed for /scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-06-size: Invalid compilation: \nCompilation failed. Can you run build command?\n/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-06-size/out/build-info is not a directory.", "status": "SOURCE_COMPILE_FAILED"}
+{"audit_id": "2024-04-noya", "reason": "Slither compilation failed for /scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-04-noya: Invalid compilation: \nCompilation failed. Can you run build command?\n/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-04-noya/artifactsFoundry/build-info is not a directory.", "status": "SOURCE_COMPILE_FAILED"}

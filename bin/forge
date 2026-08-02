@@ -41,7 +41,24 @@ mkdir -p "${CONTAINER_HOME}"
 SOLC_SELECT_ARTIFACTS="/scratch/md5344/evmbench/agent4vul/.venv/.solc-select/artifacts"
 EXTRA_ARGS=()
 SUBCOMMAND="${1:-}"
-if [[ -n "${FORGE_FORCE_SOLC:-}" ]] && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]]; then
+
+# Highest-priority, explicit selection: BENCHMARK_SOLC_PATH points directly
+# at a checksum-verified binary from scripts.benchmark.provision_toolchains'
+# toolchain-lock.json (set per-invocation by the offline benchmark runner,
+# derived from audit-build-manifest.jsonl's compiler-version resolution --
+# never from this script's own foundry.toml grep). This is deliberately a
+# hard failure, not a fallback, when set but missing: a benchmark run that
+# declared a compiler requirement and then silently fell back to guessing
+# would defeat the entire point of provisioning explicitly.
+if [[ -n "${BENCHMARK_SOLC_PATH:-}" ]] && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]]; then
+  if [[ ! -x "${BENCHMARK_SOLC_PATH}" ]]; then
+    echo "TOOLCHAIN_NOT_PROVISIONED: BENCHMARK_SOLC_PATH=${BENCHMARK_SOLC_PATH} does not exist or is not executable -- refusing to fall back to an implicit/downloaded compiler." >&2
+    exit 97
+  fi
+  EXTRA_ARGS=(--use "${BENCHMARK_SOLC_PATH}")
+fi
+
+if [[ "${#EXTRA_ARGS[@]}" -eq 0 ]] && [[ -n "${FORGE_FORCE_SOLC:-}" ]] && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]]; then
   # Caller-supplied override for projects with no single parseable pin in
   # foundry.toml (e.g. `auto_detect_solc = true`, version resolved instead
   # by scanning `pragma solidity` statements in the checkout) -- skips the
@@ -67,6 +84,20 @@ if [[ "${#EXTRA_ARGS[@]}" -eq 0 ]] && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]]
       break
     fi
   done
+fi
+
+# Strict-offline mode (set by the hermetic benchmark runner): if nothing
+# above resolved an explicit --use path for a build/compile invocation,
+# refuse to let forge/svm fall through to their own dynamic
+# resolution-or-download behavior at all, rather than silently attempting
+# network access (or hitting this container's read-only-filesystem error
+# trying to). Not the default -- interactive/debugging use of this shim
+# outside the benchmark's offline runner still gets the best-effort
+# fallback chain above.
+if [[ "${BENCHMARK_STRICT_OFFLINE:-}" == "1" ]] && [[ "${#EXTRA_ARGS[@]}" -eq 0 ]] \
+   && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]]; then
+  echo "TOOLCHAIN_NOT_PROVISIONED: BENCHMARK_STRICT_OFFLINE=1 and no explicit compiler selection resolved (BENCHMARK_SOLC_PATH unset, FORGE_FORCE_SOLC unset, and no foundry.toml solc/solc_version pin matched a provisioned artifact) -- refusing to let forge fall back to auto-detection/download." >&2
+  exit 97
 fi
 
 # For audits whose Foundry project lives in a subdirectory of the git repo

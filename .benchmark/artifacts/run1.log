@@ -1,0 +1,223 @@
+
+--- STUDY 2023-07-pooltogether ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+ERROR:ContractSolcParsing:Impossible to generate IR for TierCalculationLib.getTierOdds (lib/pt-v5-prize-pool/src/libraries/TierCalculationLib.sol#17-27):
+ 'NoneType' object has no attribute 'parameters'
+COMPILED 2023-07-pooltogether: {'contract': 37, 'statevar': 227, 'function': 833, 'modifier': 3}
+
+--- STUDY 2025-04-forte ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2025-04-forte:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2025-04-forte': destination is already in the mount point list
+COMPILED 2025-04-forte: {'contract': 3, 'function': 28, 'statevar': 58}
+
+--- STUDY 2026-01-tempo-feeamm ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2026-01-tempo-feeamm:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2026-01-tempo-feeamm': destination is already in the mount point list
+COMPILED 2026-01-tempo-feeamm: {'contract': 2, 'statevar': 7, 'function': 16}
+
+--- STUDY 2024-08-phi ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-08-phi:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-08-phi': destination is already in the mount point list
+COMPILED 2024-08-phi: {'contract': 67, 'statevar': 105, 'function': 1052, 'modifier': 18}
+
+--- STUDY 2025-01-liquid-ron ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2025-01-liquid-ron:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2025-01-liquid-ron': destination is already in the mount point list
+COMPILED 2025-01-liquid-ron: {'contract': 28, 'modifier': 4, 'statevar': 49, 'function': 276}
+
+--- STUDY 2025-06-panoptic ---
+AMBIGUOUS_COMPILER_CONFIGURATION 2025-06-panoptic: AMBIGUOUS_COMPILER_CONFIGURATION or NO_CONFIGURATION_FOUND for 2025-06-panoptic: AMBIGUOUS_COMPILER_CONFIGURATION: no authoritative project setting, and a pragma scan found 2 conflicting exact versions with no dominant candidate: {'0.8.0': 3, '0.8.28': 3}
+
+--- STUDY 2026-01-tempo-mpp-streams ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2026-01-tempo-mpp-streams:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2026-01-tempo-mpp-streams': destination is already in the mount point list
+COMPILED 2026-01-tempo-mpp-streams: {'contract': 17, 'statevar': 33, 'function': 236, 'modifier': 2}
+
+--- STUDY 2026-01-tempo-stablecoin-dex ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2026-01-tempo-stablecoin-dex:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2026-01-tempo-stablecoin-dex': destination is already in the mount point list
+COMPILED 2026-01-tempo-stablecoin-dex: {'contract': 12, 'statevar': 13, 'function': 68}
+
+--- STUDY 2024-01-canto ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-01-canto:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-01-canto': destination is already in the mount point list
+COMPILED 2024-01-canto: {'contract': 36, 'modifier': 9, 'statevar': 134, 'function': 1474}
+
+--- STUDY 2024-05-loop ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-05-loop:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-05-loop': destination is already in the mount point list
+COMPILED 2024-05-loop: {'contract': 20, 'statevar': 24, 'function': 109, 'modifier': 3}
+
+--- STUDY 2024-06-vultisig ---
+AMBIGUOUS_COMPILER_CONFIGURATION 2024-06-vultisig: AMBIGUOUS_COMPILER_CONFIGURATION or NO_CONFIGURATION_FOUND for 2024-06-vultisig: AMBIGUOUS_COMPILER_CONFIGURATION: no authoritative project setting, and a pragma scan found 7 conflicting exact versions with no dominant candidate: {'0.7.6': 20, '0.7.5': 4, '0.5.0': 9, '0.6.0': 1, '0.7.0': 1, '0.8.24'
+
+--- STUDY 2025-10-sequence ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2025-10-sequence:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2025-10-sequence': destination is already in the mount point list
+COMPILED 2025-10-sequence: {'contract': 51, 'statevar': 61, 'function': 185, 'modifier': 2}
+
+--- STUDY 2024-07-basin ---
+AMBIGUOUS_COMPILER_CONFIGURATION 2024-07-basin: AMBIGUOUS_COMPILER_CONFIGURATION or NO_CONFIGURATION_FOUND for 2024-07-basin: AMBIGUOUS_COMPILER_CONFIGURATION: no authoritative project setting, and a pragma scan found 4 conflicting exact versions with no dominant candidate: {'0.8.20': 105, '0.8.17': 12, '0.7.6': 1, '0.8.0': 1}
+
+--- STUDY 2024-07-benddao ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-07-benddao:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-07-benddao': destination is already in the mount point list
+COMPILED 2024-07-benddao: {'contract': 110, 'function': 930, 'modifier': 20, 'statevar': 288}
+
+--- STUDY 2024-12-secondswap ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-12-secondswap:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-12-secondswap': destination is already in the mount point list
+COMPILED 2024-12-secondswap: {'contract': 40, 'modifier': 11, 'statevar': 54, 'function': 631}
+
+--- STUDY 2024-05-munchables ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-05-munchables:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-05-munchables': destination is already in the mount point list
+COMPILED 2024-05-munchables: {'contract': 156, 'statevar': 335, 'function': 2883, 'modifier': 35}
+
+--- STUDY 2024-01-renft ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+COMPILED 2024-01-renft: {'contract': 83, 'statevar': 108, 'function': 802, 'modifier': 19}
+
+--- STUDY 2025-02-thorwallet ---
+COMPILED 2025-02-thorwallet: {'contract': 46, 'function': 264, 'statevar': 51, 'modifier': 2}
+
+--- STUDY 2023-10-nextgen ---
+COMPILED 2023-10-nextgen: {'contract': 38, 'function': 349, 'statevar': 95, 'modifier': 11}
+
+--- STUDY 2024-01-curves ---
+COMPILED 2024-01-curves: {'contract': 18, 'modifier': 4, 'statevar': 31, 'function': 518}
+
+--- STUDY 2024-07-traitforge ---
+COMPILED 2024-07-traitforge: {'contract': 44, 'modifier': 6, 'statevar': 94, 'function': 369}
+
+--- STUDY 2025-04-virtuals ---
+COMPILED 2025-04-virtuals: {'contract': 166, 'modifier': 45, 'statevar': 425, 'function': 1539}
+
+--- STUDY 2025-05-blackhole ---
+COMPILED 2025-05-blackhole: {'contract': 195, 'function': 2311, 'modifier': 57, 'statevar': 553}
+
+--- STUDY 2023-12-ethereumcreditguild ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2023-12-ethereumcreditguild:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2023-12-ethereumcreditguild': destination is already in the mount point list
+ERROR:CryticCompile:'forge' returned non-zero exit code 97
+ERROR:CryticCompile:TOOLCHAIN_NOT_PROVISIONED: BENCHMARK_STRICT_OFFLINE=1 and no explicit compiler selection resolved (BENCHMARK_SOLC_PATH unset, FORGE_FORCE_SOLC unset, and no foundry.toml solc/solc_version pin matched a provisioned artifact) -- refusing to let forge fall back to auto-detection/download.
+SOURCE_COMPILE_FAILED 2023-12-ethereumcreditguild: Slither compilation failed for /scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2023-12-ethereumcreditguild: Invalid compilation: 
+Compilation failed. Can you run build command?
+/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.
+
+--- STUDY 2024-06-thorchain ---
+COMPILED (2 subgraphs) 2024-06-thorchain: {'contract': 36, 'function': 611, 'modifier': 11, 'statevar': 79}
+
+--- STUDY 2024-06-size ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+WARNING: While bind mounting '/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-06-size:/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-06-size': destination is already in the mount point list
+ERROR:CryticCompile:'forge' returned non-zero exit code 97
+ERROR:CryticCompile:TOOLCHAIN_NOT_PROVISIONED: BENCHMARK_STRICT_OFFLINE=1 and no explicit compiler selection resolved (BENCHMARK_SOLC_PATH unset, FORGE_FORCE_SOLC unset, and no foundry.toml solc/solc_version pin matched a provisioned artifact) -- refusing to let forge fall back to auto-detection/download.
+SOURCE_COMPILE_FAILED 2024-06-size: Slither compilation failed for /scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-06-size: Invalid compilation: 
+Compilation failed. Can you run build command?
+/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/
+
+--- STUDY 2024-04-noya ---
+INFO:    Could not find any nv files on this host!
+WARNING: Could not find any nv libraries on this host!
+WARNING: You may need to manually edit /share/apps/NYUAD5/singularity/3.6.4/etc/singularity/nvliblist.conf
+ERROR:CryticCompile:'forge' returned non-zero exit code 97
+ERROR:CryticCompile:TOOLCHAIN_NOT_PROVISIONED: BENCHMARK_STRICT_OFFLINE=1 and no explicit compiler selection resolved (BENCHMARK_SOLC_PATH unset, FORGE_FORCE_SOLC unset, and no foundry.toml solc/solc_version pin matched a provisioned artifact) -- refusing to let forge fall back to auto-detection/download.
+SOURCE_COMPILE_FAILED 2024-04-noya: Slither compilation failed for /scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/validation1/checkouts/2024-04-noya: Invalid compilation: 
+Compilation failed. Can you run build command?
+/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/runs/
+
+=== FULL STUDY DONE ===
+{
+  "audits_attempted_this_study": 27,
+  "audits_compiled": 21,
+  "findings_blocked_by_audit_compile_status": 60,
+  "findings_not_applicable_to_p1_p2_p5": 26,
+  "findings_reached_compiled_audits": 60,
+  "per_family": {
+    "P1_AUTHORIZATION": {
+      "blocking_reason_histogram": {
+        "authorization_control_state": 2,
+        "state_write_exists": 1,
+        "visibility_is_public_or_external": 3
+      },
+      "findings_considered": 11,
+      "predicate_status_counts": {
+        "authorization_control_state:SATISFIED": 7,
+        "authorization_control_state:UNRESOLVED": 2,
+        "not_constructor:SATISFIED": 9,
+        "state_write_exists:MISSING": 4,
+        "state_write_exists:SATISFIED": 5,
+        "visibility_is_public_or_external:MISSING": 3,
+        "visibility_is_public_or_external:SATISFIED": 6
+      },
+      "route_fire_count": 3,
+      "route_not_fire_count": 8,
+      "unresolved_routing_unit_count": 6
+    },
+    "P2_REENTRANCY": {
+      "blocking_reason_histogram": {
+        "external_call_exists": 8,
+        "write_after_external_call_exists": 17
+      },
+      "findings_considered": 16,
+      "predicate_status_counts": {
+        "external_call_exists:MISSING": 8,
+        "external_call_exists:SATISFIED": 29,
+        "write_after_external_call_exists:MISSING": 25,
+        "write_after_external_call_exists:SATISFIED": 12
+      },
+      "route_fire_count": 7,
+      "route_not_fire_count": 9,
+      "unresolved_routing_unit_count": 4
+    },
+    "P5_ARITHMETIC_PRECISION": {
+      "blocking_reason_histogram": {
+        "unsafe_cast_count_gt_zero": 10
+      },
+      "findings_considered": 7,
+      "predicate_status_counts": {
+        "unsafe_cast_count_gt_zero:MISSING": 10,
+        "unsafe_cast_count_gt_zero:SATISFIED": 2
+      },
+      "route_fire_count": 2,
+      "route_not_fire_count": 5,
+      "unresolved_routing_unit_count": 4
+    }
+  },
+  "registry_size": 40,
+  "total_findings_in_registry": 120,
+  "total_fired_routes_across_compiled_audits": 1006
+}
