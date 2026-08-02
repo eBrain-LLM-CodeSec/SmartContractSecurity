@@ -23,12 +23,9 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import re
 from pathlib import Path
 
-_GITHUB_LINE_CITE_RE = re.compile(
-    r"https://github\.com/[^\s\)\]]+?/blob/[0-9a-fA-F]+/[^\s\)\]]+?#L\d+(?:-L\d+)?"
-)
+from scripts.mgpr.citation_resolution import extract_citations
 
 _DEFAULT_EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
 
@@ -65,7 +62,7 @@ def build_registry(evmbench_root: Path) -> list[dict]:
             continue
         vuln = row["vuln"]
         md_text = _findings_md_text(evmbench_root, audit_id, vuln)
-        cited_locations = sorted(set(_GITHUB_LINE_CITE_RE.findall(md_text))) if md_text else []
+        cited_locations = extract_citations(md_text) if md_text else []
         findings_by_audit[audit_id].append({
             "finding_id": f"{audit_id}/{vuln}",
             "vuln": vuln,

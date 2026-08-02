@@ -135,10 +135,14 @@ def test_slither_synthetic_functions_excluded(tmp_path):
 def _synthetic_finding(finding_id: str, line_range: str) -> dict:
     # points at the REAL fixture file via checkout_root/run_cmd_dir join in
     # the test below, not a live GitHub URL -- this is offline unit testing.
+    # Repo name matches finding_id's audit slug ("fake-audit") deliberately,
+    # so citation_resolution's repo-identity check treats this as an
+    # in-scope self-citation rather than an external dependency.
+    audit_id = finding_id.split("/")[0]
     return {
         "finding_id": finding_id,
         "description": "synthetic test finding",
-        "github_cited_locations": [f"https://github.com/fake/repo/blob/deadbeef/Vault.sol#{line_range}"],
+        "github_cited_locations": [f"https://github.com/fake/{audit_id}/blob/deadbeef/Vault.sol#{line_range}"],
         "findings_md_path": None,
     }
 

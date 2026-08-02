@@ -36,23 +36,25 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 from pathlib import Path
 
 from a4v.features import FeatureExtractor
-from a4v.graph import FUNCTION, ProgramGraph
+from a4v.graph import ProgramGraph
 from a4v.mgpr.context import build_context
 from a4v.mgpr.router import KNOWN_PREDICATES, evaluate_gate, fired_routes, route_all
 from a4v.mgpr.spec import RoutingSpec, load_routing_spec
 from scripts.mgpr.build_manifests import _run_cmd_dir, build_manifest_for_audit
+from scripts.mgpr.citation_resolution import (  # noqa: F401 -- resolve_citation/find_routing_units_for_citation re-exported for backward compat
+    CitationOutcome,
+    find_routing_units_for_citation,
+    location_covered_by_nodes,
+    resolve_citation,
+    resolve_citation_string,
+)
 
 _DEFAULT_EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
 _AGENT4VUL_ROOT = Path("/scratch/md5344/evmbench/agent4vul")
 _DEFAULT_ROUTING_SPEC = _AGENT4VUL_ROOT / "routing_spec.yaml"
-
-_CITATION_RE = re.compile(
-    r"https://github\.com/[^/]+/[^/]+/blob/[0-9a-fA-F]+/(?P<path>[^#\s]+)#L(?P<start>\d+)(?:-L(?P<end>\d+))?"
-)
 
 # Dataset-construction labeling heuristic, NOT a router decision and NOT an
 # experimental result (plan section 6's explicit allowance: "A coding agent
@@ -99,72 +101,6 @@ def assign_expected_family(description: str, full_text: str | None = None) -> st
     return None
 
 
-def resolve_citation(citation_url: str, checkout_root: Path, run_cmd_dir: str) -> tuple[Path, int, int] | None:
-    m = _CITATION_RE.match(citation_url)
-    if not m:
-        return None
-    start = int(m.group("start"))
-    end = int(m.group("end") or start)
-    local_path = (checkout_root / run_cmd_dir / m.group("path")).resolve()
-    return local_path, start, end
-
-
-# Slither synthesizes these bookkeeping functions on nearly every contract
-# that declares state variables, regardless of whether they have inline
-# initializers -- not real source-level functions, and their line-span
-# attribution is broad enough to spuriously overlap unrelated citations
-# (confirmed live: matched multiple, unrelated H-02 citations). Same
-# exclusion already established in scripts/etl/build_feasibility_report.py
-# for the same reason, applied here independently since that script is for
-# the unrelated Messi-Q GNN corpus, not EVMbench audits.
-_SLITHER_SYNTHETIC_FUNCTION_NAMES = {"slitherConstructorVariables", "slitherConstructorConstantVariables"}
-
-
-def find_routing_units_for_citation(pg: ProgramGraph, local_path: Path, start: int, end: int) -> list[str]:
-    """Function nodes whose own source span overlaps [start, end] in
-    local_path. Multiple matches (nested/overlapping functions) or zero
-    matches are both real, reportable outcomes, not resolved arbitrarily."""
-    matches = []
-    for node_id in pg.nodes_of_kind(FUNCTION):
-        data = pg.graph.nodes[node_id]
-        if data.get("name") in _SLITHER_SYNTHETIC_FUNCTION_NAMES:
-            continue
-        node_file = data.get("file")
-        node_lines = data.get("lines") or []
-        if not node_file or not node_lines:
-            continue
-        try:
-            if Path(node_file).resolve() != local_path:
-                continue
-        except OSError:
-            continue
-        node_start, node_end = min(node_lines), max(node_lines)
-        if node_start <= end and start <= node_end:
-            matches.append((node_id, node_end - node_start))
-    matches.sort(key=lambda pair: pair[1])  # smallest enclosing span first (most specific)
-    return [node_id for node_id, _span in matches]
-
-
-def _location_covered_by_nodes(pg: ProgramGraph, local_path: Path, start: int, end: int,
-                                node_ids: set[str]) -> bool:
-    for node_id in node_ids:
-        if node_id not in pg.graph:
-            continue
-        data = pg.graph.nodes[node_id]
-        node_file, node_lines = data.get("file"), data.get("lines") or []
-        if not node_file or not node_lines:
-            continue
-        try:
-            if Path(node_file).resolve() != local_path:
-                continue
-        except OSError:
-            continue
-        node_start, node_end = min(node_lines), max(node_lines)
-        if node_start <= end and start <= node_end:
-            return True
-    return False
-
-
 def _evaluate_finding(
     finding: dict, pg: ProgramGraph, features: dict, spec: RoutingSpec,
     checkout_root: Path, run_cmd_dir: str,
@@ -190,7 +126,7 @@ def _evaluate_finding(
             "predicates": [], "route_would_fire": None,
             "reason": "NOT_APPLICABLE: description did not match any P1/P2/P5 labeling keyword "
                       "(may belong to a NOT_YET_SPECIFIED family)",
-            "unresolved_or_missing": [],
+            "unresolved_or_missing": [], "citation_outcome": None, "citation": None,
         }]
 
     citations = finding.get("github_cited_locations") or []
@@ -200,41 +136,33 @@ def _evaluate_finding(
             "routing_unit": None, "unit_type": None,
             "expected_primary_family": family, "gate": None,
             "predicates": [], "route_would_fire": None,
-            "reason": "UNRESOLVED: no GitHub line citation found in the finding's own writeup "
-                      "to resolve a routing unit from",
-            "unresolved_or_missing": [],
+            "reason": f"{CitationOutcome.NO_CITATION.value}: no citation (GitHub blob link or relative "
+                      f"Markdown code-location link) found in the finding's own writeup",
+            "unresolved_or_missing": [], "citation_outcome": CitationOutcome.NO_CITATION.value,
+            "citation": None,
         }]
 
     gate_rows: list[dict] = []
     family_spec = spec.families[family]
 
     for citation in citations:
-        resolved = resolve_citation(citation, checkout_root, run_cmd_dir)
-        if resolved is None:
+        res = resolve_citation_string(
+            citation, audit_id=audit_id, checkout_root=checkout_root, run_cmd_dir=run_cmd_dir, pg=pg,
+        )
+        if res.outcome is not CitationOutcome.RESOLVED:
             gate_rows.append({
                 "finding_id": finding["finding_id"], "audit_id": audit_id,
                 "routing_unit": None, "unit_type": None,
                 "expected_primary_family": family, "gate": None,
                 "predicates": [], "route_would_fire": None,
-                "reason": f"UNRESOLVED: citation URL did not match the expected GitHub blob#L pattern: {citation}",
-                "unresolved_or_missing": [],
+                "reason": f"{res.outcome.value}: {res.detail}",
+                "unresolved_or_missing": [], "citation_outcome": res.outcome.value,
+                "citation_parser_format": res.parser_format, "citation_repo_identity": res.repo_identity,
+                "citation": citation,
             })
             continue
 
-        local_path, start, end = resolved
-        units = find_routing_units_for_citation(pg, local_path, start, end)
-        if not units:
-            gate_rows.append({
-                "finding_id": finding["finding_id"], "audit_id": audit_id,
-                "routing_unit": None, "unit_type": None,
-                "expected_primary_family": family, "gate": None,
-                "predicates": [], "route_would_fire": None,
-                "reason": f"UNRESOLVED: no compiled function node's source span covers "
-                          f"{local_path}:{start}-{end}",
-                "unresolved_or_missing": [],
-            })
-            continue
-
+        units = res.routing_units
         # every overlapping unit is reported -- an ambiguous (>1) match is
         # itself evidence to report, not silently collapsed to one.
         for node_id in units:
@@ -250,6 +178,9 @@ def _evaluate_finding(
                     "reason": route.reason,
                     "unresolved_or_missing": route.unresolved_or_missing,
                     "citation_ambiguous": len(units) > 1,
+                    "citation_outcome": res.outcome.value,
+                    "citation_parser_format": res.parser_format, "citation_repo_identity": res.repo_identity,
+                    "citation": citation,
                 })
 
     return gate_rows
@@ -289,11 +220,12 @@ def build_route_and_context_manifests(
         relevant_findings = []
         for finding in findings:
             for citation in finding.get("github_cited_locations") or []:
-                resolved = resolve_citation(citation, checkout_root, run_cmd_dir)
-                if resolved is None:
+                res = resolve_citation_string(
+                    citation, audit_id=audit_id, checkout_root=checkout_root, run_cmd_dir=run_cmd_dir, pg=pg,
+                )
+                if res.outcome is not CitationOutcome.RESOLVED:
                     continue
-                local_path, start, end = resolved
-                if routing_unit in find_routing_units_for_citation(pg, local_path, start, end):
+                if routing_unit in res.routing_units:
                     relevant_findings.append(finding)
                     break
 
@@ -303,11 +235,13 @@ def build_route_and_context_manifests(
             for finding in relevant_findings:
                 for citation in finding.get("github_cited_locations") or []:
                     all_cited.append(citation)
-                    resolved = resolve_citation(citation, checkout_root, run_cmd_dir)
-                    if resolved is None:
+                    res = resolve_citation_string(
+                        citation, audit_id=audit_id, checkout_root=checkout_root, run_cmd_dir=run_cmd_dir, pg=pg,
+                    )
+                    if res.outcome is not CitationOutcome.RESOLVED:
                         continue
-                    local_path, start, end = resolved
-                    if _location_covered_by_nodes(pg, local_path, start, end, included_node_ids):
+                    local_path, start, end = Path(res.normalized_path), res.start, res.end
+                    if location_covered_by_nodes(pg, local_path, start, end, included_node_ids):
                         any_included = True
                     else:
                         any_excluded_or_unresolved = True
@@ -350,12 +284,13 @@ def run_study(
     per_family: dict[str, dict] = {
         name: {"findings_considered": 0, "predicate_status_counts": {}, "route_fire_count": 0,
                "route_not_fire_count": 0, "unresolved_routing_unit_count": 0,
-               "blocking_reason_histogram": {}}
+               "blocking_reason_histogram": {}, "citation_outcome_histogram": {}}
         for name in ("P1_AUTHORIZATION", "P2_REENTRANCY", "P5_ARITHMETIC_PRECISION")
     }
     not_applicable_count = 0
     total_findings_in_registry = sum(len(a["findings"]) for a in registry)
     findings_reached = 0  # findings whose audit actually reached COMPILED status
+    overall_citation_outcome_histogram: dict[str, int] = {}
 
     for audit in registry:
         audit_id = audit["audit_id"]
@@ -387,7 +322,23 @@ def run_study(
             fam_report = per_family[family]
             fam_report["findings_considered"] += 1
             fired_any = False
+            # counted per distinct (finding, citation) pair, not per gate_row --
+            # a single RESOLVED citation can produce multiple rows (one per
+            # matched unit x per gate), which would otherwise inflate the
+            # histogram relative to how many citations were actually resolved.
+            seen_citations: set[str] = set()
             for row in gate_rows:
+                citation_key = row.get("citation")
+                if citation_key not in seen_citations:
+                    seen_citations.add(citation_key)
+                    outcome = row.get("citation_outcome")
+                    if outcome is not None:
+                        fam_report["citation_outcome_histogram"][outcome] = (
+                            fam_report["citation_outcome_histogram"].get(outcome, 0) + 1
+                        )
+                        overall_citation_outcome_histogram[outcome] = (
+                            overall_citation_outcome_histogram.get(outcome, 0) + 1
+                        )
                 if row["routing_unit"] is None:
                     fam_report["unresolved_routing_unit_count"] += 1
                     continue
@@ -415,6 +366,7 @@ def run_study(
         "findings_not_applicable_to_p1_p2_p5": not_applicable_count,
         "total_fired_routes_across_compiled_audits": len(all_route_rows),
         "per_family": per_family,
+        "citation_outcome_histogram": overall_citation_outcome_histogram,
     }
     return all_gate_rows, all_route_rows, all_context_rows, feasibility_report
 
