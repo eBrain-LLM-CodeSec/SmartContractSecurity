@@ -18,6 +18,7 @@ attribute Slither already recorded on each graph node at compile time.
 """
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -35,9 +36,9 @@ from a4v.mgpr.router import KNOWN_PREDICATES
 from a4v.mgpr.spec import load_routing_spec
 from a4v.repair import EnvRepair
 from scripts.benchmark.compiler_resolver import CompilerResolutionStatus, resolve_compiler
-from scripts.benchmark.provision_toolchains import provision_solc, _fetch_official_checksums
+from scripts.benchmark.provision_toolchains import populate_svm_cache, provision_solc, _fetch_official_checksums
 from scripts.mgpr.build_manifests import _run_cmd_dir
-from scripts.mgpr.run_dockerfile_recipes import clear_container_home_caches, sh
+from scripts.mgpr.run_dockerfile_recipes import CONTAINER_HOME, clear_container_home_caches, sh
 from scripts.mgpr.run_feasibility_study import (
     _evaluate_finding,
     build_route_and_context_manifests,
@@ -165,19 +166,74 @@ def _official_checksums() -> dict[str, str]:
     return _official_checksums_cache
 
 
-def _resolve_and_provision_solc(target: Path, toolchain_dir: Path) -> tuple[str | None, str | None, str]:
-    """Returns (primary_version, provisioned_binary_path, detail). Uses
-    scripts.benchmark.compiler_resolver (Phase 1 -- deterministic,
-    multi-format: foundry.toml solc/solc_version under any profile,
-    Hardhat's solidity.compilers[].version, a Dockerfile's own solc-select
-    directive, pragma fallback only as a last resort) in place of the old
-    SOLC_DISCOVERY hand-curated JSON + single-pragma-scan fallback."""
+# Phase 6 (cross-run compiler-selection comparison) needs to know exactly
+# which compiler version(s) were actually selected for each audit, not
+# just whether it compiled -- populated by _select_compiler below, keyed
+# by the `audit_id` its caller passes, and copied into that audit's
+# build_manifest.jsonl row in main() right after a successful compile.
+LAST_COMPILER_SELECTION: dict[str, dict] = {}
+
+
+def _select_compiler(target: Path, toolchain_dir: Path, audit_id: str | None = None) -> str:
+    """Resolves + provisions the compiler(s) required for `target` (Phase
+    1-3: scripts.benchmark.compiler_resolver's deterministic, multi-format
+    resolver -- foundry.toml solc/solc_version/solc-version under any
+    profile, Hardhat's solidity.compilers[].version, a Dockerfile's own
+    solc-select directive, pragma fallback only as a last resort), then
+    sets exactly one of two mutually-exclusive env vars bin/forge reads:
+
+    - a single required version -> BENCHMARK_SOLC_PATH (the existing,
+      simpler `--use <path>` global pin).
+    - genuinely multiple required versions (e.g. a project's own `src/`
+      pins one version while a handful of test-mock/script files pin
+      another, confirmed real for 2024-06-size/2025-06-panoptic/2024-07-
+      basin -- not an authoring conflict, see compiler_resolver's own
+      docstring) -> populates this process's CONTAINER_HOME with a real
+      `~/.svm/<version>/solc-<version>` entry for every required version
+      (populate_svm_cache) and sets BENCHMARK_FORGE_OFFLINE_AUTODETECT=1,
+      so bin/forge passes `--offline` and lets Foundry's OWN per-file
+      auto-detection resolve each source file against the provisioned set
+      -- confirmed live: zero network access, fails closed (never a
+      silent download) for any version not pre-populated.
+
+    Returns a detail string for logging. Raises BuildFailed if resolution
+    is not RESOLVED (under BENCHMARK_STRICT_OFFLINE), or if any required
+    version cannot be provisioned/populated.
+    """
     resolution = resolve_compiler(target)
-    if resolution.status is not CompilerResolutionStatus.RESOLVED or resolution.primary_version is None:
-        return None, None, f"{resolution.status.value}: {resolution.detail}"
-    version = resolution.primary_version
-    entry = provision_solc(version, toolchain_dir, _official_checksums())
-    return version, entry.path, resolution.detail
+    if resolution.status is not CompilerResolutionStatus.RESOLVED:
+        if audit_id is not None:
+            LAST_COMPILER_SELECTION[audit_id] = {
+                "status": resolution.status.value, "versions": [], "mode": None, "detail": resolution.detail,
+            }
+        if BENCHMARK_STRICT_OFFLINE:
+            raise BuildFailed(f"{resolution.status.value}: {resolution.detail}")
+        os.environ.pop("BENCHMARK_SOLC_PATH", None)
+        os.environ.pop("BENCHMARK_FORGE_OFFLINE_AUTODETECT", None)
+        return resolution.detail
+
+    try:
+        entries = [provision_solc(v, toolchain_dir, _official_checksums()) for v in resolution.versions]
+        if len(entries) > 1:
+            populate_svm_cache(resolution.versions, toolchain_dir, Path(CONTAINER_HOME))
+    except Exception as e:  # noqa: BLE001 -- structured taxonomy, not an uncaught crash
+        raise BuildFailed(f"TOOLCHAIN_NOT_PROVISIONED: could not provision/populate "
+                           f"{resolution.versions}: {e}") from e
+
+    if len(entries) == 1:
+        os.environ["BENCHMARK_SOLC_PATH"] = entries[0].path
+        os.environ.pop("BENCHMARK_FORGE_OFFLINE_AUTODETECT", None)
+        mode = "single_use_pin"
+    else:
+        os.environ["BENCHMARK_FORGE_OFFLINE_AUTODETECT"] = "1"
+        os.environ.pop("BENCHMARK_SOLC_PATH", None)
+        mode = "multi_version_offline_autodetect"
+    if audit_id is not None:
+        LAST_COMPILER_SELECTION[audit_id] = {
+            "status": resolution.status.value, "versions": resolution.versions, "mode": mode,
+            "detail": resolution.detail,
+        }
+    return resolution.detail
 
 
 def compile_generic(audit_id: str, dest: Path, repair: EnvRepair, toolchain_dir: Path | None = None) -> ProgramGraph:
@@ -196,15 +252,8 @@ def compile_generic(audit_id: str, dest: Path, repair: EnvRepair, toolchain_dir:
         if toolchain_dir is not None:
             # Explicit path (Phase 1-3): deterministic resolver + checksum-
             # verified provisioning, never svm's own implicit download.
-            version, solc_path, detail = _resolve_and_provision_solc(target, toolchain_dir)
-            if solc_path:
-                os.environ["BENCHMARK_SOLC_PATH"] = solc_path
-                os.environ.pop("FORGE_FORCE_SOLC", None)
-            elif BENCHMARK_STRICT_OFFLINE:
-                raise BuildFailed(f"AMBIGUOUS_COMPILER_CONFIGURATION or NO_CONFIGURATION_FOUND for "
-                                   f"{audit_id}: {detail}")
-            else:
-                os.environ.pop("BENCHMARK_SOLC_PATH", None)
+            _select_compiler(target, toolchain_dir, audit_id=audit_id)
+            os.environ.pop("FORGE_FORCE_SOLC", None)
         else:
             # Legacy path (kept for callers that haven't opted into
             # toolchain provisioning): the old hand-curated hint file plus
@@ -222,6 +271,7 @@ def compile_generic(audit_id: str, dest: Path, repair: EnvRepair, toolchain_dir:
     finally:
         os.environ.pop("FORGE_FORCE_SOLC", None)
         os.environ.pop("BENCHMARK_SOLC_PATH", None)
+        os.environ.pop("BENCHMARK_FORGE_OFFLINE_AUTODETECT", None)
         os.environ.pop("FORGE_GIT_ROOT", None)
 
 
@@ -247,7 +297,7 @@ def compile_npm_hardhat_force(audit_id: str, dest: Path, subdir: str = ".", extr
     return ProgramGraph.build(target)
 
 
-def compile_ethereumcreditguild(dest: Path) -> ProgramGraph:
+def compile_ethereumcreditguild(dest: Path, toolchain_dir: Path | None = None) -> ProgramGraph:
     import os
     os.environ["FORGE_VERSION"] = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a"
     os.environ["FORGE_GIT_ROOT"] = str(dest)
@@ -258,13 +308,26 @@ def compile_ethereumcreditguild(dest: Path) -> ProgramGraph:
         ok, out = sh("npm install", dest, git_root=dest, timeout=900)
         if not ok:
             raise BuildFailed(f"npm install failed: {out[-1000:]}")
+        if toolchain_dir is not None:
+            # Wired to the same deterministic resolver/provisioning as
+            # compile_generic (Phase 2) -- confirmed real: this audit's own
+            # src/test code unanimously pins 0.8.13 once forge-std's
+            # vendored-outside-lib/ range pragmas are correctly excluded
+            # (see compiler_resolver's nested-vendor-dir + exact-pin
+            # fixes); FORGE_VERSION above pins the Foundry *tool* release
+            # this project's own forge-std/solmate versions require, an
+            # entirely separate concern from the Solidity *compiler*
+            # version selected here.
+            _select_compiler(dest, toolchain_dir, audit_id="2023-12-ethereumcreditguild")
         return ProgramGraph.build(dest)
     finally:
         os.environ.pop("FORGE_VERSION", None)
         os.environ.pop("FORGE_GIT_ROOT", None)
+        os.environ.pop("BENCHMARK_SOLC_PATH", None)
+        os.environ.pop("BENCHMARK_FORGE_OFFLINE_AUTODETECT", None)
 
 
-def compile_size(dest: Path) -> ProgramGraph:
+def compile_size(dest: Path, toolchain_dir: Path | None = None) -> ProgramGraph:
     import os
     os.environ["FORGE_VERSION"] = "v0.3.0"
     os.environ["FORGE_GIT_ROOT"] = str(dest)
@@ -272,17 +335,34 @@ def compile_size(dest: Path) -> ProgramGraph:
         ok, out = sh("forge install", dest, git_root=dest, timeout=600)
         if not ok:
             raise BuildFailed(f"forge install failed: {out[-1000:]}")
+        if toolchain_dir is not None:
+            # Genuinely multi-version (0.8.13/0.8.19/0.8.23 -- a dominant
+            # src/ pin plus a few test-mock/script files pinned
+            # differently, confirmed real, not an authoring conflict) --
+            # routes through _select_compiler's offline-autodetect branch.
+            _select_compiler(dest, toolchain_dir, audit_id="2024-06-size")
         return ProgramGraph.build(dest)
     finally:
         os.environ.pop("FORGE_VERSION", None)
         os.environ.pop("FORGE_GIT_ROOT", None)
+        os.environ.pop("BENCHMARK_SOLC_PATH", None)
+        os.environ.pop("BENCHMARK_FORGE_OFFLINE_AUTODETECT", None)
 
 
-def compile_noya(dest: Path) -> ProgramGraph:
+def compile_noya(dest: Path, toolchain_dir: Path | None = None) -> ProgramGraph:
     sh("npm install --force", dest, git_root=dest, timeout=900)
     sh("npx hardhat compile", dest, git_root=dest, timeout=900)
-    sh("forge install", dest, git_root=dest, timeout=600)
-    return ProgramGraph.build(dest)
+    try:
+        if toolchain_dir is not None:
+            # Resolves cleanly to a single version (0.8.20, via
+            # hardhat.config.ts) -- was simply never wired to the
+            # provisioned toolchain/BENCHMARK_SOLC_PATH at all before this.
+            _select_compiler(dest, toolchain_dir, audit_id="2024-04-noya")
+        sh("forge install", dest, git_root=dest, timeout=600)
+        return ProgramGraph.build(dest)
+    finally:
+        os.environ.pop("BENCHMARK_SOLC_PATH", None)
+        os.environ.pop("BENCHMARK_FORGE_OFFLINE_AUTODETECT", None)
 
 
 def compile_thorchain(dest: Path) -> dict[str, ProgramGraph]:
@@ -370,9 +450,34 @@ def evaluate_and_accumulate(audit_id, pg, checkout_root, run_cmd_dir, registry_b
     return len(findings)
 
 
+# Phase 5 (cross-run reproducibility validation): each of the 3 required
+# independent cold-start runs must process audits in a genuinely different
+# order, so that any hidden cross-audit state leak (a global left set by
+# one audit silently affecting the NEXT one processed, e.g. an env var
+# this script forgot to pop in a `finally`) would show up as an
+# order-dependent result instead of being masked by always running the
+# same sequence. Deterministic given a seed (so a specific run is still
+# individually reproducible/debuggable), but the seed itself varies across
+# the 3 runs by design -- BENCHMARK_AUDIT_ORDER_SEED, unset by default
+# (original fixed ALL_27 order, matching every run before this).
+_AUDIT_ORDER_SEED = os.environ.get("BENCHMARK_AUDIT_ORDER_SEED")
+
+
+def audit_order() -> list[str]:
+    if _AUDIT_ORDER_SEED is None:
+        return list(ALL_27)
+    order = list(ALL_27)
+    random.Random(int(_AUDIT_ORDER_SEED)).shuffle(order)
+    return order
+
+
 def main():
     WORK_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    order = audit_order()
+    (OUT_DIR / "audit_order.json").write_text(json.dumps(
+        {"seed": _AUDIT_ORDER_SEED, "order": order}, indent=2))
 
     registry = [json.loads(l) for l in REGISTRY_PATH.read_text().splitlines() if l.strip()]
     registry_by_id = {a["audit_id"]: a for a in registry}
@@ -390,7 +495,7 @@ def main():
     not_applicable_counter = [0]
     findings_reached = 0
 
-    for audit_id in ALL_27:
+    for audit_id in order:
         print(f"\n--- STUDY {audit_id} ---", flush=True)
         dest = WORK_DIR / audit_id
         if dest.exists():
@@ -398,7 +503,8 @@ def main():
         ok, err = clone(audit_id, dest)
         if not ok:
             print(f"CLONE FAILED (unexpected for a known-compiling audit): {err}")
-            build_rows.append({"audit_id": audit_id, "status": "COMPILE_FAILED", "reason": f"reclone failed: {err}"})
+            build_rows.append({"audit_id": audit_id, "status": "COMPILE_FAILED", "reason": f"reclone failed: {err}",
+                                "compiler_selection": None})
             continue
 
         try:
@@ -423,7 +529,8 @@ def main():
                 for pg in graphs.values():
                     for _, d in pg.graph.nodes(data=True):
                         nc[d.get("kind", "unknown")] = nc.get(d.get("kind", "unknown"), 0) + 1
-                build_rows.append({"audit_id": audit_id, "status": "COMPILED", "reason": f"subgraphs: {sorted(graphs)}"})
+                build_rows.append({"audit_id": audit_id, "status": "COMPILED", "reason": f"subgraphs: {sorted(graphs)}",
+                                    "compiler_selection": None})
                 graph_rows.append({"audit_id": audit_id, "status": "COMPILED", "node_counts": nc})
                 print(f"COMPILED (2 subgraphs) {audit_id}: {nc}", flush=True)
             else:
@@ -437,11 +544,11 @@ def main():
                 elif audit_id in ("2024-01-curves", "2024-07-traitforge", "2025-04-virtuals", "2025-05-blackhole"):
                     pg = compile_npm_hardhat_force(audit_id, dest, subdir=".")
                 elif audit_id == "2023-12-ethereumcreditguild":
-                    pg = compile_ethereumcreditguild(dest)
+                    pg = compile_ethereumcreditguild(dest, toolchain_dir=TOOLCHAIN_DIR)
                 elif audit_id == "2024-06-size":
-                    pg = compile_size(dest)
+                    pg = compile_size(dest, toolchain_dir=TOOLCHAIN_DIR)
                 elif audit_id == "2024-04-noya":
-                    pg = compile_noya(dest)
+                    pg = compile_noya(dest, toolchain_dir=TOOLCHAIN_DIR)
                 else:
                     raise RuntimeError(f"no recipe registered for {audit_id}")
 
@@ -455,16 +562,19 @@ def main():
                 nc = {}
                 for _, d in pg.graph.nodes(data=True):
                     nc[d.get("kind", "unknown")] = nc.get(d.get("kind", "unknown"), 0) + 1
-                build_rows.append({"audit_id": audit_id, "status": "COMPILED", "reason": None})
+                build_rows.append({"audit_id": audit_id, "status": "COMPILED", "reason": None,
+                                    "compiler_selection": LAST_COMPILER_SELECTION.get(audit_id)})
                 graph_rows.append({"audit_id": audit_id, "status": "COMPILED", "node_counts": nc})
                 print(f"COMPILED {audit_id}: {nc}", flush=True)
         except BuildFailed as e:
             reason = str(e)[:1000]
             status = classify_build_failure(reason)
-            build_rows.append({"audit_id": audit_id, "status": status, "reason": reason})
+            build_rows.append({"audit_id": audit_id, "status": status, "reason": reason,
+                                "compiler_selection": LAST_COMPILER_SELECTION.get(audit_id)})
             graph_rows.append({"audit_id": audit_id, "status": status, "node_counts": {}})
             print(f"{status} {audit_id}: {reason[:300]}", flush=True)
         finally:
+            LAST_COMPILER_SELECTION.pop(audit_id, None)
             shutil.rmtree(dest, ignore_errors=True)
             clear_container_home_caches()
 

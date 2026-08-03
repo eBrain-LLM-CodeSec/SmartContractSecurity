@@ -122,8 +122,28 @@ def verify_and_install(src: Path, version: str, toolchain_dir: Path, official_ch
     dest_dir = toolchain_dir / "solc" / version
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / "solc"
-    shutil.copy2(src, dest)
-    dest.chmod(0o755)
+    # toolchain_dir is deliberately immutable and shared ACROSS runs/audits
+    # (see its module-level docstring) -- confirmed live: two audits in the
+    # same process (or two concurrent runs sharing the toolchain_dir) that
+    # both require the same version can race here. If `dest` is already
+    # provisioned and IS the right binary, skip the write entirely (also
+    # just faster on every subsequent call). Otherwise write to a sibling
+    # temp file and `os.replace()` it into place atomically, rather than
+    # `shutil.copy2` writing in place -- confirmed live: overwriting an
+    # executable that's currently being run by a concurrent provisioning
+    # call raises `[Errno 26] Text file busy`, since copy2 opens and
+    # truncates the existing inode rather than replacing it; os.replace on
+    # POSIX repoints the directory entry to a new inode without disturbing
+    # whatever a concurrent process already has open.
+    if dest.exists() and hashlib.sha256(dest.read_bytes()).hexdigest() == actual_sha:
+        return ToolchainEntry(
+            tool="solc", version=version, path=str(dest.resolve()), sha256=actual_sha,
+            checksum_source=checksum_source, provisioned_at=time.time(),
+        )
+    tmp_dest = dest_dir / f".solc.{os.getpid()}.{time.time_ns()}.tmp"
+    shutil.copy2(src, tmp_dest)
+    tmp_dest.chmod(0o755)
+    os.replace(tmp_dest, dest)
     # verify the COPY too -- catches a corrupting filesystem issue between
     # solc-select's own directory and this command's deterministic one.
     copied_sha = hashlib.sha256(dest.read_bytes()).hexdigest()
@@ -156,6 +176,34 @@ def provision_solc(version: str, toolchain_dir: Path, official_checksums: dict[s
 
     src = ss.artifact_path(version)
     return verify_and_install(src, version, toolchain_dir, official_checksums)
+
+
+def populate_svm_cache(versions: list[str], toolchain_dir: Path, container_home: Path) -> None:
+    """Mirrors Foundry's own internal svm compiler-cache directory layout
+    (`~/.svm/<version>/solc-<version>`) inside `container_home` so a build
+    that genuinely requires MULTIPLE compiler versions in one pass (as
+    opposed to a single version forced globally via `--use`) can still be
+    fully hermetic and offline. Confirmed live: a directory populated this
+    way, combined with `forge build --offline`, lets Foundry's own
+    per-file `pragma`-based auto-detection resolve each source file
+    against the provisioned set with zero network access -- and fail
+    closed with a clear "No solc version installed that matches..." error
+    (never a silent download) for any version genuinely missing from the
+    set. Every `version` must already be present at
+    `toolchain_dir/solc/<version>/solc` (i.e. already provisioned by
+    `provision_solc`/this module's own `main`) -- this function only
+    copies already-verified binaries, it never downloads anything itself.
+    """
+    svm_dir = container_home / ".svm"
+    for v in versions:
+        src = toolchain_dir / "solc" / v / "solc"
+        if not src.exists():
+            raise RuntimeError(f"solc {v} not provisioned at {src} -- run provision_toolchains first")
+        dest_dir = svm_dir / v
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / f"solc-{v}"
+        shutil.copy2(src, dest)
+        dest.chmod(0o755)
 
 
 def main(argv: list[str] | None = None) -> int:

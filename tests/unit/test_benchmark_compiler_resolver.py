@@ -41,6 +41,22 @@ def test_foundry_solc_version_key(tmp_path):
     assert res.primary_version == "0.8.17"
 
 
+def test_foundry_solc_version_hyphen_key(tmp_path):
+    """Real form: 2024-06-vultisig's own foundry.toml uses the older
+    hyphenated Foundry key spelling `solc-version = "X.Y.Z"` (distinct from
+    the underscored `solc_version` already handled) -- confirmed live: the
+    old two-key list never checked for it, so this audit's own
+    authoritative compiler pin (0.7.6) was silently ignored and the
+    resolver fell through all the way to a diverse, falsely-ambiguous
+    pragma scan even though the project itself unambiguously declares one
+    version."""
+    _write(tmp_path, "foundry.toml", '[profile.default]\nsolc-version = "0.7.6"\n')
+    res = resolve_compiler(tmp_path)
+    assert res.status is CompilerResolutionStatus.RESOLVED
+    assert res.primary_version == "0.7.6"
+    assert res.candidates[0].source == "foundry_toml_solc-version"
+
+
 def test_hardhat_solidity_compilers_version(tmp_path):
     """Real form: 2025-02-thorwallet's hardhat.config.ts."""
     _write(tmp_path, "hardhat.config.ts", 'export default { solidity: { version: "0.8.22" } };\n')
@@ -105,13 +121,62 @@ def test_ambiguous_when_default_profile_itself_conflicts(tmp_path):
     assert res.primary_version is None
 
 
-def test_ambiguous_pragma_scan_with_no_dominant_version(tmp_path):
+def test_pragma_scan_diversity_resolves_multi_version_not_ambiguous(tmp_path):
+    """Regression guard for a real bug found live: plain pragma diversity
+    across files, with no authoritative config to force one globally, is
+    NOT an authoring conflict -- it is exactly what Foundry's own default
+    per-file `auto_detect_solc` behavior handles every day. Confirmed real
+    for 2024-06-size, 2025-06-panoptic, 2024-07-basin, each of which used
+    to come back AMBIGUOUS_COMPILER_CONFIGURATION under the old (incorrect)
+    rule despite having a perfectly buildable multi-version project."""
     (tmp_path / "src").mkdir()
     _write(tmp_path / "src", "A.sol", "pragma solidity 0.8.20;\ncontract A {}\n")
     _write(tmp_path / "src", "B.sol", "pragma solidity 0.7.6;\ncontract B {}\n")
     res = resolve_compiler(tmp_path)
-    assert res.status is CompilerResolutionStatus.AMBIGUOUS_COMPILER_CONFIGURATION
+    assert res.status is CompilerResolutionStatus.RESOLVED
+    assert res.primary_version is None
     assert set(res.versions) == {"0.7.6", "0.8.20"}
+
+
+def test_range_pragma_bounds_not_counted_as_separate_exact_versions(tmp_path):
+    """Regression guard for a real bug found live: `pragma solidity >=0.6.2
+    <0.9.0;` (routine in vendored library code, e.g. forge-std) used to be
+    counted as declaring TWO separately 'required' exact versions (0.6.2
+    AND 0.9.0) via a naive `findall` over every digit-dot-digit-dot-digit
+    substring in the constraint text -- fabricating pragma diversity that
+    was never actually a disagreement. A range provides no signal about
+    which exact version is required, so it must not vote in the fallback
+    scan at all. Confirmed real: this was the dominant contributor to
+    2023-12-ethereumcreditguild's false AMBIGUOUS_COMPILER_CONFIGURATION
+    (vendored forge-std's own wide-range pragmas), even though the
+    project's own src/test code unanimously pins 0.8.13."""
+    (tmp_path / "src").mkdir()
+    _write(tmp_path / "src", "A.sol", "pragma solidity 0.8.13;\ncontract A {}\n")
+    _write(tmp_path / "src", "Range.sol", "pragma solidity >=0.6.2 <0.9.0;\ncontract Range {}\n")
+    _write(tmp_path / "src", "OpenRange.sol", "pragma solidity >=0.5.0;\ncontract OpenRange {}\n")
+    res = resolve_compiler(tmp_path)
+    assert res.status is CompilerResolutionStatus.RESOLVED
+    assert res.versions == ["0.8.13"]
+    assert res.primary_version == "0.8.13"
+
+
+def test_nested_vendor_project_excluded_from_pragma_scan(tmp_path):
+    """Regression guard for a real bug found live: 2023-12-ethereumcreditguild
+    vendors forge-std directly under `test/forge-std/` (with its own
+    `foundry.toml`), not under the conventional `lib/` name this resolver
+    already excluded -- its wide-range pragmas leaked into the fallback
+    scan and (combined with the range-pragma bug above) made an otherwise-
+    unanimous project look falsely ambiguous."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "test" / "forge-std").mkdir(parents=True)
+    _write(tmp_path / "src", "A.sol", "pragma solidity 0.8.13;\ncontract A {}\n")
+    _write(tmp_path, "foundry.toml", '[profile.default]\nsrc = "src"\n')
+    _write(tmp_path / "test" / "forge-std", "foundry.toml", "[profile.default]\n")
+    _write(tmp_path / "test" / "forge-std", "console.sol",
+           "pragma solidity >=0.4.22 <0.9.0;\nlibrary console {}\n")
+    res = resolve_compiler(tmp_path)
+    assert res.status is CompilerResolutionStatus.RESOLVED
+    assert res.versions == ["0.8.13"]
 
 
 def test_hardhat_multi_compiler_is_resolved_not_ambiguous(tmp_path):

@@ -8,7 +8,8 @@ set -euo pipefail
 SIF=/scratch/md5344/evmbench/containers/evmbench-worker.sif
 # npm needs a writable $HOME (npm cache, .npmrc, etc.) -- reuse the same
 # container-home bind bin/forge uses so both tools share one cache dir.
-CONTAINER_HOME="/scratch/md5344/evmbench/agent4vul/.container_home"
+# BENCHMARK_CONTAINER_HOME override matches bin/forge's -- see its comment.
+CONTAINER_HOME="${BENCHMARK_CONTAINER_HOME:-/scratch/md5344/evmbench/agent4vul/.container_home}"
 mkdir -p "${CONTAINER_HOME}"
 
 # `-H src:dest` claims to bind a container home and set $HOME to match, but

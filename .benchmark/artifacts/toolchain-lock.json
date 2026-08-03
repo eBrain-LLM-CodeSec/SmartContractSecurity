@@ -1,89 +1,28 @@
 {
-  "generated_at": 1785704897.459282,
-  "provisioning_failures": [
-    {
-      "error": "solc-select could not install 0.9.0 (not a known release)",
-      "version": "0.9.0"
-    }
-  ],
+  "generated_at": 1785712418.7188258,
+  "provisioning_failures": [],
   "schema": "toolchain-lock/v1",
   "solc": {
-    "0.4.0": {
-      "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
-      "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.4.0/solc",
-      "provisioned_at": 1785704891.8097043,
-      "sha256": "e26d188284763684f3cf6d4900b72f7e45a050dd2b2707320273529d033cfd47",
-      "tool": "solc",
-      "version": "0.4.0"
-    },
     "0.4.17": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.4.17/solc",
-      "provisioned_at": 1785704891.8329425,
+      "provisioned_at": 1785712418.090329,
       "sha256": "13414bf86f80319e6f5863b4ca4af786956d188f5f9b99dda6439362c6d91115",
       "tool": "solc",
       "version": "0.4.17"
     },
-    "0.4.22": {
-      "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
-      "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.4.22/solc",
-      "provisioned_at": 1785704892.3127341,
-      "sha256": "fade9ba6dd489ffc3f73e53a13d5f1031325779708e448224970979b8cc86ba7",
-      "tool": "solc",
-      "version": "0.4.22"
-    },
-    "0.5.0": {
-      "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
-      "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.5.0/solc",
-      "provisioned_at": 1785704892.8267999,
-      "sha256": "c1bb15b520f5076aebd7aa9ef4ce5fa245b6f210a91cbd2064b9e383e6510e08",
-      "tool": "solc",
-      "version": "0.5.0"
-    },
     "0.5.15": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.5.15/solc",
-      "provisioned_at": 1785704892.8580348,
+      "provisioned_at": 1785712418.1234212,
       "sha256": "bc816f2104d0e316179bce69afcf24a48b5c6c7203cb72becad7d9e7b66990b4",
       "tool": "solc",
       "version": "0.5.15"
     },
-    "0.6.0": {
-      "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
-      "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.6.0/solc",
-      "provisioned_at": 1785704893.426978,
-      "sha256": "5c4b30da18b0fa5f1ae3183127a4dcd64a279fcc15e16a477b0841d576770283",
-      "tool": "solc",
-      "version": "0.6.0"
-    },
-    "0.6.2": {
-      "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
-      "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.6.2/solc",
-      "provisioned_at": 1785704894.0099537,
-      "sha256": "109ca8c6b92f4548e78c72a64c47c614617d7b2b5e4b6f8b9e7d654fc5186365",
-      "tool": "solc",
-      "version": "0.6.2"
-    },
-    "0.7.0": {
-      "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
-      "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.7.0/solc",
-      "provisioned_at": 1785704894.6110418,
-      "sha256": "117454791903d34587b7b07626c03253c6d4472b6f09f72ee007cf1f220b49e9",
-      "tool": "solc",
-      "version": "0.7.0"
-    },
-    "0.7.5": {
-      "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
-      "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.7.5/solc",
-      "provisioned_at": 1785704895.277535,
-      "sha256": "96fb22134c10939334c62c8c0a668b712696f8f81426e6fcf042f0e709e7aa1e",
-      "tool": "solc",
-      "version": "0.7.5"
-    },
     "0.7.6": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.7.6/solc",
-      "provisioned_at": 1785704895.3207877,
+      "provisioned_at": 1785712418.1599324,
       "sha256": "bd69ea85427bf2f4da74cb426ad951dd78db9dfdd01d791208eccc2d4958a6bb",
       "tool": "solc",
       "version": "0.7.6"
@@ -91,7 +30,7 @@
     "0.8.0": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.0/solc",
-      "provisioned_at": 1785704896.003499,
+      "provisioned_at": 1785712418.1858382,
       "sha256": "64016310a57caf1af76a3610f1f94c8848c04c9673e7fa268492e608918a4bdc",
       "tool": "solc",
       "version": "0.8.0"
@@ -99,7 +38,7 @@
     "0.8.13": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.13/solc",
-      "provisioned_at": 1785704896.0546732,
+      "provisioned_at": 1785712418.2261279,
       "sha256": "a805dffa86ccd8ed5c9cd18ffcfcca6ff46f635216aa7fc0246546f7be413d62",
       "tool": "solc",
       "version": "0.8.13"
@@ -107,7 +46,7 @@
     "0.8.17": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.17/solc",
-      "provisioned_at": 1785704896.1083581,
+      "provisioned_at": 1785712418.2649925,
       "sha256": "99f2070b776e9714f1f76c43c229cf99b8978a92938ee8d2364c6de11c1a03d4",
       "tool": "solc",
       "version": "0.8.17"
@@ -115,7 +54,7 @@
     "0.8.19": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.19/solc",
-      "provisioned_at": 1785704896.1598032,
+      "provisioned_at": 1785712418.3050165,
       "sha256": "7a5c1d3dc9a8eba62bb2ec37192c9178ae5fe8a54a56e5573fd3c9c17cd9eb48",
       "tool": "solc",
       "version": "0.8.19"
@@ -123,7 +62,7 @@
     "0.8.20": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.20/solc",
-      "provisioned_at": 1785704896.2124398,
+      "provisioned_at": 1785712418.3389657,
       "sha256": "0479d44fdf9c501c25337fdc540419f1593b884a87b47f023da4f1c700fda782",
       "tool": "solc",
       "version": "0.8.20"
@@ -131,7 +70,7 @@
     "0.8.22": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.22/solc",
-      "provisioned_at": 1785704896.2627242,
+      "provisioned_at": 1785712418.3883686,
       "sha256": "8be0aeb74fc1b8213292a09a84cb524a403602526df87ecad5f5cd2a7ea7d089",
       "tool": "solc",
       "version": "0.8.22"
@@ -139,7 +78,7 @@
     "0.8.23": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.23/solc",
-      "provisioned_at": 1785704897.052007,
+      "provisioned_at": 1785712418.4213076,
       "sha256": "28726a452290c70e1984f15c53ad3088e7d98783ee3070b11b3664da77415732",
       "tool": "solc",
       "version": "0.8.23"
@@ -147,7 +86,7 @@
     "0.8.24": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.24/solc",
-      "provisioned_at": 1785704897.105184,
+      "provisioned_at": 1785712418.4786289,
       "sha256": "fb03a29a517452b9f12bcf459ef37d0a543765bb3bbc911e70a87d6a37c30d5f",
       "tool": "solc",
       "version": "0.8.24"
@@ -155,7 +94,7 @@
     "0.8.25": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.25/solc",
-      "provisioned_at": 1785704897.158345,
+      "provisioned_at": 1785712418.5353281,
       "sha256": "c42aada7a52057ddbed93ec011235e256c564c440b68dbaac5ae482babbb3d6d",
       "tool": "solc",
       "version": "0.8.25"
@@ -163,7 +102,7 @@
     "0.8.26": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.26/solc",
-      "provisioned_at": 1785704897.2129154,
+      "provisioned_at": 1785712418.5933852,
       "sha256": "d5f23436f443edb85d8e76906d12f0a86ce0490e7663a9e608efeb7a93f149ef",
       "tool": "solc",
       "version": "0.8.26"
@@ -171,7 +110,7 @@
     "0.8.28": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.28/solc",
-      "provisioned_at": 1785704897.2672856,
+      "provisioned_at": 1785712418.6365883,
       "sha256": "9a0fb7e0db2c0641dbae1c5cc645dc686820c83af516226abb1c0a2f76636f25",
       "tool": "solc",
       "version": "0.8.28"
@@ -179,7 +118,7 @@
     "0.8.7": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.7/solc",
-      "provisioned_at": 1785704897.3115351,
+      "provisioned_at": 1785712418.6772873,
       "sha256": "003d75383e45212f9812d0b6add90329fd3b239e6c378d2882f61f9345896d99",
       "tool": "solc",
       "version": "0.8.7"
@@ -187,7 +126,7 @@
     "0.8.9": {
       "checksum_source": "official list.json (soliditylang.org or crytic/solc)",
       "path": "/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2/.benchmark/toolchains/solc/0.8.9/solc",
-      "provisioned_at": 1785704897.3553731,
+      "provisioned_at": 1785712418.7188096,
       "sha256": "f851f11fad37496baabaf8d6cb5c057ca0d9754fddb7a351ab580d7fd728cb94",
       "tool": "solc",
       "version": "0.8.9"

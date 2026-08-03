@@ -20,13 +20,15 @@ Singularity container view).
 Every result is one of three explicit statuses -- RESOLVED,
 AMBIGUOUS_COMPILER_CONFIGURATION, or NO_CONFIGURATION_FOUND -- never a
 silently-guessed version. `AMBIGUOUS_COMPILER_CONFIGURATION` occurs only
-when multiple *conflicting* candidates exist with no authoritative signal
-to prefer one (e.g. a Foundry `[profile.default]` disagreeing with another
-profile, or a bare pragma scan finding more than one exact version with no
-project file settling it) -- a project that genuinely declares more than
-one *required* compiler version (e.g. `2024-01-curves`' Hardhat config,
-which lists both `0.8.7` and `0.5.15`) is not ambiguous; it RESOLVES to
-multiple required versions.
+when an authoritative project setting itself conflicts (e.g. a Foundry
+`[profile.default]` declaring both `solc` and `solc_version` to different
+values) -- a project that genuinely declares, or is inferred via pragma
+scanning to require, more than one compiler version (e.g. `2024-01-curves`'
+Hardhat config, which lists both `0.8.7` and `0.5.15`; or `2024-06-size`,
+whose `src/` pins `0.8.23` while a few test mocks pin `0.8.13`/`0.8.19`) is
+not ambiguous -- it RESOLVES to multiple required versions, exactly
+mirroring Foundry/Hardhat's own default per-file auto-detection behavior
+when no single global `solc` pin exists.
 """
 from __future__ import annotations
 
@@ -112,9 +114,15 @@ def _parse_foundry_toml(path: Path) -> list[CompilerCandidate]:
     for profile_name, profile_data in profiles.items():
         if not isinstance(profile_data, dict):
             continue
-        # both key spellings, real forms confirmed present across the 27
-        # audits: `solc = "X.Y.Z"` and `solc_version = "X.Y.Z"`
-        for key in ("solc", "solc_version"):
+        # three key spellings, real forms confirmed present across the 27
+        # audits: `solc = "X.Y.Z"`, `solc_version = "X.Y.Z"`, and (older
+        # Foundry convention, confirmed live in 2024-06-vultisig's own
+        # foundry.toml) `solc-version = "X.Y.Z"` -- a bare TOML key may
+        # contain hyphens, so tomllib parses it fine; the old two-key list
+        # just never looked for it, which is why vultisig fell through to
+        # a bare pragma scan and came back "ambiguous" even though its own
+        # foundry.toml authoritatively pins 0.7.6.
+        for key in ("solc", "solc_version", "solc-version"):
             v = profile_data.get(key)
             if isinstance(v, str) and re.fullmatch(r"\d+\.\d+\.\d+", v.strip()):
                 candidates.append(CompilerCandidate(
@@ -174,10 +182,58 @@ def _parse_dockerfile(path: Path) -> list[CompilerCandidate]:
 # --- pragma fallback (only when no authoritative project setting exists) ----
 
 _PRAGMA_RE = re.compile(r"pragma\s+solidity\s+([^;]+);")
-_EXACT_VERSION_RE = re.compile(r"(\d+\.\d+\.\d+)")
+# A pragma constraint only pins a single required version if it is ONE
+# version literal with at most one leading operator (^, ~, =, or bare) --
+# `0.8.20`, `^0.8.20`, `=0.8.20`. A range (`>=0.6.2 <0.9.0`, `>=0.5.0`,
+# `0.7 - 0.8`) declares compatibility with many versions, not a requirement
+# for any one of them.
+_EXACT_PIN_RE = re.compile(r"^[\^~=]?\s*(\d+\.\d+\.\d+)$")
+# Directory-boundary markers for a vendored/independent project embedded
+# directly in the checkout rather than under a conventional `lib`/
+# `node_modules` name.
+_NESTED_CONFIG_NAMES = ("foundry.toml", "hardhat.config.ts", "hardhat.config.js", "package.json")
+
+
+def _extract_exact_pin(constraint: str) -> str | None:
+    """Confirmed real bug this replaces: the old implementation extracted
+    EVERY `\\d+\\.\\d+\\.\\d+`-shaped number out of a pragma constraint,
+    including both bounds of a range -- so `pragma solidity >=0.6.2
+    <0.9.0;` (routine in vendored library code, e.g. forge-std) was counted
+    as declaring TWO separately 'required' exact versions (0.6.2 AND
+    0.9.0), fabricating pragma diversity that was never actually a
+    disagreement about which compiler to use. A range pragma provides no
+    signal about which exact version is required -- any compiler in range
+    satisfies it -- so it must not vote at all in the fallback below."""
+    m = _EXACT_PIN_RE.match(constraint.strip())
+    return m.group(1) if m else None
+
+
+def _nested_vendor_dirs(subproject_root: Path) -> set[tuple[str, ...]]:
+    """Directories (relative to subproject_root) that themselves contain
+    their own build/package configuration -- a vendored/independent
+    project embedded directly in the checkout (e.g. forge-std vendored
+    under `test/forge-std/`, with its own `foundry.toml`, rather than
+    under the conventional `lib/`), not the audited subproject's own
+    source. Confirmed real: 2023-12-ethereumcreditguild vendors forge-std
+    this way; its wide-range pragmas (see `_extract_exact_pin`) used to
+    leak into the fallback pragma scan and make an otherwise-unanimous
+    project (all of its own src/test code pins exactly 0.8.13) look
+    falsely ambiguous."""
+    dirs: set[tuple[str, ...]] = set()
+    for name in _NESTED_CONFIG_NAMES:
+        for p in subproject_root.rglob(name):
+            parent = p.parent
+            if parent == subproject_root:
+                continue
+            rel = parent.relative_to(subproject_root).parts
+            if any(part in _VENDOR_DIR_NAMES for part in rel):
+                continue  # already covered by the conventional-name exclusion
+            dirs.add(rel)
+    return dirs
 
 
 def _scan_pragma_versions(subproject_root: Path) -> Counter[str]:
+    nested_vendor_dirs = _nested_vendor_dirs(subproject_root)
     counts: Counter[str] = Counter()
     for sol_file in subproject_root.rglob("*.sol"):
         # Vendor-dir exclusion must only look at path components WITHIN
@@ -193,12 +249,15 @@ def _scan_pragma_versions(subproject_root: Path) -> Counter[str]:
         relative_parts = sol_file.relative_to(subproject_root).parts
         if any(part in _VENDOR_DIR_NAMES for part in relative_parts):
             continue
+        if any(relative_parts[:len(nd)] == nd for nd in nested_vendor_dirs):
+            continue
         try:
             text = sol_file.read_text(errors="ignore")
         except OSError:
             continue
         for m in _PRAGMA_RE.finditer(text):
-            for v in _EXACT_VERSION_RE.findall(m.group(1)):
+            v = _extract_exact_pin(m.group(1))
+            if v is not None:
                 counts[v] += 1
     return counts
 
@@ -313,14 +372,37 @@ def resolve_compiler(subproject_root: Path) -> CompilerResolution:
             build_system=build_system,
             detail=f"no authoritative project setting; pragma fallback ({pragma_counts[v]} file(s) agree on {v})",
         )
+    # Multiple distinct exact-pinned versions with no authoritative
+    # project setting is NOT an authoring conflict for Foundry (or
+    # Hardhat, handled above): confirmed live -- absent an explicit
+    # `solc`/`solc_version` pin, Foundry's own default behavior
+    # (`auto_detect_solc`) is to compile EACH source file against whichever
+    # locally-available compiler satisfies that file's own pragma,
+    # transparently using different solc binaries for different files in
+    # the same build. This is exactly the same "legitimate multi-compiler
+    # project" situation as the Hardhat `other_candidates` branch above
+    # (2024-01-curves' declared 0.8.7/0.5.15), just discovered via pragma
+    # scanning instead of an explicit config list. `AMBIGUOUS_COMPILER_
+    # CONFIGURATION` is reserved for a genuine authoring conflict -- e.g. a
+    # `[profile.default]` itself setting `solc` and `solc_version` to two
+    # different values (handled earlier in this function) -- never for
+    # ordinary pragma diversity across files, which real Foundry builds
+    # every day without any ambiguity at all. (Confirmed real for three
+    # audits previously misclassified this way: 2024-06-size, 2025-06-
+    # panoptic, 2024-07-basin -- each has one dominant version in its own
+    # `src/` plus a handful of test-mock/script files pinned differently,
+    # not a disagreement about what the project's own code requires.)
     cands = [
         CompilerCandidate(version=v, source="pragma_fallback", config_file="(scanned *.sol pragmas)",
                            detail=f"{n} file(s)")
         for v, n in pragma_counts.most_common()
     ]
+    versions = sorted(pragma_counts)
     return CompilerResolution(
-        status=CompilerResolutionStatus.AMBIGUOUS_COMPILER_CONFIGURATION, versions=sorted(pragma_counts),
-        primary_version=None, candidates=cands, build_system=build_system,
-        detail=f"no authoritative project setting, and a pragma scan found {len(pragma_counts)} conflicting "
-               f"exact versions with no dominant candidate: {dict(pragma_counts)}",
+        status=CompilerResolutionStatus.RESOLVED, versions=versions, primary_version=None,
+        candidates=cands, build_system=build_system,
+        detail=f"no authoritative project setting; pragma fallback found {len(pragma_counts)} distinct exact "
+               f"versions across files with no single-compiler config to force one globally -- treated as a "
+               f"legitimate multi-version build (Foundry/Hardhat's own default per-file auto-detection "
+               f"behavior), not an authoring conflict: {dict(pragma_counts)}",
     )

@@ -77,6 +77,80 @@ def test_strict_offline_not_triggered_when_unset(tmp_path):
 # --- item 15: build wrapper selects the exact declared compiler ----------
 
 
+# --- multi-version offline auto-detect (BENCHMARK_FORGE_OFFLINE_AUTODETECT) -
+
+
+def test_offline_autodetect_flag_avoids_strict_offline_hard_fail(tmp_path):
+    """With BENCHMARK_FORGE_OFFLINE_AUTODETECT set (the caller has already
+    pre-populated ~/.svm for every required version -- see
+    scripts.benchmark.provision_toolchains.populate_svm_cache), strict-
+    offline mode must NOT hard-fail even though no BENCHMARK_SOLC_PATH/
+    FORGE_FORCE_SOLC/foundry.toml pin resolved a single `--use` path --
+    the multi-version branch is a legitimate third way to satisfy the
+    'don't let forge decide dynamically' requirement, not a bypass of it."""
+    try:
+        result = _run_forge(["build"], tmp_path, {
+            "BENCHMARK_STRICT_OFFLINE": "1", "BENCHMARK_FORGE_OFFLINE_AUTODETECT": "1",
+        })
+        assert "TOOLCHAIN_NOT_PROVISIONED" not in (result.stderr or "")
+    except subprocess.TimeoutExpired:
+        pass  # expected: it got past both guards and is now trying singularity
+
+
+def test_strict_offline_failure_message_mentions_offline_autodetect(tmp_path):
+    """The fail-fast error text must reflect every selection mechanism
+    this script now supports, so a real diagnosis doesn't stop short at an
+    outdated list of 'things I checked'."""
+    result = _run_forge(["build"], tmp_path, {"BENCHMARK_STRICT_OFFLINE": "1"})
+    assert result.returncode == 97
+    assert "BENCHMARK_FORGE_OFFLINE_AUTODETECT unset" in result.stderr
+
+
+def test_offline_autodetect_not_used_when_use_flag_already_present(tmp_path):
+    """An explicit caller-supplied `--use` must still win outright -- the
+    offline-autodetect branch must not append a conflicting `--offline`
+    that changes an already-fully-specified invocation's meaning."""
+    try:
+        result = _run_forge(["build", "--use", "0.8.20"], tmp_path, {
+            "BENCHMARK_FORGE_OFFLINE_AUTODETECT": "1", "BENCHMARK_STRICT_OFFLINE": "1",
+        })
+        assert "TOOLCHAIN_NOT_PROVISIONED" not in (result.stderr or "")
+    except subprocess.TimeoutExpired:
+        pass
+
+
+# --- run-scoped isolation (BENCHMARK_CONTAINER_HOME) -----------------------
+
+
+def test_benchmark_container_home_override_is_created(tmp_path):
+    """Phase 5 needs each independent cold-start run to get its own fresh
+    container home rather than always landing on the one shared,
+    cross-run-persistent default -- confirmed real gap: bin/npm/bin/npx
+    already honored an env override via run_dockerfile_recipes.py's own
+    sh(), but direct `forge build`/`forge test` calls (Slither's own
+    subprocess.run(["forge", ...])) bypassed that and always used the
+    hardcoded shared directory regardless of run scope."""
+    custom_home = tmp_path / "custom_container_home_for_this_run"
+    assert not custom_home.exists()
+    try:
+        _run_forge(["--version"], tmp_path, {"BENCHMARK_CONTAINER_HOME": str(custom_home)})
+    except subprocess.TimeoutExpired:
+        pass
+    assert custom_home.exists()  # `mkdir -p "${CONTAINER_HOME}"` runs before any container invocation
+
+
+def test_benchmark_container_home_falls_back_to_default_when_unset(tmp_path):
+    """Backward compatible: existing non-benchmark callers of this shim
+    (no BENCHMARK_CONTAINER_HOME set) must keep using the original shared
+    default, not suddenly get a per-invocation directory."""
+    default_home = Path("/scratch/md5344/evmbench/agent4vul/.container_home")
+    try:
+        _run_forge(["--version"], tmp_path, {})
+    except subprocess.TimeoutExpired:
+        pass
+    assert default_home.exists()
+
+
 def test_benchmark_solc_path_takes_priority_over_foundry_toml_grep(tmp_path):
     """BENCHMARK_SOLC_PATH must win even when foundry.toml also declares a
     (different) version -- explicit provisioning is authoritative, not

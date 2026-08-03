@@ -3,7 +3,8 @@
 # container -- same rationale/bind pattern as bin/npm (this file's sibling).
 set -euo pipefail
 SIF=/scratch/md5344/evmbench/containers/evmbench-worker.sif
-CONTAINER_HOME="/scratch/md5344/evmbench/agent4vul/.container_home"
+# BENCHMARK_CONTAINER_HOME override matches bin/forge's -- see its comment.
+CONTAINER_HOME="${BENCHMARK_CONTAINER_HOME:-/scratch/md5344/evmbench/agent4vul/.container_home}"
 mkdir -p "${CONTAINER_HOME}"
 
 # See bin/npm's comment: -H's $HOME binding is unreliable on this

@@ -26,7 +26,18 @@ fi
 # container's home. Shared across invocations so solc downloads are cached.
 # dest must NOT be /home/agent -- that path is where the image bakes its own
 # forge/foundryup binaries (~/.foundry/bin), and -H's dest shadows it.
-CONTAINER_HOME="/scratch/md5344/evmbench/agent4vul/.container_home"
+# BENCHMARK_CONTAINER_HOME overrides the shared default -- needed so the
+# hermetic benchmark runner (scripts/mgpr/run_full_study_batch.py) can give
+# each independent cold-start run its own fresh container home (Phase 5:
+# no reused mutable state across runs) rather than every `forge`
+# invocation always landing on this one shared, cross-run-persistent
+# directory regardless of which run scope was actually requested --
+# npm/npx already honor an equivalent override via run_dockerfile_recipes.py's
+# `sh()`, but direct `forge build`/`forge test` calls (Slither's own
+# subprocess.run(["forge", ...])) bypass that and go straight through this
+# shim, so this override was the one place run-scoping was still silently
+# missing.
+CONTAINER_HOME="${BENCHMARK_CONTAINER_HOME:-/scratch/md5344/evmbench/agent4vul/.container_home}"
 mkdir -p "${CONTAINER_HOME}"
 
 # forge's own solc-version-manager (svm) tries to download/install solc under
@@ -86,17 +97,37 @@ if [[ "${#EXTRA_ARGS[@]}" -eq 0 ]] && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]]
   done
 fi
 
+# Genuine multi-version builds (set by the hermetic benchmark runner, via
+# scripts.benchmark.compiler_resolver.resolve_compiler finding more than
+# one distinct required version -- e.g. a project's own `src/` pins one
+# version while a handful of test-mock/script files pin another, with no
+# single `solc`/`solc_version` config to force globally): a single `--use`
+# path cannot express this, so the caller instead pre-populates this
+# invocation's CONTAINER_HOME with a real `~/.svm/<version>/solc-<version>`
+# entry for every required version (scripts.benchmark.provision_toolchains.
+# populate_svm_cache) and sets this flag. `--offline` then lets forge's
+# OWN per-file auto-detection resolve each source file against that
+# pre-populated set -- confirmed live: this reads from ~/.svm with zero
+# network access, and fails closed with a clear "No solc version
+# installed..." error (never a silent download) for any version the
+# caller did not pre-populate.
+if [[ -n "${BENCHMARK_FORGE_OFFLINE_AUTODETECT:-}" ]] && [[ "${#EXTRA_ARGS[@]}" -eq 0 ]] \
+   && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]] && [[ "$*" != *"--offline"* ]]; then
+  EXTRA_ARGS=(--offline)
+fi
+
 # Strict-offline mode (set by the hermetic benchmark runner): if nothing
-# above resolved an explicit --use path for a build/compile invocation,
-# refuse to let forge/svm fall through to their own dynamic
-# resolution-or-download behavior at all, rather than silently attempting
-# network access (or hitting this container's read-only-filesystem error
-# trying to). Not the default -- interactive/debugging use of this shim
-# outside the benchmark's offline runner still gets the best-effort
-# fallback chain above.
+# above resolved an explicit --use path (or the multi-version --offline
+# branch just above) for a build/compile invocation, refuse to let
+# forge/svm fall through to their own dynamic resolution-or-download
+# behavior at all, rather than silently attempting network access (or
+# hitting this container's read-only-filesystem error trying to). Not the
+# default -- interactive/debugging use of this shim outside the
+# benchmark's offline runner still gets the best-effort fallback chain
+# above.
 if [[ "${BENCHMARK_STRICT_OFFLINE:-}" == "1" ]] && [[ "${#EXTRA_ARGS[@]}" -eq 0 ]] \
    && [[ "${SUBCOMMAND}" =~ ^(build|compile)$ ]] && [[ "$*" != *"--use"* ]]; then
-  echo "TOOLCHAIN_NOT_PROVISIONED: BENCHMARK_STRICT_OFFLINE=1 and no explicit compiler selection resolved (BENCHMARK_SOLC_PATH unset, FORGE_FORCE_SOLC unset, and no foundry.toml solc/solc_version pin matched a provisioned artifact) -- refusing to let forge fall back to auto-detection/download." >&2
+  echo "TOOLCHAIN_NOT_PROVISIONED: BENCHMARK_STRICT_OFFLINE=1 and no explicit compiler selection resolved (BENCHMARK_SOLC_PATH unset, FORGE_FORCE_SOLC unset, BENCHMARK_FORGE_OFFLINE_AUTODETECT unset, and no foundry.toml solc/solc_version pin matched a provisioned artifact) -- refusing to let forge fall back to auto-detection/download." >&2
   exit 97
 fi
 
