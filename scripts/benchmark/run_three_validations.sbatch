@@ -15,6 +15,15 @@
 # anything this script does. sbatch's own 7-day partition ceiling (same
 # convention as sbatch/run_stack.sbatch) removes that ceiling entirely.
 set -uo pipefail
-module purge; module load singularity
+# Pinned explicitly to 3.6.4, NOT a bare `module load singularity` (which
+# resolves to whatever this cluster's current default is -- confirmed
+# live: that's 4.2.0, while every fixture/behavior this session validated
+# (bin/forge's --offline/~/.svm auto-detect branch, the toolchain-lock's
+# own environment-manifest.json) was checked against 3.6.4, the version
+# the interactive session's PATH resolves via
+# /share/apps/NYUAD5/singularity/current/bin, unrelated to the module
+# system's own default). A version mismatch here would be exactly the
+# kind of silent environment drift this whole task exists to eliminate.
+module purge; module load singularity/3.6.4
 cd /scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2
 bash scripts/benchmark/run_three_validations.sh "${1:-phase5_sbatch_${SLURM_JOB_ID}}"
