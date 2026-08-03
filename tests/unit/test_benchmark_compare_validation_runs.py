@@ -63,6 +63,28 @@ def test_graph_node_count_mismatch_is_flagged_even_when_both_compiled(tmp_path):
     assert result["identical_coverage_and_graph_counts"] is False
 
 
+def test_compiler_selection_detail_path_difference_is_not_a_mismatch(tmp_path):
+    """Regression guard for a real false positive found live comparing the
+    actual sbatch job's three runs: `detail` legitimately embeds each
+    run's own checkout path (fresh WORK_DIR per run, by design), so two
+    runs that selected the identical version via the identical mechanism
+    must NOT be flagged as mismatched just because their `detail` strings
+    differ only in an embedded run-scoped path."""
+    build_rows_1 = [{"audit_id": "a", "status": "COMPILED", "compiler_selection": {
+        "status": "RESOLVED", "versions": ["0.8.17"], "mode": "single_use_pin",
+        "detail": "resolved from [profile.default] (/run1/checkouts/a/foundry.toml)",
+    }}]
+    build_rows_2 = [{"audit_id": "a", "status": "COMPILED", "compiler_selection": {
+        "status": "RESOLVED", "versions": ["0.8.17"], "mode": "single_use_pin",
+        "detail": "resolved from [profile.default] (/run2/checkouts/a/foundry.toml)",
+    }}]
+    graph_rows = [{"audit_id": "a", "node_counts": {"contract": 3}}]
+    r1 = load_run(_make_run(tmp_path, "run1", build_rows_1, graph_rows))
+    r2 = load_run(_make_run(tmp_path, "run2", build_rows_2, graph_rows))
+    result = compare([r1, r2])
+    assert result["mismatches"] == []
+
+
 def test_compiler_selection_mismatch_is_flagged(tmp_path):
     build_rows_1 = [{"audit_id": "a", "status": "COMPILED", "compiler_selection": {"versions": ["0.8.20"]}}]
     build_rows_2 = [{"audit_id": "a", "status": "COMPILED", "compiler_selection": {"versions": ["0.8.19"]}}]

@@ -87,7 +87,20 @@ def compare(runs: list[dict]) -> dict:
             })
 
         selections = [r["compiler_selection_by_audit"].get(audit_id) for r in runs]
-        if len(set(json.dumps(s, sort_keys=True) for s in selections)) > 1:
+        # `detail` legitimately embeds each run's own checkout path (e.g.
+        # ".../validation_..._run2/checkouts/<audit>/foundry.toml") --
+        # different by design every run (fresh WORK_DIR per run), and not
+        # itself a determinism signal. The comparison that actually matters
+        # is which version(s) were selected and how (status/versions/mode);
+        # comparing `detail` verbatim would flag every single-version audit
+        # as a false "mismatch" purely because of its own run-scoped path.
+        def _selection_key(s):
+            if s is None:
+                return None
+            return {k: v for k, v in s.items() if k != "detail"}
+
+        normalized = [_selection_key(s) for s in selections]
+        if len(set(json.dumps(s, sort_keys=True) for s in normalized)) > 1:
             mismatches.append({
                 "kind": "compiler_selection", "audit_id": audit_id,
                 "values": dict(zip(labels, selections)),

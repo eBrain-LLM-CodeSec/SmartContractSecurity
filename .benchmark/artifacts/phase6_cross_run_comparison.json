@@ -1,0 +1,11 @@
+{
+  "audit_orders_were_genuinely_randomized_and_distinct": true,
+  "identical_coverage_and_graph_counts": true,
+  "mismatch_count": 0,
+  "mismatches": [],
+  "runs_compared": [
+    ".benchmark/runs/validation_phase5_sbatch2_run1",
+    ".benchmark/runs/validation_phase5_sbatch2_run2",
+    ".benchmark/runs/validation_phase5_sbatch2_run3"
+  ]
+}
