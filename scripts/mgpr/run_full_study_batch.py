@@ -15,6 +15,17 @@ checkout immediately after evaluating it does not affect this study's
 results -- confirmed by reading resolve_citation's implementation: it never
 opens the file, only builds and compares Path objects against the `file`
 attribute Slither already recorded on each graph node at compile time.
+
+Evaluation-methodology corrections (accepted-finding classification +
+`findings/incorrect/` claims) also live here now: this script already
+compiles each audit exactly once, so it is the natural place to evaluate
+both the accepted-finding registry and the incorrect-claims registry
+against that SAME compiled graph, rather than compiling a second time.
+See `_evaluate_finding`/`_evaluate_incorrect_claim` in
+run_feasibility_study.py for the actual classification/citation pipeline
+(unchanged from this file's perspective -- it only orchestrates calling
+them per audit and writes `incorrect_gate_evaluation.jsonl` alongside the
+existing artifacts).
 """
 import json
 import os
@@ -38,10 +49,13 @@ from a4v.repair import EnvRepair
 from scripts.benchmark.compiler_resolver import CompilerResolutionStatus, resolve_compiler
 from scripts.benchmark.provision_toolchains import populate_svm_cache, provision_solc, _fetch_official_checksums
 from scripts.mgpr.build_manifests import _run_cmd_dir
+from scripts.mgpr.build_registry import build_incorrect_claims_registry
 from scripts.mgpr.run_dockerfile_recipes import CONTAINER_HOME, clear_container_home_caches, sh
 from scripts.mgpr.run_feasibility_study import (
     _evaluate_finding,
+    _evaluate_incorrect_claim,
     build_route_and_context_manifests,
+    load_reviewed_labels,
 )
 
 EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
@@ -65,6 +79,19 @@ OUT_DIR = Path(os.environ.get("BENCHMARK_OUT_DIR", str(_DEFAULT_RUN_ROOT / "stud
 REGISTRY_PATH = Path(os.environ.get(
     "BENCHMARK_REGISTRY_PATH", str(AGENT4VUL_ROOT / "data" / "mgpr" / "benchmark_registry.jsonl")
 ))
+# Phase 2: the gold-label review artifact -- when it exists, it is
+# authoritative over the raw deterministic classifier for whichever
+# findings it covers (see run_feasibility_study._evaluate_finding). Absent
+# by default so this script still runs standalone (e.g. while iterating on
+# the classifier itself, before a review pass exists).
+REVIEWED_LABELS_PATH = Path(os.environ.get(
+    "BENCHMARK_REVIEWED_LABELS_PATH", str(AGENT4VUL_ROOT / "data" / "mgpr" / "reviewed_family_labels.jsonl")
+))
+# Phase 3: findings/incorrect/{high,low}/ claims, restricted to ALL_27 at
+# load time (built fresh from EVMBENCH_ROOT here rather than requiring a
+# separately-run `build_registry.py --incorrect-out` step first, so this
+# script keeps working standalone with just EVMBENCH_ROOT on disk).
+BENCHMARK_SKIP_INCORRECT_CLAIMS = os.environ.get("BENCHMARK_SKIP_INCORRECT_CLAIMS") == "1"
 # SOLC_DISCOVERY (a hand-curated, one-off JSON of {audit_id: {"solc": "X.Y.Z"}}
 # guesses from a prior session) is superseded by
 # scripts.benchmark.compiler_resolver's deterministic, multi-format resolver
@@ -396,7 +423,8 @@ def compile_thorchain(dest: Path) -> dict[str, ProgramGraph]:
 
 def evaluate_and_accumulate(audit_id, pg, checkout_root, run_cmd_dir, registry_by_id, spec,
                              all_gate_rows, all_route_rows, all_context_rows, per_family, not_applicable_counter,
-                             evaluate_findings=True):
+                             evaluate_findings=True, reviewed_labels=None, uncertain_counter=None,
+                             incorrect_claims_by_audit=None, all_incorrect_gate_rows=None):
     """`evaluate_findings=False` skips gate_evaluation.jsonl / feasibility_report
     contributions for this call -- used for multi-subgraph audits (thorchain:
     ethereum/ + avalanche/, two independently compiled projects under one
@@ -407,7 +435,8 @@ def evaluate_and_accumulate(audit_id, pg, checkout_root, run_cmd_dir, registry_b
     52 instead of the correct 50 before this fix). route_manifest/
     context_manifest rows are NOT subject to this double-count risk (each
     subgraph's fired routes are genuinely distinct routing units) and are
-    always recorded regardless of this flag.
+    always recorded regardless of this flag. The same flag also gates
+    incorrect-claim evaluation, for the same reason.
     """
     features = FeatureExtractor.compute(pg)
     audit = registry_by_id.get(audit_id)
@@ -422,8 +451,13 @@ def evaluate_and_accumulate(audit_id, pg, checkout_root, run_cmd_dir, registry_b
         return 0
 
     for finding in findings:
-        gate_rows = _evaluate_finding(finding, pg, features, spec, checkout_root, run_cmd_dir)
+        gate_rows = _evaluate_finding(finding, pg, features, spec, checkout_root, run_cmd_dir, reviewed_labels)
         all_gate_rows.extend(gate_rows)
+        family_outcome = gate_rows[0]["family_outcome"] if gate_rows else None
+        if family_outcome == "UNCERTAIN":
+            if uncertain_counter is not None:
+                uncertain_counter[0] += 1
+            continue
         family = gate_rows[0]["expected_primary_family"] if gate_rows else None
         if family is None:
             not_applicable_counter[0] += 1
@@ -447,6 +481,13 @@ def evaluate_and_accumulate(audit_id, pg, checkout_root, run_cmd_dir, registry_b
             fam_report["route_fire_count"] += 1
         else:
             fam_report["route_not_fire_count"] += 1
+
+    if incorrect_claims_by_audit is not None and all_incorrect_gate_rows is not None:
+        for claim in incorrect_claims_by_audit.get(audit_id, []):
+            all_incorrect_gate_rows.extend(
+                _evaluate_incorrect_claim(claim, pg, features, spec, checkout_root, run_cmd_dir)
+            )
+
     return len(findings)
 
 
@@ -484,15 +525,29 @@ def main():
     spec = load_routing_spec(ROUTING_SPEC_PATH, known_predicates=KNOWN_PREDICATES)
     repair = EnvRepair()
 
+    reviewed_labels = load_reviewed_labels(REVIEWED_LABELS_PATH)
+    print(f"reviewed family labels loaded: {len(reviewed_labels)} finding(s) from {REVIEWED_LABELS_PATH}"
+          if reviewed_labels else f"no reviewed family labels found at {REVIEWED_LABELS_PATH} "
+                                    f"-- falling back to the raw deterministic classifier for every finding")
+
+    incorrect_claims_by_audit: dict[str, list[dict]] = {}
+    if not BENCHMARK_SKIP_INCORRECT_CLAIMS:
+        incorrect_rows = build_incorrect_claims_registry(EVMBENCH_ROOT, audit_ids=ALL_27)
+        for row in incorrect_rows:
+            incorrect_claims_by_audit.setdefault(row["audit_id"], []).append(row)
+        print(f"incorrect claims loaded: {len(incorrect_rows)} claim(s) across "
+              f"{len(incorrect_claims_by_audit)} audit(s)")
+
     build_rows = []
     graph_rows = []
-    all_gate_rows, all_route_rows, all_context_rows = [], [], []
+    all_gate_rows, all_route_rows, all_context_rows, all_incorrect_gate_rows = [], [], [], []
     per_family = {
         name: {"findings_considered": 0, "predicate_status_counts": {}, "route_fire_count": 0,
                "route_not_fire_count": 0, "unresolved_routing_unit_count": 0, "blocking_reason_histogram": {}}
         for name in ("P1_AUTHORIZATION", "P2_REENTRANCY", "P5_ARITHMETIC_PRECISION")
     }
     not_applicable_counter = [0]
+    uncertain_counter = [0]
     findings_reached = 0
 
     for audit_id in order:
@@ -522,7 +577,9 @@ def main():
                     n_findings = evaluate_and_accumulate(
                         audit_id, pg, dest, rcd, registry_by_id, spec,
                         all_gate_rows, all_route_rows, all_context_rows, per_family, not_applicable_counter,
-                        evaluate_findings=(sub == "ethereum"),
+                        evaluate_findings=(sub == "ethereum"), reviewed_labels=reviewed_labels,
+                        uncertain_counter=uncertain_counter, incorrect_claims_by_audit=incorrect_claims_by_audit,
+                        all_incorrect_gate_rows=all_incorrect_gate_rows,
                     )
                 findings_reached += n_findings
                 nc = {}
@@ -557,6 +614,9 @@ def main():
                 n_findings = evaluate_and_accumulate(
                     audit_id, pg, checkout_root, rcd, registry_by_id, spec,
                     all_gate_rows, all_route_rows, all_context_rows, per_family, not_applicable_counter,
+                    reviewed_labels=reviewed_labels, uncertain_counter=uncertain_counter,
+                    incorrect_claims_by_audit=incorrect_claims_by_audit,
+                    all_incorrect_gate_rows=all_incorrect_gate_rows,
                 )
                 findings_reached += n_findings
                 nc = {}
@@ -583,6 +643,9 @@ def main():
         (OUT_DIR / "gate_evaluation.jsonl").write_text("\n".join(json.dumps(r, sort_keys=True) for r in all_gate_rows) + "\n")
         (OUT_DIR / "route_manifest.jsonl").write_text("\n".join(json.dumps(r, sort_keys=True) for r in all_route_rows) + "\n")
         (OUT_DIR / "context_manifest.jsonl").write_text("\n".join(json.dumps(r, sort_keys=True) for r in all_context_rows) + "\n")
+        (OUT_DIR / "incorrect_gate_evaluation.jsonl").write_text(
+            "\n".join(json.dumps(r, sort_keys=True) for r in all_incorrect_gate_rows) + "\n"
+        )
 
     total_findings_in_registry = sum(len(a["findings"]) for a in registry)
     feasibility_report = {
@@ -593,7 +656,10 @@ def main():
         "findings_reached_compiled_audits": findings_reached,
         "findings_blocked_by_audit_compile_status": total_findings_in_registry - findings_reached,
         "findings_not_applicable_to_p1_p2_p5": not_applicable_counter[0],
+        "findings_uncertain_family": uncertain_counter[0],
         "total_fired_routes_across_compiled_audits": len(all_route_rows),
+        "total_incorrect_claims_evaluated": len(all_incorrect_gate_rows),
+        "reviewed_labels_used": len(reviewed_labels),
         "per_family": per_family,
     }
     (OUT_DIR / "feasibility_report.json").write_text(json.dumps(feasibility_report, indent=2, sort_keys=True))

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from scripts.mgpr.build_registry import build_registry
+from scripts.mgpr.build_registry import build_incorrect_claims_registry, build_registry
 
 
 def _make_fake_evmbench_root(tmp_path: Path) -> Path:
@@ -102,3 +102,72 @@ def test_missing_findings_md_recorded_as_none_not_dropped(tmp_path):
     assert finding["vuln"] == "H-01"
     assert finding["findings_md_path"] is None
     assert finding["github_cited_locations"] == []
+
+
+def test_title_extracted_from_heading():
+    from scripts.mgpr.build_registry import _extract_title
+    assert _extract_title("# [H-01] Reentrancy in withdraw\n\nbody") == "Reentrancy in withdraw"
+
+
+def test_title_none_when_no_matching_heading():
+    from scripts.mgpr.build_registry import _extract_title
+    assert _extract_title("Some prose with no bracketed-id heading at all") is None
+
+
+# --- incorrect-claims registry (Phase 3) -------------------------------------
+
+
+def _add_incorrect_claims(root: Path) -> None:
+    """`high/H-01.md` and `low/H-01.md` are DELIBERATELY distinct claims
+    sharing the bare index -- confirmed as a real EVMbench pattern by direct
+    sampling (see build_registry.py's own module comment)."""
+    high_dir = root / "audits" / "fakeaudit-1" / "findings" / "incorrect" / "high"
+    low_dir = root / "audits" / "fakeaudit-1" / "findings" / "incorrect" / "low"
+    high_dir.mkdir(parents=True)
+    low_dir.mkdir(parents=True)
+    (high_dir / "H-01.md").write_text(
+        "# [H-01] Reentrancy claim in withdraw (rejected)\n\n"
+        "https://github.com/fake/repo/blob/deadbeef/src/Vault.sol#L10-L20\n"
+    )
+    (low_dir / "H-01.md").write_text(
+        "# [H-01] Rounding claim in swap (rejected, different issue entirely)\n\nNo citation here.\n"
+    )
+    # fakeaudit-2 has no incorrect/ directory at all -- must not error.
+
+
+def test_incorrect_claims_registry_distinguishes_same_index_across_severities(tmp_path):
+    root = _make_fake_evmbench_root(tmp_path)
+    _add_incorrect_claims(root)
+    rows = build_incorrect_claims_registry(root)
+    ids = {r["incorrect_finding_id"] for r in rows}
+    assert "fakeaudit-1/incorrect/high/H-01" in ids
+    assert "fakeaudit-1/incorrect/low/H-01" in ids
+    high = next(r for r in rows if r["incorrect_finding_id"] == "fakeaudit-1/incorrect/high/H-01")
+    low = next(r for r in rows if r["incorrect_finding_id"] == "fakeaudit-1/incorrect/low/H-01")
+    assert high["title"] != low["title"]
+    assert high["severity"] == "high"
+    assert low["severity"] == "low"
+
+
+def test_incorrect_claims_registry_captures_source_path_and_citations(tmp_path):
+    root = _make_fake_evmbench_root(tmp_path)
+    _add_incorrect_claims(root)
+    rows = build_incorrect_claims_registry(root)
+    high = next(r for r in rows if r["incorrect_finding_id"] == "fakeaudit-1/incorrect/high/H-01")
+    assert high["audit_id"] == "fakeaudit-1"
+    assert high["source_path"].endswith("findings/incorrect/high/H-01.md")
+    assert high["github_cited_locations"] == ["https://github.com/fake/repo/blob/deadbeef/src/Vault.sol#L10-L20"]
+
+
+def test_incorrect_claims_registry_handles_audit_with_no_incorrect_dir(tmp_path):
+    root = _make_fake_evmbench_root(tmp_path)
+    _add_incorrect_claims(root)  # only fakeaudit-1 gets incorrect/
+    rows = build_incorrect_claims_registry(root)
+    assert not any(r["audit_id"] == "fakeaudit-2" for r in rows)
+
+
+def test_incorrect_claims_registry_restricted_to_given_audit_ids(tmp_path):
+    root = _make_fake_evmbench_root(tmp_path)
+    _add_incorrect_claims(root)
+    rows = build_incorrect_claims_registry(root, audit_ids=["fakeaudit-2"])
+    assert rows == []  # fakeaudit-1's claims excluded when restricted to fakeaudit-2 only

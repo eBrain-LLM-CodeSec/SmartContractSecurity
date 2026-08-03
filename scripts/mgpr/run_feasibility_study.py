@@ -51,6 +51,7 @@ from scripts.mgpr.citation_resolution import (  # noqa: F401 -- resolve_citation
     resolve_citation,
     resolve_citation_string,
 )
+from scripts.mgpr.family_classification import FamilyOutcome, classify_family
 
 _DEFAULT_EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/project/evmbench")
 # Resolved from this file's own location, NOT hardcoded to the main
@@ -63,90 +64,75 @@ _DEFAULT_EVMBENCH_ROOT = Path("/scratch/md5344/evmbench/repo/frontier-evals/proj
 _AGENT4VUL_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_ROUTING_SPEC = _AGENT4VUL_ROOT / "routing_spec.yaml"
 
-# Dataset-construction labeling heuristic, NOT a router decision and NOT an
-# experimental result (plan section 6's explicit allowance: "A coding agent
-# may generate expected-route labels from audit ground truth, but these
-# labels are dataset-construction inputs"). Keyword matching, transparent
-# and inspectable, not an LLM call. Order matters: first match wins.
-#
-# Matched against the finding's FULL findings/<VULN-ID>.md text when
-# available, not just task_info.csv's one-line `description` column --
-# confirmed necessary by direct inspection: pooltogether's H-02
-# (`description`: "A malicious user can steal other user's deposits from
-# Vault.sol") states IMPACT, not mechanism; only the full writeup mentions
-# "Cast" / "convert from uint256 to uint96" at all. Keywords below were
-# chosen by reading real findings text (H-02, H-04 for pooltogether; H-01
-# for tempo-feeamm), not guessed in the abstract -- still an imperfect
-# heuristic, reported as such, not a claim of precise classification.
-_FAMILY_KEYWORDS: list[tuple[str, list[str]]] = [
-    ("P2_REENTRANCY", ["reentran", "re-entran"]),
-    ("P5_ARITHMETIC_PRECISION", [
-        "downcast", "truncat", "precision loss", "overflow", "underflow",
-        "rounding", "cast", "narrowing", "convert from",
-    ]),
-    ("P1_AUTHORIZATION", [
-        "access control", "unauthorized", "authoriz", "anyone", "any user can",
-        "onlyowner", "without permission", "no permission", "called by anyone",
-        "lacks a check", "privilege",
-    ]),
-]
+_FAMILY_VALUES = {"P1_AUTHORIZATION", "P2_REENTRANCY", "P5_ARITHMETIC_PRECISION"}
 
 
-def assign_expected_family(description: str, full_text: str | None = None) -> str | None:
-    """Returns a P1/P2/P5 family name or None (NOT_APPLICABLE for this
-    slice -- the text doesn't obviously match one of the three families
-    this slice specifies; it may belong to one of the 13 NOT_YET_SPECIFIED
-    families instead). `full_text` (the finding's own findings/*.md
-    content, when available) is checked alongside the short description --
-    see the module-level note on why the short description alone is
-    insufficient for some real findings.
-    """
-    lowered = f"{description}\n{full_text or ''}".lower()
-    for family, keywords in _FAMILY_KEYWORDS:
-        if any(kw in lowered for kw in keywords):
-            return family
-    return None
+def load_reviewed_labels(path: Path | None) -> dict[str, dict]:
+    """Loads the Phase 2 gold-label review artifact (one JSON object per
+    line, keyed by `finding_id`) into a lookup dict. Returns {} if `path` is
+    None or does not exist -- evaluation then falls back to the raw
+    deterministic classifier for every finding, which is the correct
+    behavior before a review pass has been run (e.g. while iterating on the
+    classifier itself), NOT a silent substitute for review in the final
+    baseline (the decision rule requires every P1/P2/P5-classified accepted
+    finding to actually have a review entry; callers that need to enforce
+    that check `reviewed` in the returned gate_evaluation rows)."""
+    if path is None or not path.exists():
+        return {}
+    labels: dict[str, dict] = {}
+    for line in path.read_text().splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        labels[row["finding_id"]] = row
+    return labels
 
 
-def _evaluate_finding(
-    finding: dict, pg: ProgramGraph, features: dict, spec: RoutingSpec,
-    checkout_root: Path, run_cmd_dir: str,
+def _read_full_text(path_str: str | None) -> str | None:
+    if not path_str:
+        return None
+    try:
+        return Path(path_str).read_text(errors="ignore")
+    except OSError:
+        return None
+
+
+def _classification_row(base_row: dict, classification_debug: dict, reason_prefix: str) -> dict:
+    matched_rule = classification_debug["raw_classification"]["matched_rule"]
+    confidence = classification_debug["raw_classification"]["confidence"]
+    if matched_rule:
+        reason = f"{reason_prefix}: matched {matched_rule!r} (confidence={confidence})"
+    else:
+        reason = f"{reason_prefix}: no P1/P2/P5 evidence found by the deterministic classifier"
+    return {
+        **base_row,
+        "routing_unit": None, "unit_type": None,
+        "expected_primary_family": None, "family_outcome": reason_prefix, "gate": None,
+        "predicates": [], "route_would_fire": None,
+        "reason": reason,
+        "unresolved_or_missing": [], "citation_outcome": None, "citation": None,
+        **classification_debug,
+    }
+
+
+def _resolve_citations_to_gate_rows(
+    citations: list[str], family: str, base_row: dict, classification_debug: dict,
+    pg: ProgramGraph, features: dict, spec: RoutingSpec, audit_id: str, checkout_root: Path, run_cmd_dir: str,
 ) -> list[dict]:
-    """Returns gate_evaluation_rows for one finding. Always emits at least
-    one row, even when the family is unassigned or the citation is
-    unresolved -- unresolved cases are recorded explicitly (plan section
-    6), never dropped."""
-    audit_id, _, vuln = finding["finding_id"].partition("/")
-    full_text = None
-    if finding.get("findings_md_path"):
-        try:
-            full_text = Path(finding["findings_md_path"]).read_text(errors="ignore")
-        except OSError:
-            full_text = None
-    family = assign_expected_family(finding["description"], full_text)
-
-    if family is None:
-        return [{
-            "finding_id": finding["finding_id"], "audit_id": audit_id,
-            "routing_unit": None, "unit_type": None,
-            "expected_primary_family": None, "gate": None,
-            "predicates": [], "route_would_fire": None,
-            "reason": "NOT_APPLICABLE: description did not match any P1/P2/P5 labeling keyword "
-                      "(may belong to a NOT_YET_SPECIFIED family)",
-            "unresolved_or_missing": [], "citation_outcome": None, "citation": None,
-        }]
-
-    citations = finding.get("github_cited_locations") or []
+    """Shared citation-resolution -> gate-evaluation expansion used by both
+    accepted findings and incorrect claims (Phase 1 + Phase 3): identical
+    deterministic pipeline, per the task's explicit instruction that
+    incorrect claims run through "the same deterministic citation and
+    family-classification pipeline"."""
     if not citations:
         return [{
-            "finding_id": finding["finding_id"], "audit_id": audit_id,
-            "routing_unit": None, "unit_type": None,
-            "expected_primary_family": family, "gate": None,
+            **base_row, "routing_unit": None, "unit_type": None,
+            "expected_primary_family": family, "family_outcome": family, "gate": None,
             "predicates": [], "route_would_fire": None,
             "reason": f"{CitationOutcome.NO_CITATION.value}: no citation (GitHub blob link or relative "
-                      f"Markdown code-location link) found in the finding's own writeup",
+                      f"Markdown code-location link) found in the writeup",
             "unresolved_or_missing": [], "citation_outcome": CitationOutcome.NO_CITATION.value,
-            "citation": None,
+            "citation": None, **classification_debug,
         }]
 
     gate_rows: list[dict] = []
@@ -158,14 +144,13 @@ def _evaluate_finding(
         )
         if res.outcome is not CitationOutcome.RESOLVED:
             gate_rows.append({
-                "finding_id": finding["finding_id"], "audit_id": audit_id,
-                "routing_unit": None, "unit_type": None,
-                "expected_primary_family": family, "gate": None,
+                **base_row, "routing_unit": None, "unit_type": None,
+                "expected_primary_family": family, "family_outcome": family, "gate": None,
                 "predicates": [], "route_would_fire": None,
                 "reason": f"{res.outcome.value}: {res.detail}",
                 "unresolved_or_missing": [], "citation_outcome": res.outcome.value,
                 "citation_parser_format": res.parser_format, "citation_repo_identity": res.repo_identity,
-                "citation": citation,
+                "citation": citation, **classification_debug,
             })
             continue
 
@@ -177,9 +162,8 @@ def _evaluate_finding(
             for gate in family_spec.gates:
                 route = evaluate_gate(pg, node_id, node_features, family_spec, gate)
                 gate_rows.append({
-                    "finding_id": finding["finding_id"], "audit_id": audit_id,
-                    "routing_unit": node_id, "unit_type": "function",
-                    "expected_primary_family": family, "gate": gate.id,
+                    **base_row, "routing_unit": node_id, "unit_type": "function",
+                    "expected_primary_family": family, "family_outcome": family, "gate": gate.id,
                     "predicates": [vars(s) for s in route.predicates],
                     "route_would_fire": route.route_would_fire,
                     "reason": route.reason,
@@ -187,10 +171,99 @@ def _evaluate_finding(
                     "citation_ambiguous": len(units) > 1,
                     "citation_outcome": res.outcome.value,
                     "citation_parser_format": res.parser_format, "citation_repo_identity": res.repo_identity,
-                    "citation": citation,
+                    "citation": citation, **classification_debug,
                 })
 
     return gate_rows
+
+
+def _evaluate_finding(
+    finding: dict, pg: ProgramGraph, features: dict, spec: RoutingSpec,
+    checkout_root: Path, run_cmd_dir: str, reviewed_labels: dict[str, dict] | None = None,
+) -> list[dict]:
+    """Returns gate_evaluation_rows for one ACCEPTED finding. Always emits
+    at least one row, even when the family is unassigned/uncertain or the
+    citation is unresolved -- unresolved cases are recorded explicitly
+    (plan section 6), never dropped.
+
+    Family assignment (Phase 2): the deterministic `classify_family`
+    replaces the old broad-substring heuristic. When `reviewed_labels`
+    contains a manually-reviewed entry for this finding (Phase 2's gold-
+    label review artifact), that entry's `final_family` is authoritative
+    and overrides the raw classifier output -- "the manually reviewed
+    labels become the evaluation labels for this study." Every row records
+    both the raw classification and whether/how it was reviewed, so the
+    override is always auditable, never silent.
+    """
+    audit_id, _, vuln = finding["finding_id"].partition("/")
+    full_text = _read_full_text(finding.get("findings_md_path"))
+    raw = classify_family(finding.get("title"), finding.get("description"), full_text)
+
+    review = (reviewed_labels or {}).get(finding["finding_id"])
+    if review is not None:
+        final_outcome = FamilyOutcome(review["final_family"])
+        reviewer_status = review.get("reviewer_status")
+    else:
+        final_outcome = raw.outcome
+        reviewer_status = None
+
+    classification_debug = {
+        "raw_classification": raw.as_dict(),
+        "reviewed": review is not None,
+        "reviewer_status": reviewer_status,
+    }
+    base_row = {"finding_id": finding["finding_id"], "audit_id": audit_id}
+
+    if final_outcome is FamilyOutcome.NOT_APPLICABLE:
+        return [_classification_row(base_row, classification_debug, "NOT_APPLICABLE")]
+    if final_outcome is FamilyOutcome.UNCERTAIN:
+        return [_classification_row(base_row, classification_debug, "UNCERTAIN")]
+
+    family = final_outcome.value
+    citations = finding.get("github_cited_locations") or []
+    return _resolve_citations_to_gate_rows(
+        citations, family, base_row, classification_debug, pg, features, spec, audit_id, checkout_root, run_cmd_dir,
+    )
+
+
+def _evaluate_incorrect_claim(
+    claim: dict, pg: ProgramGraph, features: dict, spec: RoutingSpec, checkout_root: Path, run_cmd_dir: str,
+) -> list[dict]:
+    """Phase 3: runs the SAME deterministic citation + family-classification
+    pipeline as `_evaluate_finding` against one `findings/incorrect/`
+    claim. No manual review is applied here (the decision rule only
+    requires manual review of accepted P1/P2/P5 labels; reviewing the full
+    incorrect-claim population -- routinely 3-6x the accepted-finding count
+    per audit -- is out of this pass's scope and explicitly noted as such in
+    the deliverables, not silently skipped).
+
+    An incorrect claim resolving to a routing unit and firing a gate means:
+    "a specific vulnerability mechanism someone actually claimed at this
+    location, that was judged incorrect, still causes MGPR's gate to fire."
+    This is real, usable per-claim signal about the gate's specificity --
+    it is NOT proof the routing unit is safe in general (an incorrect claim
+    about mechanism X says nothing about other, un-submitted mechanisms at
+    the same location).
+    """
+    full_text = _read_full_text(claim.get("source_path"))
+    raw = classify_family(claim.get("title"), None, full_text)
+    classification_debug = {"raw_classification": raw.as_dict(), "reviewed": False, "reviewer_status": None}
+    base_row = {
+        "incorrect_finding_id": claim["incorrect_finding_id"], "audit_id": claim["audit_id"],
+        "severity": claim["severity"], "title": claim.get("title"),
+    }
+
+    if raw.outcome is FamilyOutcome.NOT_APPLICABLE:
+        return [_classification_row(base_row, classification_debug, "NOT_APPLICABLE")]
+    if raw.outcome is FamilyOutcome.UNCERTAIN:
+        return [_classification_row(base_row, classification_debug, "UNCERTAIN")]
+
+    family = raw.outcome.value
+    citations = claim.get("github_cited_locations") or []
+    return _resolve_citations_to_gate_rows(
+        citations, family, base_row, classification_debug, pg, features, spec,
+        claim["audit_id"], checkout_root, run_cmd_dir,
+    )
 
 
 def build_route_and_context_manifests(
@@ -276,13 +349,17 @@ def build_route_and_context_manifests(
 def run_study(
     registry: list[dict], compiled_audits: dict[str, tuple[ProgramGraph, dict]],
     build_manifest_rows: dict[str, dict], routing_spec: RoutingSpec,
-    checkouts_dir: Path, evmbench_root: Path,
+    checkouts_dir: Path, evmbench_root: Path, reviewed_labels: dict[str, dict] | None = None,
 ) -> tuple[list[dict], list[dict], list[dict], dict]:
     """Returns (gate_evaluation_rows, route_manifest_rows,
     context_manifest_rows, feasibility_report_dict). Only audits present in
     `compiled_audits` are evaluated; every other audit is reported (in the
     feasibility report's per-audit-status counts) but contributes no rows
     to any of the three per-unit artifacts -- gated, not silently omitted.
+
+    `reviewed_labels` (Phase 2 gold-label review artifact, see
+    `load_reviewed_labels`) is threaded through to `_evaluate_finding`;
+    omitted, every finding falls back to the raw deterministic classifier.
     """
     all_gate_rows: list[dict] = []
     all_route_rows: list[dict] = []
@@ -295,6 +372,7 @@ def run_study(
         for name in ("P1_AUTHORIZATION", "P2_REENTRANCY", "P5_ARITHMETIC_PRECISION")
     }
     not_applicable_count = 0
+    uncertain_count = 0
     total_findings_in_registry = sum(len(a["findings"]) for a in registry)
     findings_reached = 0  # findings whose audit actually reached COMPILED status
     overall_citation_outcome_histogram: dict[str, int] = {}
@@ -318,9 +396,15 @@ def run_study(
         all_context_rows.extend(context_rows)
 
         for finding in audit["findings"]:
-            gate_rows = _evaluate_finding(finding, pg, features, routing_spec, checkout_root, run_cmd_dir)
+            gate_rows = _evaluate_finding(
+                finding, pg, features, routing_spec, checkout_root, run_cmd_dir, reviewed_labels,
+            )
             all_gate_rows.extend(gate_rows)
 
+            family_outcome = gate_rows[0]["family_outcome"] if gate_rows else None
+            if family_outcome == FamilyOutcome.UNCERTAIN.value:
+                uncertain_count += 1
+                continue
             family = gate_rows[0]["expected_primary_family"] if gate_rows else None
             if family is None:
                 not_applicable_count += 1
@@ -371,6 +455,7 @@ def run_study(
         "findings_reached_compiled_audits": findings_reached,
         "findings_blocked_by_audit_compile_status": total_findings_in_registry - findings_reached,
         "findings_not_applicable_to_p1_p2_p5": not_applicable_count,
+        "findings_uncertain_family": uncertain_count,
         "total_fired_routes_across_compiled_audits": len(all_route_rows),
         "per_family": per_family,
         "citation_outcome_histogram": overall_citation_outcome_histogram,
@@ -387,6 +472,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--routing-spec", type=Path, default=_DEFAULT_ROUTING_SPEC)
     ap.add_argument("--checkouts-dir", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, default=Path("data/mgpr"))
+    ap.add_argument("--reviewed-labels", type=Path, default=None,
+                     help="Phase 2 gold-label review artifact (JSONL); overrides the raw classifier "
+                          "for any finding it covers.")
     args = ap.parse_args(argv)
 
     os.environ["PATH"] = (
@@ -412,8 +500,10 @@ def main(argv: list[str] | None = None) -> int:
             compiled_audits[audit_id] = (pg, FeatureExtractor.compute(pg))
 
     build_manifest_rows = {r["audit_id"]: r for r in build_rows}
+    reviewed_labels = load_reviewed_labels(args.reviewed_labels)
     gate_rows, route_rows, context_rows, feasibility_report = run_study(
-        registry, compiled_audits, build_manifest_rows, routing_spec, args.checkouts_dir, args.evmbench_root
+        registry, compiled_audits, build_manifest_rows, routing_spec, args.checkouts_dir, args.evmbench_root,
+        reviewed_labels,
     )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)

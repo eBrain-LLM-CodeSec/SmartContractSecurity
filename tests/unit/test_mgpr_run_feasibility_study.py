@@ -6,9 +6,11 @@ from a4v.features import FeatureExtractor
 from a4v.graph import ProgramGraph
 from a4v.mgpr.spec import load_routing_spec
 from scripts.mgpr.run_feasibility_study import (
-    assign_expected_family,
+    _evaluate_finding,
+    _evaluate_incorrect_claim,
     build_route_and_context_manifests,
     find_routing_units_for_citation,
+    load_reviewed_labels,
     resolve_citation,
 )
 
@@ -16,45 +18,129 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 VAULT_SOL = FIXTURES / "multi_contract" / "Vault.sol"
 ROUTING_SPEC = Path(__file__).resolve().parents[2] / "routing_spec.yaml"
 
-
-# --- assign_expected_family -------------------------------------------------
-
-
-def test_short_description_alone_can_classify_reentrancy():
-    assert assign_expected_family("Reentrancy in burn allows stablecoin pool drainage") == "P2_REENTRANCY"
-
-
-def test_short_description_alone_insufficient_for_real_downcast_finding():
-    """H-02's real task_info.csv description states impact, not mechanism --
-    confirmed by direct inspection this must NOT classify without the full
-    text (regression guard for the bug this heuristic was fixed for)."""
-    assert assign_expected_family("A malicious user can steal other user's deposits from Vault.sol") is None
+# NOTE: the old broad-substring `assign_expected_family` heuristic and its
+# tests were removed in favor of `scripts.mgpr.family_classification`
+# (see tests/unit/test_mgpr_family_classification.py for the required
+# collision/classification test coverage). `_evaluate_finding` now calls
+# that classifier internally -- covered below via the reviewed-label
+# override path, which is specific to `_evaluate_finding` itself.
 
 
-def test_full_text_recovers_correct_family_for_downcast_finding():
-    full_text = (
-        "Cast\n\nWhen Vault.withdraw() is called, ... "
-        "convert from `uint256` to `uint96` when burning shares."
+def _finding(finding_id: str, title: str | None = None, description: str = "", full_text: str | None = None,
+             citations: list[str] | None = None) -> dict:
+    audit_id = finding_id.split("/")[0]
+    return {
+        "finding_id": finding_id, "title": title, "description": description,
+        "github_cited_locations": citations or [f"https://github.com/fake/{audit_id}/blob/deadbeef/Vault.sol#L34-L43"],
+        "findings_md_path": None,
+    }
+
+
+def test_evaluate_finding_uses_raw_classifier_when_no_review_given():
+    pg = ProgramGraph.build(VAULT_SOL)
+    features = FeatureExtractor.compute(pg)
+    spec = load_routing_spec(ROUTING_SPEC)
+    finding = _finding("fake-audit/H-01", title="Reentrancy in Vault.withdraw")
+    rows = _evaluate_finding(finding, pg, features, spec, FIXTURES, "multi_contract")
+    assert rows[0]["expected_primary_family"] == "P2_REENTRANCY"
+    assert rows[0]["reviewed"] is False
+
+
+def test_evaluate_finding_review_overrides_raw_classifier():
+    """A finding the raw classifier would call P2_REENTRANCY (title says
+    "Reentrancy") but that a human reviewer corrected to NOT_APPLICABLE
+    (e.g. the `nonReentrant`-in-quoted-code false-positive pattern) must
+    use the REVIEWED label, not the raw one -- "the manually reviewed
+    labels become the evaluation labels for this study."""
+    pg = ProgramGraph.build(VAULT_SOL)
+    features = FeatureExtractor.compute(pg)
+    spec = load_routing_spec(ROUTING_SPEC)
+    finding = _finding("fake-audit/H-01", title="Reentrancy in Vault.withdraw")
+    reviewed = {"fake-audit/H-01": {
+        "finding_id": "fake-audit/H-01", "final_family": "NOT_APPLICABLE", "reviewer_status": "CORRECTED",
+    }}
+    rows = _evaluate_finding(finding, pg, features, spec, FIXTURES, "multi_contract", reviewed)
+    assert rows[0]["expected_primary_family"] is None
+    assert rows[0]["family_outcome"] == "NOT_APPLICABLE"
+    assert rows[0]["reviewed"] is True
+    assert rows[0]["reviewer_status"] == "CORRECTED"
+    # the raw (pre-review) classification is still recorded, for audit trail
+    assert rows[0]["raw_classification"]["outcome"] == "P2_REENTRANCY"
+
+
+def test_load_reviewed_labels_missing_file_returns_empty(tmp_path):
+    assert load_reviewed_labels(tmp_path / "does_not_exist.jsonl") == {}
+
+
+def test_load_reviewed_labels_missing_path_returns_empty():
+    assert load_reviewed_labels(None) == {}
+
+
+def test_load_reviewed_labels_keyed_by_finding_id(tmp_path):
+    path = tmp_path / "reviewed.jsonl"
+    path.write_text(
+        '{"finding_id": "a/H-01", "final_family": "P1_AUTHORIZATION", "reviewer_status": "CONFIRMED"}\n'
+        '{"finding_id": "a/H-02", "final_family": "NOT_APPLICABLE", "reviewer_status": "CORRECTED"}\n'
     )
-    assert assign_expected_family(
-        "A malicious user can steal other user's deposits from Vault.sol", full_text
-    ) == "P5_ARITHMETIC_PRECISION"
+    labels = load_reviewed_labels(path)
+    assert set(labels) == {"a/H-01", "a/H-02"}
+    assert labels["a/H-01"]["reviewer_status"] == "CONFIRMED"
 
 
-def test_full_text_recovers_authorization_family():
-    full_text = "Vault.mintYieldFee function can be called by anyone to mint Vault Shares to any recipient."
-    assert assign_expected_family("Unrestricted minting", full_text) == "P1_AUTHORIZATION"
+# --- required test 18: reviewed labels serialize deterministically --------
 
 
-def test_no_keyword_match_returns_none_not_a_guess():
-    assert assign_expected_family("Gas griefing via unbounded loop", "no relevant keywords here at all") is None
+def test_reviewed_labels_serialize_deterministically(tmp_path):
+    import json
+    row = {
+        "finding_id": "a/H-01", "audit_id": "a", "title": "T", "raw_classifier_family": "P1_AUTHORIZATION",
+        "final_family": "P1_AUTHORIZATION", "vulnerability_mechanism": "m", "classification_evidence": "e",
+        "reviewer_status": "CONFIRMED", "previous_family_assignment": "P1_AUTHORIZATION", "reason_for_change": None,
+    }
+    serialized_1 = json.dumps(row, sort_keys=True)
+    serialized_2 = json.dumps(dict(reversed(list(row.items()))), sort_keys=True)
+    assert serialized_1 == serialized_2  # key order in the source dict must not affect output
+
+    path = tmp_path / "reviewed.jsonl"
+    path.write_text(serialized_1 + "\n")
+    reloaded = load_reviewed_labels(path)
+    assert reloaded["a/H-01"] == row
 
 
-def test_reentrancy_checked_before_other_families_when_both_present():
-    # order matters: a description mentioning both should hit the first
-    # matching family in _FAMILY_KEYWORDS's list order (documented, not
-    # incidental) -- reentrancy is checked first.
-    assert assign_expected_family("Reentrancy causes an overflow in the accounting") == "P2_REENTRANCY"
+# --- required test 13: incorrect claims use the same citation resolver ----
+
+
+def test_evaluate_incorrect_claim_uses_same_citation_resolver():
+    """Points an incorrect claim's citation at Vault.withdraw()'s real span
+    in the fixture graph -- must resolve via the identical
+    resolve_citation_string pipeline `_evaluate_finding` uses, producing a
+    RESOLVED gate row with the correct routing unit."""
+    pg = ProgramGraph.build(VAULT_SOL)
+    features = FeatureExtractor.compute(pg)
+    spec = load_routing_spec(ROUTING_SPEC)
+    claim = {
+        "incorrect_finding_id": "fake-audit/incorrect/high/H-01", "audit_id": "fake-audit", "severity": "high",
+        "title": "Reentrancy claim in withdraw (rejected)",
+        "github_cited_locations": ["https://github.com/fake/fake-audit/blob/deadbeef/Vault.sol#L34-L43"],
+        "source_path": None,
+    }
+    rows = _evaluate_incorrect_claim(claim, pg, features, spec, FIXTURES, "multi_contract")
+    assert rows[0]["citation_outcome"] == "RESOLVED"
+    assert rows[0]["routing_unit"] == "fn::Vault.withdraw(uint256)"
+    assert rows[0]["expected_primary_family"] == "P2_REENTRANCY"
+
+
+def test_evaluate_incorrect_claim_retains_severity_and_no_review_applied():
+    pg = ProgramGraph.build(VAULT_SOL)
+    features = FeatureExtractor.compute(pg)
+    spec = load_routing_spec(ROUTING_SPEC)
+    claim = {
+        "incorrect_finding_id": "fake-audit/incorrect/low/H-02", "audit_id": "fake-audit", "severity": "low",
+        "title": "Unrelated gas griefing claim", "github_cited_locations": [], "source_path": None,
+    }
+    rows = _evaluate_incorrect_claim(claim, pg, features, spec, FIXTURES, "multi_contract")
+    assert rows[0]["severity"] == "low"
+    assert rows[0]["reviewed"] is False
 
 
 # --- resolve_citation --------------------------------------------------------
