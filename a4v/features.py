@@ -9,9 +9,11 @@ import re
 from dataclasses import dataclass
 
 import numpy as np
-from slither.slithir.operations import TypeConversion
+from slither.slithir.operations import Binary, BinaryType, TypeConversion
 
 from a4v.graph import ProgramGraph, EXTERNAL_CALL, WRITE_AFTER_EXTERNAL_CALL
+
+_ARITHMETIC_OP_TYPES = (BinaryType.MULTIPLICATION, BinaryType.DIVISION, BinaryType.POWER)
 
 _ELEMENTARY_INT_RE = re.compile(r"^u?int(\d+)$")
 
@@ -45,6 +47,25 @@ def _unsafe_cast_count(function) -> int:
     return count
 
 
+def arithmetic_op_count(function) -> int:
+    """Count of SlithIR `Binary` MULTIPLICATION/DIVISION/POWER ops in
+    `function`'s own body -- MODULO deliberately excluded (indexing/cycling/
+    interval use is common and not precision-relevant); POWER included
+    since `10 ** decimals`-style fixed-point scaling is exactly the domain
+    this targets. Public (not `_`-prefixed) so `a4v/mgpr/predicates.py` can
+    call it directly on any Function object -- including internal-call
+    callees discovered by a bounded-depth search, not just nodes with a
+    precomputed NodeFeatures entry -- for
+    `precision_sensitive_arithmetic_exists`'s transitive branch.
+    """
+    count = 0
+    for node in function.nodes:
+        for ir in node.irs:
+            if isinstance(ir, Binary) and ir.type in _ARITHMETIC_OP_TYPES:
+                count += 1
+    return count
+
+
 @dataclass
 class NodeFeatures:
     node_id: str
@@ -52,6 +73,7 @@ class NodeFeatures:
     external_call_count: float
     unsafe_cast_count: float
     write_after_external_call_count: float
+    arithmetic_op_count: float = 0.0
 
 
 FEATURE_NAMES = (
@@ -59,6 +81,7 @@ FEATURE_NAMES = (
     "external_call_count",
     "unsafe_cast_count",
     "write_after_external_call_count",
+    "arithmetic_op_count",
 )
 
 
@@ -78,7 +101,7 @@ class FeatureExtractor:
             write_after = len(pg.neighbors_by_kind(node_id, WRITE_AFTER_EXTERNAL_CALL))
             if function is None:
                 # external/interface stub with no Slither Function body
-                raw[node_id] = NodeFeatures(node_id, 0.0, float(external_calls), 0.0, float(write_after))
+                raw[node_id] = NodeFeatures(node_id, 0.0, float(external_calls), 0.0, float(write_after), 0.0)
                 continue
             raw[node_id] = NodeFeatures(
                 node_id=node_id,
@@ -86,6 +109,7 @@ class FeatureExtractor:
                 external_call_count=float(external_calls),
                 unsafe_cast_count=float(_unsafe_cast_count(function)),
                 write_after_external_call_count=float(write_after),
+                arithmetic_op_count=float(arithmetic_op_count(function)),
             )
         return raw
 

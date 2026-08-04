@@ -40,7 +40,7 @@ from pathlib import Path
 
 from a4v.features import FeatureExtractor
 from a4v.graph import ProgramGraph
-from a4v.mgpr.context import build_context
+from a4v.mgpr.context import RouteContextGroup, build_context
 from a4v.mgpr.router import KNOWN_PREDICATES, evaluate_gate, fired_routes, route_all
 from a4v.mgpr.spec import RoutingSpec, load_routing_spec
 from scripts.mgpr.build_manifests import _run_cmd_dir, build_manifest_for_audit
@@ -280,9 +280,19 @@ def build_route_and_context_manifests(
     seed itself) landed inside the constructed context; otherwise those
     fields are null, not fabricated as true/false.
     """
+    all_routes = route_all(pg, features, spec)
+    fired = fired_routes(all_routes)
+    fired_unit_families = {(r.routing_unit, r.family) for r in fired}
+
     grouped: dict[tuple[str, str], list] = {}
-    for route in fired_routes(route_all(pg, features, spec)):
+    for route in fired:
         grouped.setdefault((route.routing_unit, route.family), []).append(route)
+
+    grouped_unresolved: dict[tuple[str, str], list] = {}
+    for route in all_routes:
+        key = (route.routing_unit, route.family)
+        if route.decision_blocking_unresolved and key in fired_unit_families:
+            grouped_unresolved.setdefault(key, []).append(route)
 
     route_rows: list[dict] = []
     context_rows: list[dict] = []
@@ -294,7 +304,10 @@ def build_route_and_context_manifests(
             "resolution_notes": [],
         })
 
-        bundle, record = build_context(pg, routes[0])
+        group = RouteContextGroup(
+            fired_routes=routes, unresolved_routes=grouped_unresolved.get((routing_unit, family), []),
+        )
+        bundle, record = build_context(pg, group)
         included_node_ids = set(bundle.neighborhood) | {routing_unit}
 
         relevant_findings = []

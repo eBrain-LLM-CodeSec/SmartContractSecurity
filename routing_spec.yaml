@@ -18,6 +18,15 @@
 
 version: 1
 
+# Audit-level (not family-specific) params.
+# unresolved_investigation_max_per_audit: cap on how many decision-blocking-
+# unresolved units (Gap C, Workstream 2) get an actual investigation
+# Commentator call per audit; the rest are still recorded in the manifest as
+# INVESTIGATION_DEFERRED_BY_BUDGET, never silently dropped. See
+# a4v/mgpr/router.py:unresolved_investigation_units.
+params:
+  unresolved_investigation_max_per_audit: 15
+
 families:
   P1_AUTHORIZATION:
     status: SPECIFIED
@@ -55,6 +64,18 @@ families:
           all:
             - external_call_exists
             - write_after_external_call_exists
+      # Gap D: curated callback-interface signature match (ERC721/1155/777
+      # receivers, ERC1271, Uniswap/flash-loan callbacks, plus a HEURISTIC
+      # name-only tier for struct-param callbacks like Seaport's
+      # validateOrder) + a state write in the same function. Precision risk:
+      # this pattern is common and often benign -- validated in the
+      # feasibility study's mandatory manual-review pass, not assumed safe.
+      - id: P2_CALLBACK_REACHABLE_WRITE
+        predicate:
+          all:
+            - visibility_is_public_or_external
+            - callback_interface_signature_match
+            - state_write_exists
     context_policy:
       include: [seed_function, external_call_site, writes_before_and_after_call,
                 functions_touching_affected_state]
@@ -67,13 +88,53 @@ families:
   P5_ARITHMETIC_PRECISION:
     status: SPECIFIED
     seed_types: [function]
+    # p5_arithmetic_search_max_helper_depth: bounded internal-helper BFS
+    # depth for precision_sensitive_arithmetic_exists's transitive-arithmetic
+    # branch, mirroring P1_AUTHORIZATION's authorization_search_max_helper_depth.
+    params:
+      p5_arithmetic_search_max_helper_depth: 2
     gates:
       - id: P5_NARROWING_CAST
         predicate:
           all:
             - unsafe_cast_count_gt_zero
+      # Gap B: accounting-domain identifier vocabulary + precision-sensitive
+      # arithmetic (transitive internal-call BFS, or inline-assembly
+      # awareness when the math isn't SlithIR-visible). Requiring the
+      # identifier signal on every Gap B gate (rather than firing on raw
+      # arithmetic/external-call-then-write alone, which would be extremely
+      # common) is the deliberate precision control.
+      - id: P5_ACCOUNTING_ARITHMETIC
+        predicate:
+          all:
+            - accounting_identifier_signal
+            - precision_sensitive_arithmetic_exists
+      # co-occurrence of an external interaction and an accounting-related
+      # state update in the same function -- NOT a traced dataflow claim
+      # that the external call's return value flows into the write (real
+      # dataflow tracing is out of scope for this pass).
+      - id: P5_EXTERNAL_CALL_ACCOUNTING_WRITE
+        predicate:
+          all:
+            - accounting_identifier_signal
+            - external_call_and_state_write_exists
+      # A vulnerability driven by a MISSING check (e.g. a missing deposit
+      # cap) can't be found by a predicate that looks for arithmetic that
+      # exists -- this gate instead recognizes the function as a sensitive
+      # accounting entry point worth a Commentator's attention. Deliberately
+      # requires all four conditions -- narrower than the other two P5
+      # gates, specifically so it doesn't just re-broaden what the
+      # identifier-vocabulary gates already cover.
+      - id: P5_ACCOUNTING_ENTRYPOINT
+        predicate:
+          all:
+            - visibility_is_public_or_external
+            - accounting_action_identifier_signal
+            - numeric_user_input_exists
+            - state_write_exists
     context_policy:
-      include: [seed_function, cast_sites]
+      include: [seed_function, cast_sites, arithmetic_op_sites, external_call_site,
+                accounting_action_term, numeric_parameter]
       stop: [single_function_scope]
     prompt_id: P5_ARITHMETIC_PRECISION_v1
 

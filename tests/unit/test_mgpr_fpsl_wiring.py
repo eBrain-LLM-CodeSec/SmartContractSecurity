@@ -12,7 +12,7 @@ from a4v.commentator import Commentator
 from a4v.features import FeatureExtractor
 from a4v.graph import ProgramGraph
 from a4v.llm import ChatResult
-from a4v.mgpr.context import build_context
+from a4v.mgpr.context import RouteContextGroup, build_context
 from a4v.mgpr.router import route_all
 from a4v.mgpr.spec import load_routing_spec
 
@@ -28,7 +28,10 @@ def test_existing_int_strategies_untouched():
         assert messages[0]["role"] == "system"
 
 
-@pytest.mark.parametrize("prompt_id", ["P1_AUTHORIZATION_v1", "P2_REENTRANCY_v1", "P5_ARITHMETIC_PRECISION_v1"])
+@pytest.mark.parametrize(
+    "prompt_id",
+    ["P1_AUTHORIZATION_v1", "P2_REENTRANCY_v1", "P5_ARITHMETIC_PRECISION_v1", "UNRESOLVED_INVESTIGATION_v1"],
+)
 def test_mgpr_prompt_ids_build_valid_messages(prompt_id):
     messages = fpsl.build_prompt(prompt_id, "function f() public {}")
     assert len(messages) == 2
@@ -68,7 +71,7 @@ def test_comment_bundle_accepts_string_prompt_id_end_to_end():
         if r.routing_unit == "fn::Vault.withdraw(uint256)"
         and r.family == "P2_REENTRANCY" and r.route_would_fire
     )
-    bundle, record = build_context(pg, route)
+    bundle, record = build_context(pg, RouteContextGroup(fired_routes=[route]))
 
     reply = {
         "suspicious": True, "vuln_class": "reentrancy", "severity": "high",

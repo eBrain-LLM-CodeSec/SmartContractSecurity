@@ -171,6 +171,21 @@ def prompt_p5_arithmetic_precision(source: str, context: str | None = None) -> l
     return _wrap(system, source, context)
 
 
+def prompt_unresolved_investigation(source: str, context: str | None = None) -> list[dict]:
+    system = (
+        "You are a smart contract security auditor reviewing a function that a deterministic "
+        "static-analysis router could NOT fully resolve: one of its checks (e.g. authorization-"
+        "control detection) hit source text it could not read (an unreadable applied modifier or "
+        "internal helper), so the router cannot say whether the relevant control is present or "
+        "absent for this function. This is a general, non-committal investigation request, not a "
+        "specific vulnerability-class flag -- review the function (and its cited unreadable "
+        "dependency, if included in the context below) for anything genuinely concerning across "
+        "any vulnerability class, citing exact lines if so. Do not assume the missing information "
+        "implies a vulnerability; assess only what you can actually see."
+    )
+    return _wrap(system, source, context)
+
+
 STRATEGIES = {
     1: strategy_1_simple_description,
     2: strategy_2_detailed_description,
@@ -185,6 +200,10 @@ STRATEGIES = {
     "P1_AUTHORIZATION_v1": prompt_p1_authorization,
     "P2_REENTRANCY_v1": prompt_p2_reentrancy,
     "P5_ARITHMETIC_PRECISION_v1": prompt_p5_arithmetic_precision,
+    # Gap C, Workstream 2: the investigation-fallback prompt for decision-
+    # blocking-unresolved units -- not tied to any single family, since a
+    # unit's `families_blocked` may span more than one.
+    "UNRESOLVED_INVESTIGATION_v1": prompt_unresolved_investigation,
 }
 
 

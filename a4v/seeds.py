@@ -10,8 +10,14 @@ from dataclasses import dataclass, field
 from a4v.commentator import Comment, Commentator
 from a4v.features import NodeFeatures
 from a4v.graph import ProgramGraph
-from a4v.mgpr.context import build_context
-from a4v.mgpr.router import fired_routes, route_all
+from a4v.mgpr.context import RouteContextGroup, build_context, build_investigation_context
+from a4v.mgpr.router import (
+    DEFAULT_UNRESOLVED_INVESTIGATION_MAX_PER_AUDIT,
+    INVESTIGATION_SELECTED,
+    fired_routes,
+    route_all,
+    unresolved_investigation_units,
+)
 from a4v.mgpr.spec import RoutingSpec
 from a4v.slice import BundleBuilder
 
@@ -60,29 +66,90 @@ class SeedGenerator:
                                 routing_spec: RoutingSpec) -> tuple[list[SeedNode], dict[str, Comment]]:
         """MGPR-routed replacement for `commentator_seeds`'s fixed-hops full
         scan: evaluates `routing_spec`'s gates via `mgpr.router.route_all`,
-        and for each FIRED route builds family-specific context via
+        groups fired routes by (routing_unit, family) -- Gap D/B's
+        additional gates mean more than one gate can now fire for the same
+        unit/family, and those must be MERGED into one context/one
+        Commentator call, never picked-one and never double-billed -- and
+        for each group builds family-specific context via
         `mgpr.context.build_context` instead of
         `BundleBuilder.expand(seed, hops=1)`, then calls the Commentator
-        with that route's family-specific `prompt_id`. A routing unit that
-        fires multiple families' gates gets one Commentator call per fired
-        route (multi-label, plan section 6.1) -- not one per unit, and not
-        a call for every in-scope function regardless of any signal.
+        with that family's `prompt_id`. A routing unit that fires multiple
+        DIFFERENT families' gates still gets one Commentator call per
+        family (multi-label, plan section 6.1) -- not one per unit, and not
+        a call for every in-scope function regardless of any signal. Any
+        decision-blocking-unresolved route for the same (unit, family) pair
+        rides along in the same call via `RouteContextGroup.unresolved_routes`
+        (Gap C, Workstream 2's redundancy reduction) rather than triggering
+        a second, separate investigation call.
         """
         if self.commentator is None:
             raise ValueError("no Commentator configured -- pass one to SeedGenerator or skip mgpr_commentator_seeds")
         seeds: list[SeedNode] = []
         comments: dict[str, Comment] = {}
-        for route in fired_routes(route_all(self.pg, raw_features, routing_spec)):
-            bundle, _record = build_context(self.pg, route)
-            comment = self.commentator.comment_bundle(bundle, strategy=route.prompt_id)
+
+        all_routes = route_all(self.pg, raw_features, routing_spec)
+        fired = fired_routes(all_routes)
+        fired_unit_families = {(r.routing_unit, r.family) for r in fired}
+
+        grouped_fired: dict[tuple[str, str], list] = {}
+        for r in fired:
+            grouped_fired.setdefault((r.routing_unit, r.family), []).append(r)
+
+        grouped_unresolved: dict[tuple[str, str], list] = {}
+        for r in all_routes:
+            key = (r.routing_unit, r.family)
+            if r.decision_blocking_unresolved and key in fired_unit_families:
+                grouped_unresolved.setdefault(key, []).append(r)
+
+        for (routing_unit, family), routes in sorted(grouped_fired.items()):
+            group = RouteContextGroup(
+                fired_routes=routes, unresolved_routes=grouped_unresolved.get((routing_unit, family), []),
+            )
+            bundle, _record = build_context(self.pg, group)
+            gates_fired = sorted({r.gate for r in routes})
+            comment = self.commentator.comment_bundle(bundle, strategy=routes[0].prompt_id)
             # keyed by (unit, family), not just unit -- a single function
             # can produce multiple comments under multi-label routing, and
             # a plain node_id key would silently overwrite one with another.
-            comments[f"{route.routing_unit}::{route.family}"] = comment
+            comments[f"{routing_unit}::{family}"] = comment
             if comment.suspicious:
                 seeds.append(SeedNode(
-                    node_id=route.routing_unit,
-                    reasons=[f"mgpr:{route.family}:{route.gate}"],
+                    node_id=routing_unit,
+                    reasons=[f"mgpr:{family}:{gate}" for gate in gates_fired],
+                    comment=comment,
+                ))
+        return seeds, comments
+
+    def mgpr_investigation_seeds(
+        self, raw_features: dict[str, NodeFeatures], routing_spec: RoutingSpec,
+        max_per_audit: int = DEFAULT_UNRESOLVED_INVESTIGATION_MAX_PER_AUDIT,
+    ) -> tuple[list[SeedNode], dict[str, Comment]]:
+        """Gap C, Workstream 2's investigation fallback: for every
+        decision-blocking-unresolved routing unit NOT already covered by a
+        normal fired route in the same family (see
+        `router.unresolved_investigation_units`), issues one Commentator
+        call per `INVESTIGATION_SELECTED` unit only -- explicit opt-in,
+        separately measurable cost from `mgpr_commentator_seeds`, never
+        merged into it.
+        """
+        if self.commentator is None:
+            raise ValueError("no Commentator configured -- pass one to SeedGenerator or skip mgpr_investigation_seeds")
+        seeds: list[SeedNode] = []
+        comments: dict[str, Comment] = {}
+
+        all_routes = route_all(self.pg, raw_features, routing_spec)
+        units = unresolved_investigation_units(self.pg, all_routes, max_per_audit=max_per_audit)
+
+        for unit in units:
+            if unit.status != INVESTIGATION_SELECTED:
+                continue
+            bundle, _record = build_investigation_context(self.pg, unit)
+            comment = self.commentator.comment_bundle(bundle, strategy="UNRESOLVED_INVESTIGATION_v1")
+            comments[f"{unit.routing_unit}::investigation"] = comment
+            if comment.suspicious:
+                seeds.append(SeedNode(
+                    node_id=unit.routing_unit,
+                    reasons=[f"mgpr_investigation:{fam}" for fam in unit.families_blocked],
                     comment=comment,
                 ))
         return seeds, comments

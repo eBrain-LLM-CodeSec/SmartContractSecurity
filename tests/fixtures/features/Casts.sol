@@ -22,4 +22,20 @@ contract Casts {
             return 3;
         }
     }
+
+    // arithmetic_op_count: multiplication + division present -- count == 2.
+    function scaleAndDivide(uint256 x, uint256 y, uint256 z) public pure returns (uint256) {
+        return (x * y) / z;
+    }
+
+    // arithmetic_op_count: MODULO only -- must NOT count (indexing/cycling/
+    // interval use is common and not precision-relevant).
+    function modOnly(uint256 x, uint256 y) public pure returns (uint256) {
+        return x % y;
+    }
+
+    // arithmetic_op_count: POWER (10 ** decimals-style fixed-point scaling) -- count == 1.
+    function powerOnly(uint256 base, uint256 exp) public pure returns (uint256) {
+        return base ** exp;
+    }
 }

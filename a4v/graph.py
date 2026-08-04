@@ -42,6 +42,9 @@ INHERITS = "inherits"                            # contract -> base contract
 USES_MODIFIER = "uses_modifier"                  # function -> modifier
 STATE_READ = "state_read"                        # function -> statevar
 STATE_WRITE = "state_write"                      # function -> statevar
+STATE_WRITE_TRANSITIVE = "state_write_transitive"  # function -> statevar (via internal/library call chain only;
+                                                  # disjoint from STATE_WRITE -- a var directly written never
+                                                  # also gets this edge kind for the same function)
 EXTERNAL_CALL = "external_call"                  # function -> function|contract|"<external>"
 WRITE_AFTER_EXTERNAL_CALL = "write_after_external_call"  # function -> statevar (control-flow ordering)
 DECLARES = "declares"                            # contract -> function/modifier/statevar
@@ -168,7 +171,9 @@ class ProgramGraph:
 
             for modifier in contract.modifiers_declared:
                 mid = _node_id_modifier(modifier)
-                g.add_node(mid, kind=MODIFIER, name=modifier.name, contract=contract.name, lines=_lines(modifier))
+                g.add_node(mid, kind=MODIFIER, name=modifier.name, contract=contract.name,
+                           file=str(modifier.source_mapping.filename.absolute) if modifier.source_mapping else None,
+                           lines=_lines(modifier))
                 g.add_edge(cid, mid, kind=DECLARES)
 
             for var in contract.state_variables_ordered:
@@ -197,6 +202,7 @@ class ProgramGraph:
                     if mid not in g:
                         g.add_node(mid, kind=MODIFIER, name=modifier.name,
                                    contract=modifier.contract_declarer.name if modifier.contract_declarer else contract.name,
+                                   file=str(modifier.source_mapping.filename.absolute) if modifier.source_mapping else None,
                                    lines=_lines(modifier))
                     g.add_edge(fid, mid, kind=USES_MODIFIER)
 
@@ -207,12 +213,34 @@ class ProgramGraph:
                                    type=str(var.type), lines=_lines(var))
                     g.add_edge(fid, vid, kind=STATE_READ)
 
+                written_direct_ids: set[str] = set()
                 for var in function.state_variables_written:
                     vid = _node_id_statevar(var, contract)
+                    written_direct_ids.add(vid)
                     if vid not in g:
                         g.add_node(vid, kind=STATEVAR, name=var.name, contract=contract.name,
                                    type=str(var.type), lines=_lines(var))
                     g.add_edge(fid, vid, kind=STATE_WRITE)
+
+                # STATE_WRITE_TRANSITIVE: vars written via an internal/library
+                # call chain, not directly by this function's own body.
+                # Slither's `all_state_variables_written` is the recursive,
+                # memoized closure over internal/library calls -- no
+                # whole-program pre-pass needed. Kept disjoint from
+                # STATE_WRITE (skip anything already written directly) and
+                # sorted by node id before emission for determinism.
+                transitive_by_id: dict[str, StateVariable] = {}
+                for var in function.all_state_variables_written():
+                    vid = _node_id_statevar(var, contract)
+                    if vid in written_direct_ids:
+                        continue
+                    transitive_by_id[vid] = var
+                for vid in sorted(transitive_by_id):
+                    var = transitive_by_id[vid]
+                    if vid not in g:
+                        g.add_node(vid, kind=STATEVAR, name=var.name, contract=contract.name,
+                                   type=str(var.type), lines=_lines(var))
+                    g.add_edge(fid, vid, kind=STATE_WRITE_TRANSITIVE)
 
                 for call_op in function.internal_calls:
                     callee = getattr(call_op, "function", None)

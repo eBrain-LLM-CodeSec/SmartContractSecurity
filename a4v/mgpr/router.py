@@ -13,7 +13,14 @@ from a4v.graph import ProgramGraph, FUNCTION
 from a4v.mgpr import predicates as P
 from a4v.mgpr.spec import FamilySpec, Gate, RoutingSpec
 
-# name -> callable(pg, node_id, features) -> PredicateStatus
+# name -> callable(pg, node_id, features, params) -> PredicateStatus. Every
+# boolean predicate takes `params` (the owning family's routing_spec.yaml
+# params dict) uniformly, even predicates that ignore it -- so a predicate
+# like `precision_sensitive_arithmetic_exists` can read its own
+# routing_spec.yaml-level param (bounded-search depth) the same way the
+# enum predicate `authorization_control_state` already does, without a
+# special-cased dispatch path. `params` defaults to None on every predicate
+# function so direct unit-test calls (3 positional args) keep working.
 BOOLEAN_PREDICATES = {
     "external_call_exists": P.external_call_exists,
     "write_after_external_call_exists": P.write_after_external_call_exists,
@@ -21,6 +28,12 @@ BOOLEAN_PREDICATES = {
     "visibility_is_public_or_external": P.visibility_is_public_or_external,
     "not_constructor": P.not_constructor,
     "state_write_exists": P.state_write_exists,
+    "callback_interface_signature_match": P.callback_interface_signature_match,
+    "accounting_identifier_signal": P.accounting_identifier_signal,
+    "accounting_action_identifier_signal": P.accounting_action_identifier_signal,
+    "precision_sensitive_arithmetic_exists": P.precision_sensitive_arithmetic_exists,
+    "external_call_and_state_write_exists": P.external_call_and_state_write_exists,
+    "numeric_user_input_exists": P.numeric_user_input_exists,
 }
 
 # name -> callable(pg, node_id, features, params, expected) -> PredicateStatus
@@ -42,6 +55,14 @@ class Route:
     reason: str
     prompt_id: str
     unresolved_or_missing: list[str] = field(default_factory=list)
+    # True only when every OTHER predicate in this gate's `all:` list already
+    # resolved SATISFIED and the sole reason the gate didn't fire is one
+    # UNRESOLVED predicate -- i.e. that predicate is the only thing standing
+    # between this route and firing (Gap C, Workstream 2). A gate that was
+    # already going to fail on a definitively MISSING predicate is NOT
+    # decision-blocking, regardless of any UNRESOLVED predicate elsewhere in
+    # the same gate -- that's noise, not "we lost information here."
+    decision_blocking_unresolved: bool = False
 
 
 def evaluate_gate(pg: ProgramGraph, node_id: str, features: NodeFeatures | None,
@@ -50,7 +71,7 @@ def evaluate_gate(pg: ProgramGraph, node_id: str, features: NodeFeatures | None,
     for item in gate.predicate["all"]:
         if isinstance(item, str):
             fn = BOOLEAN_PREDICATES[item]
-            statuses.append(fn(pg, node_id, features))
+            statuses.append(fn(pg, node_id, features, family.params))
         else:
             (name, expected), = item["equals"].items()
             fn = ENUM_PREDICATES[name]
@@ -75,6 +96,17 @@ def evaluate_gate(pg: ProgramGraph, node_id: str, features: NodeFeatures | None,
         fires = True
         reason = "all 'all:' predicates SATISFIED"
 
+    # This formula is correct specifically because routing_spec.yaml's gate
+    # DSL supports only flat `all:` (conjunction) today -- spec.py's
+    # _parse_predicate requires set(raw.keys()) == {"all"}, no any/not
+    # support. The general version of this check ("would replacing the
+    # unresolved predicate's value change the gate's outcome?") is what a
+    # future any/not/nested DSL would need instead of this all:-specific
+    # shortcut (see test_spec_dsl_is_all_only_today).
+    decision_blocking_unresolved = bool(unresolved) and all(
+        s.status == "SATISFIED" for s in statuses if s.status != "UNRESOLVED"
+    )
+
     return Route(
         routing_unit=node_id,
         unit_type="function",
@@ -85,6 +117,7 @@ def evaluate_gate(pg: ProgramGraph, node_id: str, features: NodeFeatures | None,
         reason=reason,
         prompt_id=family.prompt_id,
         unresolved_or_missing=[s.predicate for s in (unresolved + missing + not_applicable)],
+        decision_blocking_unresolved=decision_blocking_unresolved,
     )
 
 
@@ -112,3 +145,120 @@ def route_all(pg: ProgramGraph, features: dict[str, NodeFeatures], spec: Routing
 
 def fired_routes(routes: list[Route]) -> list[Route]:
     return [r for r in routes if r.route_would_fire]
+
+
+# --- Gap C, Workstream 2: decision-blocking-unresolved investigation fallback
+
+INVESTIGATION_FILTERED_NOT_ENTRYPOINT = "INVESTIGATION_FILTERED_NOT_ENTRYPOINT"
+INVESTIGATION_SELECTED = "INVESTIGATION_SELECTED"
+INVESTIGATION_DEFERRED_BY_BUDGET = "INVESTIGATION_DEFERRED_BY_BUDGET"
+
+DEFAULT_UNRESOLVED_INVESTIGATION_MAX_PER_AUDIT = 15
+
+
+@dataclass
+class UnresolvedInvestigationUnit:
+    routing_unit: str
+    unit_type: str
+    families_blocked: list[str]
+    blocked_predicates: list[str]
+    evidence: list[str]  # deduped "predicate: note" pairs
+    status: str  # INVESTIGATION_FILTERED_NOT_ENTRYPOINT | INVESTIGATION_SELECTED | INVESTIGATION_DEFERRED_BY_BUDGET
+
+
+def _unresolved_evidence_strings(routes: list[Route]) -> list[str]:
+    items: set[str] = set()
+    for r in routes:
+        for s in r.predicates:
+            if s.status != "UNRESOLVED":
+                continue
+            for note in (s.evidence or ["no evidence"]):
+                items.add(f"{s.predicate}: {note}")
+    return sorted(items)
+
+
+def unresolved_investigation_units(
+    pg: ProgramGraph, routes: list[Route],
+    max_per_audit: int = DEFAULT_UNRESOLVED_INVESTIGATION_MAX_PER_AUDIT,
+) -> list[UnresolvedInvestigationUnit]:
+    """One entry per routing unit that has at least one genuinely
+    decision-blocking-unresolved gate, in a family not already covered by a
+    normal fired route for that SAME family (the fired route's context
+    already carries the unresolved evidence alongside it via
+    `RouteContextGroup.unresolved_routes` -- a second, separate investigation
+    call would just duplicate that analysis). A decision-blocking-unresolved
+    gate in a DIFFERENT family from a unit's fired route still gets its own
+    entry here -- different families are genuinely different information.
+
+    Two decision-blocking-unresolved gates within the same family for the
+    same unit collapse into ONE entry (not two), with `families_blocked`
+    listing every qualifying family and `evidence`/`blocked_predicates`
+    merged and deduped across all of them.
+
+    `status` is never a silent drop: every candidate unit gets exactly one
+    of INVESTIGATION_FILTERED_NOT_ENTRYPOINT (didn't pass the
+    visibility/constructor entry-point pre-filter -- reuses
+    `visibility_is_public_or_external` + `not_constructor`, the same
+    entry-point class P1 already targets), INVESTIGATION_SELECTED (eligible,
+    within `max_per_audit`), or INVESTIGATION_DEFERRED_BY_BUDGET (eligible,
+    over budget -- still returned with full evidence, never dropped).
+    Selection among eligible units uses a composite priority --
+    (families_blocked_count, has_state_write, has_external_call,
+    accounting_identifier_signal_matched, is_payable), compared as a tuple
+    descending -- tie-broken by routing_unit for determinism.
+    """
+    fired_unit_families = {(r.routing_unit, r.family) for r in routes if r.route_would_fire}
+
+    by_unit: dict[str, dict[str, list[Route]]] = {}
+    for r in routes:
+        if not r.decision_blocking_unresolved:
+            continue
+        if (r.routing_unit, r.family) in fired_unit_families:
+            continue
+        by_unit.setdefault(r.routing_unit, {}).setdefault(r.family, []).append(r)
+
+    units: list[UnresolvedInvestigationUnit] = []
+    priority_by_unit: dict[str, tuple] = {}
+
+    for routing_unit in sorted(by_unit):
+        family_routes = by_unit[routing_unit]
+        families_blocked = sorted(family_routes)
+        all_routes_for_unit = [r for group in family_routes.values() for r in group]
+        blocked_predicates = sorted({
+            s.predicate for r in all_routes_for_unit for s in r.predicates if s.status == "UNRESOLVED"
+        })
+        evidence = _unresolved_evidence_strings(all_routes_for_unit)
+        unit_type = all_routes_for_unit[0].unit_type
+
+        vis = P.visibility_is_public_or_external(pg, routing_unit, None)
+        ctor = P.not_constructor(pg, routing_unit, None)
+        if not (vis.status == "SATISFIED" and ctor.status == "SATISFIED"):
+            units.append(UnresolvedInvestigationUnit(
+                routing_unit=routing_unit, unit_type=unit_type, families_blocked=families_blocked,
+                blocked_predicates=blocked_predicates, evidence=evidence,
+                status=INVESTIGATION_FILTERED_NOT_ENTRYPOINT,
+            ))
+            continue
+
+        has_state_write = P.state_write_exists(pg, routing_unit, None).status == "SATISFIED"
+        has_external_call = P.external_call_exists(pg, routing_unit, None).status == "SATISFIED"
+        accounting_signal = P.accounting_identifier_signal(pg, routing_unit, None).status == "SATISFIED"
+        function = P._function_by_node_id(pg, routing_unit)
+        is_payable = bool(getattr(function, "payable", False))
+
+        priority_by_unit[routing_unit] = (
+            len(families_blocked), has_state_write, has_external_call, accounting_signal, is_payable,
+        )
+        units.append(UnresolvedInvestigationUnit(
+            routing_unit=routing_unit, unit_type=unit_type, families_blocked=families_blocked,
+            blocked_predicates=blocked_predicates, evidence=evidence,
+            status=INVESTIGATION_SELECTED,  # provisional -- capped below
+        ))
+
+    eligible = [u for u in units if u.status == INVESTIGATION_SELECTED]
+    eligible.sort(key=lambda u: (tuple(-int(x) for x in priority_by_unit[u.routing_unit]), u.routing_unit))
+    for i, u in enumerate(eligible):
+        if i >= max_per_audit:
+            u.status = INVESTIGATION_DEFERRED_BY_BUDGET
+
+    return units

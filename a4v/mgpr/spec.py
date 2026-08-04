@@ -52,6 +52,9 @@ class FamilySpec:
 class RoutingSpec:
     version: int
     families: dict[str, FamilySpec]
+    # audit-level (not family-specific) params -- e.g.
+    # unresolved_investigation_max_per_audit (Gap C, Workstream 2).
+    params: dict = field(default_factory=dict)
 
     def specified_families(self) -> list[FamilySpec]:
         return [f for f in self.families.values() if f.status == "SPECIFIED"]
@@ -143,7 +146,7 @@ def load_routing_spec(path: str | Path, known_predicates: set[str] | None = None
         raise SpecError(f"{path}: missing top-level 'families' key")
 
     families = {name: _parse_family(name, fdata) for name, fdata in raw["families"].items()}
-    spec = RoutingSpec(version=int(raw.get("version", 1)), families=families)
+    spec = RoutingSpec(version=int(raw.get("version", 1)), families=families, params=dict(raw.get("params", {})))
 
     if known_predicates is not None:
         for family in spec.specified_families():

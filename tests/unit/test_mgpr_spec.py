@@ -43,6 +43,47 @@ def test_p1_has_bounded_helper_search_depth_param():
     assert isinstance(p1.params["authorization_search_max_helper_depth"], int)
 
 
+def test_p5_has_bounded_arithmetic_search_depth_param():
+    spec = load_routing_spec(ROUTING_SPEC)
+    p5 = spec.families["P5_ARITHMETIC_PRECISION"]
+    assert "p5_arithmetic_search_max_helper_depth" in p5.params
+    assert isinstance(p5.params["p5_arithmetic_search_max_helper_depth"], int)
+
+
+def test_routing_spec_has_top_level_investigation_cap_param():
+    spec = load_routing_spec(ROUTING_SPEC)
+    assert "unresolved_investigation_max_per_audit" in spec.params
+    assert isinstance(spec.params["unresolved_investigation_max_per_audit"], int)
+
+
+def test_p2_has_callback_reachable_write_gate():
+    spec = load_routing_spec(ROUTING_SPEC)
+    p2 = spec.families["P2_REENTRANCY"]
+    gate_ids = {g.id for g in p2.gates}
+    assert "P2_CALL_BEFORE_WRITE" in gate_ids
+    assert "P2_CALLBACK_REACHABLE_WRITE" in gate_ids
+
+
+def test_p5_has_three_new_gates_alongside_narrowing_cast():
+    spec = load_routing_spec(ROUTING_SPEC)
+    p5 = spec.families["P5_ARITHMETIC_PRECISION"]
+    gate_ids = {g.id for g in p5.gates}
+    assert gate_ids == {
+        "P5_NARROWING_CAST", "P5_ACCOUNTING_ARITHMETIC",
+        "P5_EXTERNAL_CALL_ACCOUNTING_WRITE", "P5_ACCOUNTING_ENTRYPOINT",
+    }
+
+
+def test_p5_accounting_entrypoint_requires_all_four_predicates():
+    spec = load_routing_spec(ROUTING_SPEC)
+    p5 = spec.families["P5_ARITHMETIC_PRECISION"]
+    entrypoint_gate = next(g for g in p5.gates if g.id == "P5_ACCOUNTING_ENTRYPOINT")
+    assert set(entrypoint_gate.predicate["all"]) == {
+        "visibility_is_public_or_external", "accounting_action_identifier_signal",
+        "numeric_user_input_exists", "state_write_exists",
+    }
+
+
 def test_known_predicates_validation_rejects_typo(tmp_path):
     bad = tmp_path / "bad.yaml"
     bad.write_text(
