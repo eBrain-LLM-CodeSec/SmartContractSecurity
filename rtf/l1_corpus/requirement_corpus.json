@@ -1,0 +1,3687 @@
+{
+  "spec_version": "Version 3",
+  "spec_source_hash": "7b2cea3b2f19945a463dbf7ad2861494f5a4ab55c5a586e8703547afbcaf60a7",
+  "spec_retrieved_at": "2026-08-05T18:30:36Z",
+  "parser_run_at": "2026-08-05T18:42:43Z",
+  "parser_script": "rtf/l1_corpus/parse_spec.py",
+  "total_requirements": 81,
+  "by_level": {
+    "S": 22,
+    "M": 24,
+    "Q": 24,
+    "GP": 11
+  },
+  "by_wrapper_tag": {
+    "p": 54,
+    "div": 27
+  },
+  "requirements": [
+    {
+      "req_id": "req-1-eip155-chainid",
+      "level": "S",
+      "title": "Encode Hashes with chainid",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "3",
+        "secno": "5.1",
+        "title": "Security Level [S]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Encode Hashes with chainid Tested code MUST create hashes for transactions that incorporate chainid values following the recommendation described in [EIP-155]",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-eip-155"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [
+        "chainid"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-no-create2",
+      "level": "S",
+      "title": "No CREATE2",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "3",
+        "secno": "5.1",
+        "title": "Security Level [S]"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No CREATE2 Tested code MUST NOT contain a CREATE2 instruction. unless it meets the Set of Overriding Requirements",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-protect-create2",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Protect CREATE2 Calls",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-2-protect-create2",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Protect CREATE2 Calls",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        }
+      ],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [
+        "CREATE2"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-no-tx.origin",
+      "level": "S",
+      "title": "No tx.origin",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.1",
+        "title": "Security Level [S]"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No tx.origin Tested code MUST NOT contain a tx.origin instruction unless it meets the Overriding Requirement [Q] Verify tx.origin Usage",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-3-verify-tx.origin",
+          "relation": "this_requirement_is_excepted_by",
+          "link_text": "[Q] Verify tx.origin Usage",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-3-verify-tx.origin",
+          "relation": "this_requirement_is_excepted_by",
+          "link_text": "[Q] Verify tx.origin Usage",
+          "condition_text": null
+        }
+      ],
+      "external_references": {
+        "bibliographic": [
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-115",
+            "text": "SWC-115"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "tx.origin"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-exact-balance-check",
+      "level": "S",
+      "title": "No Exact Balance Check",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.1",
+        "title": "Security Level [S]"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No Exact Balance Check Tested code MUST NOT test that the balance of an account is exactly equal to (i.e. ==) a specified amount or the value of a variable unless it meets the Overriding Requirement [M] Verify Exact Balance Checks.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-verify-exact-balance-check",
+          "relation": "this_requirement_is_excepted_by",
+          "link_text": "[M] Verify Exact Balance Checks",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-2-verify-exact-balance-check",
+          "relation": "this_requirement_is_excepted_by",
+          "link_text": "[M] Verify Exact Balance Checks",
+          "condition_text": null
+        }
+      ],
+      "external_references": {
+        "bibliographic": [
+          "bib-cwe-667",
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-132",
+            "text": "SWC-132"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "=="
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-no-hashing-consecutive-variable-length-args",
+      "level": "S",
+      "title": "No Hashing Consecutive Variable Length Arguments",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.1",
+        "title": "Security Level [S]"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No Hashing Consecutive Variable Length Arguments Tested Code MUST NOT use abi.encodePacked() with consecutive variable length arguments.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [
+        "abi.encodePacked()"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-self-destruct",
+      "level": "S",
+      "title": "No selfdestruct()",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "3",
+        "secno": "5.1",
+        "title": "Security Level [S]"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No selfdestruct() Tested code MUST NOT contain the selfdestruct() instruction or its now-deprecated alias suicide() unless it meets the Set of Overriding Requirements",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-self-destruct",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Protect Self-destruction",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-2-self-destruct",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Protect Self-destruction",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        }
+      ],
+      "external_references": {
+        "bibliographic": [
+          "bib-eip-6049",
+          "bib-solidity-release-818",
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-106",
+            "text": "SWC-106"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "selfdestruct()",
+        "suicide()"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-no-assembly",
+      "level": "S",
+      "title": "No assembly {}",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "3",
+        "secno": "5.1",
+        "title": "Security Level [S]"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No assembly {} Tested Code MUST NOT contain the assembly {} instruction unless it meets the Set of Overriding Requirements",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-safe-assembly",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Avoid Common assembly {} Attack Vectors",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-compiler-SOL-2022-5-assembly",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Compiler Bug SOL-2022-5 in assembly {}",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-compiler-SOL-2022-7",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Compiler Bug SOL-2022-7",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-compiler-SOL-2022-4",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Compiler Bug SOL-2022-4",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-compiler-SOL-2021-3",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Compiler Bug SOL-2021-3",
+          "condition_text": null
+        },
+        {
+          "req_id": null,
+          "relation": "this_requirement_is_excepted_by_one_of_set_external_predecessor",
+          "link_text": "if using Solidity compiler version 0.5.5 or 0.5.6, [M] Compiler Bug SOL-2019-2 in assembly {} in [EthTrust-sl-v1].",
+          "condition_text": null,
+          "external_url": "https://entethalliance.org/specs/ethtrust-sl/v1#req-2-compiler-SOL-2019-2-assembly"
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-2-safe-assembly",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Avoid Common assembly {} Attack Vectors",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-compiler-SOL-2022-5-assembly",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Compiler Bug SOL-2022-5 in assembly {}",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-compiler-SOL-2022-7",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Compiler Bug SOL-2022-7",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-compiler-SOL-2022-4",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Compiler Bug SOL-2022-4",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-compiler-SOL-2021-3",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Compiler Bug SOL-2021-3",
+          "condition_text": null
+        },
+        {
+          "req_id": null,
+          "relation": "this_requirement_is_excepted_by_one_of_set_external_predecessor",
+          "link_text": "if using Solidity compiler version 0.5.5 or 0.5.6, [M] Compiler Bug SOL-2019-2 in assembly {} in [EthTrust-sl-v1].",
+          "condition_text": null,
+          "external_url": "https://entethalliance.org/specs/ethtrust-sl/v1#req-2-compiler-SOL-2019-2-assembly"
+        }
+      ],
+      "external_references": {
+        "bibliographic": [
+          "bib-ethtrust-sl-v1"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1#req-2-compiler-SOL-2019-2-assembly",
+            "text": "[M] Compiler Bug SOL-2019-2 in assembly {}"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "assembly {}"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-unicode-bdo",
+      "level": "S",
+      "title": "No Unicode Direction Control Characters",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.1.1",
+        "title": "Text and homoglyphs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No Unicode Direction Control Characters Tested code MUST NOT contain any of the Unicode Direction Control Characters U+2066, U+2067, U+2068, U+2029, U+202A, U+202B, U+202C, U+202D, or U+202E unless it meets the Overriding Requirement [M] No Unnecessary Unicode Controls.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-unicode-bdo",
+          "relation": "this_requirement_is_excepted_by",
+          "link_text": "[M] No Unnecessary Unicode Controls",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-2-unicode-bdo",
+          "relation": "this_requirement_is_excepted_by",
+          "link_text": "[M] No Unnecessary Unicode Controls",
+          "condition_text": null
+        }
+      ],
+      "external_references": {
+        "bibliographic": [
+          "bib-unicode-bdo"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://www.w3.org/International/questions/qa-bidi-unicode-controls",
+            "text": "How to use Unicode controls for bidi text"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "U+2029",
+        "U+202A",
+        "U+202B",
+        "U+202C",
+        "U+202D",
+        "U+202E",
+        "U+2066",
+        "U+2067",
+        "U+2068"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-check-return",
+      "level": "S",
+      "title": "Check External Calls Return",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.1.2",
+        "title": "External Calls"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Check External Calls Return Tested Code that makes external calls using the Low-level Call Functions (i.e. call(), delegatecall(), staticcall(), and send()) MUST check the returned value from each usage to determine whether the call failed, unless it meets the Overriding Requirement [M] Handle External Call Returns.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> that makes external calls using the <a href=\"#dfn-low-level-call-functions\" class=\"internalDFN\" data-link-type=\"dfn\">Low-level Call Functions</a> (i.e. <code>call()</code>,\n  <code>delegatecall()</code>,  <code>staticcall()</code>, and <code>send()</code>)",
+        "text": "Tested Code that makes external calls using the Low-level Call Functions (i.e. call(), delegatecall(), staticcall(), and send())",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-handle-return",
+          "relation": "this_requirement_is_excepted_by",
+          "link_text": "[M] Handle External Call Returns",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-low-level-call-functions",
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-2-handle-return",
+          "relation": "this_requirement_is_excepted_by",
+          "link_text": "[M] Handle External Call Returns",
+          "condition_text": null
+        }
+      ],
+      "external_references": {
+        "bibliographic": [
+          "bib-cwe-252",
+          "bib-error-handling",
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-104",
+            "text": "SWC-104"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "call()",
+        "delegatecall()",
+        "send()",
+        "staticcall()"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-use-c-e-i",
+      "level": "S",
+      "title": "Use Check-Effects-Interaction",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.1.2",
+        "title": "External Calls"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Use Check-Effects-Interaction Tested code that makes external calls MUST use the Checks-Effects-Interactions pattern to protect against Re-entrancy Attacks unless it meets the Set of Overriding Requirements",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that makes external calls",
+        "text": "Tested code that makes external calls",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-external-calls",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Protect external calls",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-checks-effects-interactions",
+        "dfn-re-entrancy-attacks",
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-2-external-calls",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Protect external calls",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        }
+      ],
+      "external_references": {
+        "bibliographic": [
+          "bib-c-e-i",
+          "bib-freipi",
+          "bib-solidity-patterns",
+          "bib-solidity-security"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://fravoll.github.io/solidity-patterns/checks_effects_interactions.html",
+            "text": "Checks Effects Interactions"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-delegatecall",
+      "level": "S",
+      "title": "No delegatecall()",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.1.2",
+        "title": "External Calls"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No delegatecall() Tested Code MUST NOT contain the delegatecall() instruction unless it meets the Set of Overriding Requirements:",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-external-calls",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Protect External Calls",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [
+        {
+          "req_id": "req-2-external-calls",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Protect External Calls",
+          "condition_text": null
+        },
+        {
+          "req_id": "req-2-documented",
+          "relation": "this_requirement_is_excepted_by_one_of_set",
+          "link_text": "[M] Document Special Code Use",
+          "condition_text": null
+        }
+      ],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [
+        "delegatecall()"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2023-3",
+      "level": "S",
+      "title": "Compiler Bug SOL-2023-3",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Compiler Bug SOL-2023-3 Tested code that includes Yul code and uses the verbatim instruction twice, in each case surrounded by identical code, MUST disable the Block Deduplicator when using a Solidity compiler version between 0.8.5 and 0.8.22 (inclusive).",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that includes Yul code and uses the <code>verbatim</code> instruction twice, in each case surrounded by identical code,",
+        "text": "Tested code that includes Yul code and uses the verbatim instruction twice, in each case surrounded by identical code,",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://soliditylang.org/blog/2023/11/08/verbatim-invalid-deduplication-bug/",
+            "text": "8 November 2023 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "verbatim"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2022-6",
+      "level": "S",
+      "title": "Compiler Bug SOL-2022-6",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2022-6 Tested code that ABI-encodes a tuple (including a struct, return value, or a parameter list) that includes a dynamic component with the ABIEncoderV2, and whose last element is a calldata static array of base type uint or bytes32, MUST NOT use a Solidity compiler version between 0.5.8 and 0.8.15 (inclusive).",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that ABI-encodes a tuple (including a <code>struct</code>, <code>return</code> value, or a parameter list)\nthat includes a dynamic component with the ABIEncoderV2, and whose last element is a\n<code>calldata</code> static array of base type <code>uint</code> or <code>bytes32</code>,",
+        "text": "Tested code that ABI-encodes a tuple (including a struct, return value, or a parameter list) that includes a dynamic component with the ABIEncoderV2, and whose last element is a calldata static array of base type uint or bytes32,",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2022/08/08/calldata-tuple-reencoding-head-overflow-bug/",
+            "text": "8 August 2022 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "bytes32",
+        "calldata",
+        "return",
+        "struct",
+        "uint"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2022-5-push",
+      "level": "S",
+      "title": "Compiler Bug SOL-2022-5 with .push()",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2022-5 with .push() Tested code that copies bytes arrays from calldata or memory whose size is not a multiple of 32 bytes, and has an empty .push() instruction that writes to the resulting array, MUST NOT use a Solidity compiler version older than 0.8.15.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that <ul>\n<li>copies <code>bytes</code> arrays from <code>calldata</code> or <code>memory</code>\n     whose size is not a multiple of 32 bytes, <b>and</b></li>\n<li>has an empty <code>.push()</code> instruction that writes to the resulting array,</li>\n</ul> <p>",
+        "text": "Tested code that copies bytes arrays from calldata or memory whose size is not a multiple of 32 bytes, and has an empty .push() instruction that writes to the resulting array,",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2022/06/15/dirty-bytes-array-to-storage-bug/",
+            "text": "15 June 2022 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        ".push()",
+        "bytes",
+        "calldata",
+        "memory"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2022-3",
+      "level": "S",
+      "title": "Compiler Bug SOL-2022-3",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2022-3 Tested code that uses memory and calldata pointers for the same function, and changes the data location of a function during inheritance, and performs an internal call at a location that is only aware of the original function signature from the base contract MUST NOT use a Solidity compiler version between 0.6.9 and 0.8.12 (inclusive).",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that <ul>\n<li>uses <code>memory</code> and <code>calldata</code> pointers for the same function, <b>and</b></li>\n<li>changes the data location of a function during inheritance, <b>and</b></li>\n<li>performs an internal call at a location that is only aware of the original function\nsignature from the base contract</li>\n</ul> <p>",
+        "text": "Tested code that uses memory and calldata pointers for the same function, and changes the data location of a function during inheritance, and performs an internal call at a location that is only aware of the original function signature from the base contract",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2022/05/17/data-location-inheritance-bug/",
+            "text": "17 May 2022 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "calldata",
+        "memory"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2022-2",
+      "level": "S",
+      "title": "Compiler Bug SOL-2022-2",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2022-2 Tested code with a nested array that passes it to an external function, or passes it as input to abi.encode(), or uses it in an event MUST NOT use a Solidity compiler version between 0.6.9 and 0.8.12 (inclusive).",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> with a nested array that <ul>\n<li>passes it to an external function, <b>or</b></li>\n<li>passes it as input to <code>abi.encode()</code>, <b>or</b></li>\n<li>uses it in an event</li>\n</ul> <p>",
+        "text": "Tested code with a nested array that passes it to an external function, or passes it as input to abi.encode(), or uses it in an event",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2022/05/17/calldata-reencode-size-check-bug/",
+            "text": "17 May 2022 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "abi.encode()"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2022-1",
+      "level": "S",
+      "title": "Compiler Bug SOL-2022-1",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2022-1 Tested code that uses Number literals for a bytesNN type shorter than 32 bytes, or uses String literals for any bytesNN type, and passes such literals to abi.encodeCall() as the first parameter, MUST NOT use Solidity compiler version 0.8.11 nor 0.8.12.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that <ul>\n<li>uses Number literals for a <a href=\"#dfn-bytesnn\" class=\"internalDFN\" data-link-type=\"dfn\"><code>bytesNN</code></a> type shorter than 32 bytes, <b>or</b></li>\n<li>uses String literals for any <a href=\"#dfn-bytesnn\" class=\"internalDFN\" data-link-type=\"dfn\"><code>bytesNN</code></a> type,</li>\n</ul> <p><b>and</b> passes such literals to <code>abi.encodeCall()</code> as the first parameter,",
+        "text": "Tested code that uses Number literals for a bytesNN type shorter than 32 bytes, or uses String literals for any bytesNN type, and passes such literals to abi.encodeCall() as the first parameter,",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-bytesnn",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2022/03/16/encodecall-bug/",
+            "text": "16 March 2022 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "abi.encodeCall()",
+        "bytesNN"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-sol-2021-4",
+      "level": "S",
+      "title": "Compiler Bug SOL-2021-4",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2021-4 Tested Code that uses custom value types shorter than 32 bytes MUST NOT use Solidity compiler version 0.8.8.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> that uses custom value types shorter than 32 bytes",
+        "text": "Tested Code that uses custom value types shorter than 32 bytes",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2021/09/29/user-defined-value-types-bug/",
+            "text": "29 September 2021 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2021-2",
+      "level": "S",
+      "title": "Compiler Bug SOL-2021-2",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2021-2 Tested code that uses abi.decode() on byte arrays as memory MUST NOT use the ABIEncoderV2 with a Solidity compiler version between 0.4.16 and 0.8.3 (inclusive).",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that uses <code>abi.decode()</code> on byte arrays as <code>memory</code>",
+        "text": "Tested code that uses abi.decode() on byte arrays as memory",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2021/04/21/decoding-from-memory-bug/",
+            "text": "21 April 2021 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "abi.decode()",
+        "memory"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2021-1",
+      "level": "S",
+      "title": "Compiler Bug SOL-2021-1",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2021-1 Tested code that has 2 or more occurrences of an instruction keccak(mem,length) where the values of mem are equal, and the values of length are unequal, and the values of length are not multiples of 32, MUST NOT use the Optimizer with a Solidity compiler version older than 0.8.3.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that has 2 or more occurrences of an instruction\n<code>keccak(<var>mem</var>,<var>length</var>)</code> where <ul>\n<li>the values of <var>mem</var> are equal, <b>and</b></li>\n<li>the values of <var>length</var> are unequal, <b>and</b></li>\n<li>the values of <var>length</var> are not multiples of 32,</li>\n</ul> <p>",
+        "text": "Tested code that has 2 or more occurrences of an instruction keccak(mem,length) where the values of mem are equal, and the values of length are unequal, and the values of length are not multiples of 32,",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2021/03/23/keccak-optimizer-bug/",
+            "text": "23 March 2021 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "keccak(mem,length)"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-compiler-060",
+      "level": "S",
+      "title": "Use a Modern Compiler",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Use a Modern Compiler Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets all the following requirements from the EEA EthTrust Security Levels Specification Version 2, as Overriding Requirements:",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-ethtrust-sl-v1"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/",
+            "text": "EEA EthTrust Security Levels Specification Version 1"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-10",
+            "text": "[S] Compiler Bug SOL-2016-10"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-11",
+            "text": "[S] Compiler Bug SOL-2016-11"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-3",
+            "text": "[S] Compiler Bug SOL-2016-3"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-4",
+            "text": "[S] Compiler Bug SOL-2016-4"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-5",
+            "text": "[S] Compiler Bug SOL-2016-5"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-6",
+            "text": "[S] Compiler Bug SOL-2016-6"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-7",
+            "text": "[S] Compiler Bug SOL-2016-7"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-8",
+            "text": "[S] Compiler Bug SOL-2016-8"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2016-9",
+            "text": "[S] Compiler Bug SOL-2016-9"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2017-1",
+            "text": "[S] Compiler Bug SOL-2017-1"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2017-2",
+            "text": "[S] Compiler Bug SOL-2017-2"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2017-3",
+            "text": "[S] Compiler Bug SOL-2017-3"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2017-4",
+            "text": "[S] Compiler Bug SOL-2017-4"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2017-5",
+            "text": "[S] Compiler Bug SOL-2017-5"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2018-1",
+            "text": "[S] Compiler Bug SOL-2018-1"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2018-2",
+            "text": "[S] Compiler Bug SOL-2018-2"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2018-3",
+            "text": "[S] Compiler Bug SOL-2018-3"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2018-4",
+            "text": "[S] Compiler Bug SOL-2018-4"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2019-1",
+            "text": "[S] Compiler Bug SOL-2019-1"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2019-10",
+            "text": "[S] Compiler Bug SOL-2019-10"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2019-2",
+            "text": "[S] Compiler Bug SOL-2019-2"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2019-3679",
+            "text": "[S] Compiler Bugs SOL-2019-3,6,7,9"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2019-4",
+            "text": "[S] Compiler Bug SOL-2019-4"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2019-5",
+            "text": "[S] Compiler Bug SOL-2019-5"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2019-8",
+            "text": "[S] Compiler Bug SOL-2019-8"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-compiler-SOL-2020-11-length",
+            "text": "[S] Compiler Bug SOL-2020-11-length"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-1-explicit-storage",
+            "text": "[S] Explicit Storage"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-2-explicit-storage",
+            "text": "[M] Declare storage Explicitly"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/",
+            "text": "EEA EthTrust Security Levels Specification Version 2"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-compiler-SOL-2020-10",
+            "text": "[S] Compiler Bug SOL-2020-10"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-compiler-SOL-2020-11-push",
+            "text": "[S] Compiler Bug SOL-2020-11-push"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-compiler-SOL-2020-4",
+            "text": "[S] Compiler Bug SOL-2020-4"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-compiler-SOL-2020-5",
+            "text": "[S] Compiler Bug SOL-2020-5"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-compiler-SOL-2020-6",
+            "text": "[S] Compiler Bug SOL-2020-6"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-compiler-SOL-2020-7",
+            "text": "[S] Compiler Bug SOL-2020-7"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-compiler-SOL-2020-8",
+            "text": "[S] Compiler Bug SOL-2020-8"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-compiler-SOL-2020-9",
+            "text": "[S] Compiler Bug SOL-2020-9"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-1-overflow-underflow",
+            "text": "[S] No Overflow/Underflow"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-1-no-ancient-compilers",
+      "level": "S",
+      "title": "No Ancient Compilers",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No Ancient Compilers Tested code MUST NOT use a Solidity compiler version older than 0.3.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-solidity-bugs-json"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-pass-l1",
+      "level": "M",
+      "title": "Pass Security Level [S]",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.2",
+        "title": "Security Level [M]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Pass Security Level [S] To be eligible for EEA EthTrust certification at Security Level [M], Tested code MUST meet the requirements for §&nbsp;5.1 Security Level [S].",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  To be eligible for <a href=\"#dfn-eea-ethtrust-certified\" class=\"internalDFN\" data-link-type=\"dfn\">EEA EthTrust certification</a> at <a href=\"#dfn-security-level-m\" class=\"internalDFN\" data-link-type=\"dfn\">Security Level [M]</a>,\n  <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "To be eligible for EEA EthTrust certification at Security Level [M], Tested code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-eea-ethtrust-certified",
+        "dfn-security-level-m",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-enforce-eval-order",
+      "level": "M",
+      "title": "Explicitly Disambiguate Evaluation Order",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.2",
+        "title": "Security Level [M]"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Explicitly Disambiguate Evaluation Order Tested code MUST NOT contain statements where variable evaluation order can result in different outcomes",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-solidity-bugs-json",
+          "bib-solidity-cheatsheet",
+          "bib-solidity-underhanded-richards2022"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2023/07/19/full-inliner-non-expression-split-argument-evaluation-order-bug/",
+            "text": "19 July 2023 Solidity Compiler Security Bug notification"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-verify-exact-balance-check",
+      "level": "M",
+      "title": "Verify Exact Balance Checks",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.2",
+        "title": "Security Level [M]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Verify Exact Balance Checks Tested code that checks whether the balance of an account is exactly equal to (i.e. ==) a specified amount or the value of a variable. MUST protect itself against transfers affecting the balance tested. This is an Overriding Requirement for [S] No Exact Balance Check.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that checks whether the balance of an account is exactly equal to\n(i.e. <code>==</code>) a specified amount or the value of a variable.",
+        "text": "Tested code that checks whether the balance of an account is exactly equal to (i.e. ==) a specified amount or the value of a variable.",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-1-exact-balance-check",
+          "relation": "this_requirement_overrides",
+          "link_text": "[S] No Exact Balance Check",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [
+        "=="
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-unicode-bdo",
+      "level": "M",
+      "title": "No Unnecessary Unicode Controls",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.1",
+        "title": "Text and homoglyph attacks"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No Unnecessary Unicode Controls Tested code MUST NOT use Unicode direction control characters unless they are necessary to render text appropriately, and the resulting text does not mislead readers. This is an Overriding Requirement for [S] No Unicode Direction Control Characters.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-1-unicode-bdo",
+          "relation": "this_requirement_overrides",
+          "link_text": "[S] No Unicode Direction Control Characters",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code",
+        "dfn-unicode-direction-control-characters"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-no-homoglyph-attack",
+      "level": "M",
+      "title": "No Homoglyph-style Attack",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.1",
+        "title": "Text and homoglyph attacks"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "No Homoglyph-style Attack Tested code MUST not use homoglyphs, Unicode control characters, combining characters, or characters from multiple Unicode blocks, if the impact is misleading.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-ivanov",
+          "bib-unicode-blocks"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-external-calls",
+      "level": "M",
+      "title": "Protect External Calls",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.2",
+        "title": "External Calls"
+      },
+      "modality": [
+        "MUST",
+        "MUST",
+        "MUST",
+        "MUST"
+      ],
+      "normative_text": "Protect External Calls For Tested code that makes external calls: all addresses called by the Tested code MUST correspond to the exact code of the Set of Contracts tested, and all contracts called MUST be within the Tested code, and all contracts called MUST be controlled by the same entity, and the protection against Re-entrancy Attacks for the Tested Code MUST be equivalent to what the Checks-Effects-Interactions pattern offers,",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  For <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that makes external calls: <ul>\n<li>all addresses called by the <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "For Tested code that makes external calls: all addresses called by the Tested code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-checks-effects-interactions",
+        "dfn-re-entrancy-attacks",
+        "dfn-set-of-contracts",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-avoid-readonly-reentrancy",
+      "level": "M",
+      "title": "Avoid Read-only Re-entrancy Attacks",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.2",
+        "title": "External Calls"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Avoid Read-only Re-entrancy Attacks Tested Code that makes external calls MUST protect itself against Read-only Re-entrancy Attacks.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> that makes external calls",
+        "text": "Tested Code that makes external calls",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-read-only-re-entrancy-attack",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-handle-return",
+      "level": "M",
+      "title": "Handle External Call Returns",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.2",
+        "title": "External Calls"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Handle External Call Returns Tested Code that makes external calls MUST reasonably handle possible errors. This is an Overriding Requirement for [S] Check External Calls Return.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> that makes external calls",
+        "text": "Tested Code that makes external calls",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-1-check-return",
+          "relation": "this_requirement_overrides",
+          "link_text": "[S] Check External Calls Return",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-documented",
+      "level": "M",
+      "title": "Document Special Code Use",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of:",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-ethtrust-sl-v1"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1#req-2-compiler-SOL-2019-2-assembly",
+            "text": "[M] Compiler Bug SOL-2019-2 in assembly {}"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-check-rounding",
+      "level": "M",
+      "title": "Ensure Proper Rounding of Computations Affecting Value",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Ensure Proper Rounding of Computations Affecting Value Tested code MUST identify and protect against exploiting rounding errors:",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-cwe-1339",
+          "bib-devcon-rounding",
+          "bib-rounding-errors"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://archive.devcon.org/resources/6/tackling-rounding-errors-with-precision-analysis.pdf",
+            "text": "presentation slides"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-self-destruct",
+      "level": "M",
+      "title": "Protect Self-destruction",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Protect Self-destruction Tested code that contains the selfdestruct() or suicide() instructions MUST",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that contains the <code>selfdestruct()</code> or <code>suicide()</code>\n  instructions",
+        "text": "Tested code that contains the selfdestruct() or suicide() instructions",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-106",
+            "text": "SWC-106"
+          },
+          {
+            "url": "https://www.parity.io/blog/parity-technologies-multi-sig-wallet-issue-update/",
+            "text": "Parity MultiSig Wallet Failure"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "selfdestruct()",
+        "suicide()"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-safe-assembly",
+      "level": "M",
+      "title": "Avoid Common assembly {} Attack Vectors",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Avoid Common assembly {} Attack Vectors Tested Code MUST NOT use the assembly {} instruction to change a variable unless the code cannot:",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-ethtrust-sl-v1",
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1#req-2-compiler-SOL-2019-2-assembly",
+            "text": "[M] Compiler Bug SOL-2019-2 in assembly {}"
+          },
+          {
+            "url": "https://swcregistry.io/docs/SWC-124",
+            "text": "SWC-124"
+          },
+          {
+            "url": "https://swcregistry.io/docs/SWC-127",
+            "text": "SWC-127"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "assembly {}"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-protect-create2",
+      "level": "M",
+      "title": "Protect CREATE2 Calls",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      },
+      "modality": [
+        "MUST",
+        "MUST NOT",
+        "MUST"
+      ],
+      "normative_text": "Protect CREATE2 Calls For Tested Code that uses the CREATE2 instruction, any contract to be deployed using CREATE2 MUST be within the Tested Code, and MUST NOT use any selfdestruct(), delegatecall() nor callcode() instructions, and MUST be fully compatible with the claims of the contract author,",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>For <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> that uses the <code>CREATE2</code> instruction,\nany contract to be deployed using <code>CREATE2</code> <ul>\n<li>",
+        "text": "For Tested Code that uses the CREATE2 instruction, any contract to be deployed using CREATE2",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [
+        "CREATE2",
+        "callcode()",
+        "delegatecall()",
+        "selfdestruct()"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-overflow-underflow",
+      "level": "M",
+      "title": "Safe Overflow/Underflow",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Safe Overflow/Underflow Tested code MUST NOT contain calculations that can overflow or underflow unless",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-101",
+            "text": "SWC-101"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-random-enough",
+      "level": "M",
+      "title": "Sources of Randomness",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Sources of Randomness Sources of randomness used in Tested Code MUST be sufficiently resistant to prediction that their purpose is met.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  Sources of randomness used in <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Sources of randomness used in Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-block-data-misuse",
+      "level": "M",
+      "title": "Don't Misuse Block Data",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Don't Misuse Block Data Block numbers and timestamps used in Tested Code MUST NOT introduce vulnerabilities to MEV or similar attacks.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  Block numbers and timestamps used in <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Block numbers and timestamps used in Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-mev",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-116",
+            "text": "SWC-116"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-signature-verification",
+      "level": "M",
+      "title": "Proper Signature Verification",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.4",
+        "title": "Signature Management"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-ethtrust-sl-v1",
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-2-validate-ecrecover-input",
+            "text": "[M] Validate ecrecover() Input"
+          },
+          {
+            "url": "https://swcregistry.io/docs/SWC-122",
+            "text": "SWC-122"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-malleable-signatures-for-replay",
+      "level": "M",
+      "title": "No Improper Usage of Signatures for Replay Attack Protection",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.4",
+        "title": "Signature Management"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "No Improper Usage of Signatures for Replay Attack Protection Tested Code using signatures to prevent replay attacks MUST ensure that signatures cannot be reused:",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> using signatures to prevent replay attacks",
+        "text": "Tested Code using signatures to prevent replay attacks",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-compiler-SOL-2023-1",
+      "level": "M",
+      "title": "Solidity Compiler Bug 2023-1",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.5",
+        "title": "Security Level [M] Compiler Bugs and Overriding Requirements"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Solidity Compiler Bug 2023-1 Tested code that contains a compound expression with side effects that uses .selector MUST use the viaIR option with Solidity compiler versions between 0.6.2 and 0.8.20 inclusive.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that contains a compound expression with side effects that uses <code>.selector</code>",
+        "text": "Tested code that contains a compound expression with side effects that uses .selector",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2023/07/19/missing-side-effects-on-selector-access-bug/",
+            "text": "19 July 2023 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        ".selector"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-compiler-SOL-2022-7",
+      "level": "M",
+      "title": "Compiler Bug SOL-2022-7",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.5",
+        "title": "Security Level [M] Compiler Bugs and Overriding Requirements"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2022-7 Tested code that has storage writes followed by conditional early terminations from inline assembly functions containing return() or stop() instructions MUST NOT use a Solidity compiler version between 0.8.13 and 0.8.16 inclusive. This is part of the Set of Overriding Requirements for [S] No assembly {}.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that has storage writes followed by conditional early terminations\nfrom inline assembly functions containing <code>return()</code> or <code>stop()</code> instructions",
+        "text": "Tested code that has storage writes followed by conditional early terminations from inline assembly functions containing return() or stop() instructions",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-1-no-assembly",
+          "relation": "this_requirement_is_one_of_set_overriding",
+          "link_text": "[S] No assembly {}",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [
+        {
+          "req_id": "req-1-no-assembly",
+          "relation": "referenced",
+          "link_text": "[S] No assembly {}"
+        }
+      ],
+      "definitions_referenced": [
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2022/09/08/storage-write-removal-before-conditional-termination/",
+            "text": "5 September 2022 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "assembly {}",
+        "return()",
+        "stop()"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-compiler-SOL-2022-5-assembly",
+      "level": "M",
+      "title": "Compiler Bug SOL-2022-5 in assembly {}",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.5",
+        "title": "Security Level [M] Compiler Bugs and Overriding Requirements"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2022-5 in assembly {} Tested code that copies bytes arrays from calldata or memory whose size is not a multiple of 32 bytes, and has an assembly {} instruction that reads that data without explicitly matching the length that was copied, MUST NOT use a Solidity compiler version older than 0.8.15. This is part of the Set of Overriding Requirements for [S] No assembly {}.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that <ul>\n<li>copies <code>bytes</code> arrays from calldata or memory whose size is not a multiple of 32 bytes, <b>and</b></li>\n<li>has an <code>assembly {}</code> instruction that reads that data without explicitly matching the length that was copied,</li>\n</ul> <p>",
+        "text": "Tested code that copies bytes arrays from calldata or memory whose size is not a multiple of 32 bytes, and has an assembly {} instruction that reads that data without explicitly matching the length that was copied,",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-1-no-assembly",
+          "relation": "this_requirement_is_one_of_set_overriding",
+          "link_text": "[S] No assembly {}",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [
+        {
+          "req_id": "req-1-no-assembly",
+          "relation": "referenced",
+          "link_text": "[S] No assembly {}"
+        }
+      ],
+      "definitions_referenced": [
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2022/06/15/dirty-bytes-array-to-storage-bug/",
+            "text": "15 June 2022 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "assembly {}",
+        "bytes"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-compiler-SOL-2022-4",
+      "level": "M",
+      "title": "Compiler Bug SOL-2022-4",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.5",
+        "title": "Security Level [M] Compiler Bugs and Overriding Requirements"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2022-4 Tested code that has at least two assembly {} instructions, such that one writes to memory e.g. by storing a value in a variable, but does not access that memory again, and code in a another assembly {} instruction refers to that memory, MUST NOT use the yulOptimizer with Solidity compiler versions 0.8.13 or 0.8.14. This is part of the Set of Overriding Requirements for [S] No assembly {}.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that has at least two <code>assembly {}</code> instructions, such that <ul>\n<li>one writes to memory e.g. by storing a value in a variable, but does not access that memory again, <b>and</b></li>\n<li>code in a another <code>assembly {}</code> instruction refers to that memory,</li>\n</ul> <p>",
+        "text": "Tested code that has at least two assembly {} instructions, such that one writes to memory e.g. by storing a value in a variable, but does not access that memory again, and code in a another assembly {} instruction refers to that memory,",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-1-no-assembly",
+          "relation": "this_requirement_is_one_of_set_overriding",
+          "link_text": "[S] No assembly {}",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [
+        {
+          "req_id": "req-1-no-assembly",
+          "relation": "referenced",
+          "link_text": "[S] No assembly {}"
+        }
+      ],
+      "definitions_referenced": [
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2022/06/15/inline-assembly-memory-side-effects-bug/",
+            "text": "17 June 2022 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "assembly {}"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-compiler-SOL-2021-3",
+      "level": "M",
+      "title": "Compiler Bug SOL-2021-3",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.2.5",
+        "title": "Security Level [M] Compiler Bugs and Overriding Requirements"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Compiler Bug SOL-2021-3 Tested code that reads an immutable signed integer of a type shorter than 256 bits within an assembly {} instruction MUST NOT use a Solidity compiler version between 0.6.5 and 0.8.8 (inclusive). This is part of the Set of Overriding Requirements for [S] No assembly {}.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that reads an <code>immutable</code> signed integer of a <code>type</code> shorter than\n256 bits within an <code>assembly {}</code> instruction",
+        "text": "Tested code that reads an immutable signed integer of a type shorter than 256 bits within an assembly {} instruction",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-1-no-assembly",
+          "relation": "this_requirement_is_one_of_set_overriding",
+          "link_text": "[S] No assembly {}",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [
+        {
+          "req_id": "req-1-no-assembly",
+          "relation": "referenced",
+          "link_text": "[S] No assembly {}"
+        }
+      ],
+      "definitions_referenced": [
+        "dfn-sets-of-overriding-requirements",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://blog.soliditylang.org/2021/09/29/signed-immutables-bug/",
+            "text": "29 September 2021 security alert"
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "assembly {}",
+        "immutable",
+        "type"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-2-compiler-060",
+      "level": "M",
+      "title": "Use a Modern Compiler",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.2.5",
+        "title": "Security Level [M] Compiler Bugs and Overriding Requirements"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "Use a Modern Compiler Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets the requirement [M] Compiler Bug Check Constructor Payment from the EEA EthTrust Security Levels Specification Version 2, as an Overriding Requirement,",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/",
+            "text": "EEA EthTrust Security Levels Specification Version 1"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-2-compiler-SOL-2019-2-assembly",
+            "text": "[M] Compiler Bug SOL-2019-2 in assembly {}"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-2-compiler-SOL-2020-2",
+            "text": "[M] Compiler Bug SOL-2020-2"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-2-compiler-check-identity-calls",
+            "text": "[M] Compiler Bug Check Identity Calls"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-2-compiler-no-zero-ether-send",
+            "text": "[M] Compiler Bug No Zero Ether Send"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-2-explicit-storage",
+            "text": "[M] Declare storage Explicitly"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v1/#req-2-validate-ecrecover-input",
+            "text": "[M] Validate ecrecover() input"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/",
+            "text": "EEA EthTrust Security Levels Specification Version 2"
+          },
+          {
+            "url": "https://entethalliance.org/specs/ethtrust-sl/v2/#req-2-compiler-check-payable-constructor",
+            "text": "[M] Compiler Bug Check Constructor Payment"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-pass-l2",
+      "level": "Q",
+      "title": "Pass Security Level [M]",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Pass Security Level [M] To be eligible for EEA EthTrust Certification at Security Level [Q], Tested code MUST meet the requirements for §&nbsp;5.2 Security Level [M].",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  To be eligible for <a href=\"#dfn-eea-ethtrust-certified\" class=\"internalDFN\" data-link-type=\"dfn\">EEA EthTrust Certification</a> at <a href=\"#dfn-security-level-q\" class=\"internalDFN\" data-link-type=\"dfn\">Security Level [Q]</a>,\n  <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "To be eligible for EEA EthTrust Certification at Security Level [Q], Tested code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-eea-ethtrust-certified",
+        "dfn-security-level-q",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-timelock-for-privileged-actions",
+      "level": "Q",
+      "title": "Use TimeLock Delays for Sensitive Operations",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Use TimeLock Delays for Sensitive Operations Sensitive operations that affect all or a majority of users MUST use [TimeLock] delays.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br> Sensitive operations that affect all or a majority of users",
+        "text": "Sensitive operations that affect all or a majority of users",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-rbac",
+          "bib-timelock"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-linted",
+      "level": "Q",
+      "title": "Code Linting",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST NOT",
+        "MUST NOT",
+        "MUST NOT",
+        "MUST NOT",
+        "MUST NOT",
+        "MUST",
+        "MUST"
+      ],
+      "normative_text": "Code Linting Tested code MUST NOT create unnecessary variables, and MUST NOT use the same name for functions, variables or other tokens that can occur within the same scope, and MUST NOT include assert() statements that fail in normal operation, and MUST NOT include code that cannot be reached in execution except for code explicitly intended to manage unexpected errors, such as assert() statements, and MUST NOT contain a function that has the same name as the smart contract unless it is explicitly declared as a constructor using the constructor keyword, and MUST explicitly declare the visibility of all functions and variables, and MUST specify one or more Solidity compiler versions in its pragma directive.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> <ul>\n<li>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-cwe-670"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [
+        "assert()",
+        "constructor",
+        "pragma"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-enough-gas",
+      "level": "Q",
+      "title": "Manage Gas Use Increases",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Manage Gas Use Increases Sufficient Gas MUST be available to work with data structures in the Tested Code that grow over time, in accordance with descriptions provided for [Q] Document Contract Logic.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  Sufficient Gas",
+        "text": "Sufficient Gas",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [
+        {
+          "req_id": "req-3-documented",
+          "relation": "referenced",
+          "link_text": "[Q] Document Contract Logic"
+        }
+      ],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-126",
+            "text": "SWC-126"
+          },
+          {
+            "url": "https://swcregistry.io/docs/SWC-128",
+            "text": "SWC-128"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-protect-gas",
+      "level": "Q",
+      "title": "Protect Gas Usage",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Protect Gas Usage Tested Code MUST protect against malicious actors stealing or wasting gas.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-devcon-siphoning"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://archive.devcon.org/archive/watch/5/the-gas-siphon-attack-how-it-happened-and-how-to-protect-yourself/",
+            "text": "The Gas Siphon Attack: How it Happened and How to Protect Yourself"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-check-oracles",
+      "level": "Q",
+      "title": "Protect against Oracle Failure",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Protect against Oracle Failure Tested Code MUST protect itself against malfunctions in Oracles it relies on.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-oracles",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-block-front-running",
+      "level": "Q",
+      "title": "Protect against Ordering Attacks",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Protect against Ordering Attacks Tested Code MUST manage information in such a way that it protects against Ordering Attacks.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-ordering-attacks",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-hash-commit"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-block-mev",
+      "level": "Q",
+      "title": "Protect against MEV Attacks",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Protect against MEV Attacks Tested Code that is susceptible to MEV attacks MUST follow appropriate design patterns to mitigate this risk.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> that is susceptible to <a href=\"#dfn-mev\" class=\"internalDFN\" data-link-type=\"dfn\">MEV</a> attacks",
+        "text": "Tested Code that is susceptible to MEV attacks",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-mev",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-protect-governance",
+      "level": "Q",
+      "title": "Protect Against Governance Takeovers",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Protect Against Governance Takeovers Tested Code which includes a governance system MUST protect against malicious exploitation of the governance design.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> which includes a governance system",
+        "text": "Tested Code which includes a governance system",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-all-valid-inputs",
+      "level": "Q",
+      "title": "Process All Inputs",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "Tested Code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-cwe-573",
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://swcregistry.io/docs/SWC-123",
+            "text": "SWC-123"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-event-on-state-change",
+      "level": "Q",
+      "title": "State Changes Trigger Events",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "State Changes Trigger Events Tested code MUST emit a contract event for all transactions that cause state changes.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-solidity-events"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-no-private-data",
+      "level": "Q",
+      "title": "No Private Data",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST NOT"
+      ],
+      "normative_text": "No Private Data Tested code MUST NOT store Private Data on the blockchain.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Tested code",
+        "is_unconditioned_subject": true
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-private-data",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-gdpr"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-intended-replay",
+      "level": "Q",
+      "title": "Intended Replay",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.3",
+        "title": "Security Level [Q]"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Intended Replay If a signature within the Tested Code can be reused, the replay instance MUST be intended, documented, and safe for re-use. This is an Overriding Requirement for [M] No Improper Usage of Signatures for Replay Attack Protection.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  If a signature within the <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> can be reused, the replay instance",
+        "text": "If a signature within the Tested Code can be reused, the replay instance",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-malleable-signatures-for-replay",
+          "relation": "this_requirement_overrides",
+          "link_text": "[M] No Improper Usage of Signatures for Replay Attack Protection",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-documented",
+      "level": "Q",
+      "title": "Document Contract Logic",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.1",
+        "title": "Documentation requirements"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Document Contract Logic A specification of the business logic that the Tested code functionality is intended to implement MUST be available to anyone who can call the Tested Code.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n    A specification of the business logic that the <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> functionality is intended\nto implement",
+        "text": "A specification of the business logic that the Tested code functionality is intended to implement",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-document-system",
+      "level": "Q",
+      "title": "Document System Architecture",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.1",
+        "title": "Documentation requirements"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Document System Architecture Documentation of the system architecture for the Tested code MUST be provided that conveys the overrall system design, privileged roles, security assumptions and intended usage.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n    Documentation of the system architecture for the <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Documentation of the system architecture for the Tested code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-document-threats",
+      "level": "Q",
+      "title": "Document Threat Models",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.1",
+        "title": "Documentation requirements"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Document Threat Models Documented Threat Models for the Tested code MUST be provided, describing each threat, security assumptions, expected responses, and expected outcomes.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n Documented Threat Models for the <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "Documented Threat Models for the Tested code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-annotate",
+      "level": "Q",
+      "title": "Annotate Code with NatSpec",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.1",
+        "title": "Documentation requirements"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Annotate Code with NatSpec All Public Interfaces contained in the Tested code MUST be annotated with inline comments according to the [NatSpec] format that explain the intent behind each function, parameter, event, and return variable, along with developer notes for safe usage.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n    All <a href=\"#dfn-public-interfaces\" class=\"internalDFN\" data-link-type=\"dfn\">Public Interfaces</a> contained in the <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "All Public Interfaces contained in the Tested code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-public-interfaces",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-natspec"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://sourcify.dev",
+            "text": "Sourcify"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-implement-as-documented",
+      "level": "Q",
+      "title": "Implement as Documented",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.1",
+        "title": "Documentation requirements"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Implement as Documented The Tested code MUST behave as described in the documentation provided for [Q] Document Contract Logic, and [Q] Document System Architecture.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  The <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
+        "text": "The Tested code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [
+        {
+          "req_id": "req-3-documented",
+          "relation": "referenced",
+          "link_text": "[Q] Document Contract Logic"
+        },
+        {
+          "req_id": "req-3-document-system",
+          "relation": "referenced",
+          "link_text": "[Q] Document System Architecture"
+        }
+      ],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-access-control",
+      "level": "Q",
+      "title": "Enforce Least Privilege",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.2",
+        "title": "Access Control"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Enforce Least Privilege Tested code that enables privileged access MUST implement appropriate access control mechanisms that provide the least privilege necessary for those interactions, based on the documentation provided for [Q] Document Contract Logic. This is an Overriding Requirement for [M] Protect Self-destruction.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that enables privileged access",
+        "text": "Tested code that enables privileged access",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [
+        {
+          "req_id": "req-2-self-destruct",
+          "relation": "this_requirement_overrides",
+          "link_text": "[M] Protect Self-destruction",
+          "condition_text": null
+        }
+      ],
+      "referenced_requirements": [
+        {
+          "req_id": "req-3-documented",
+          "relation": "referenced",
+          "link_text": "[Q] Document Contract Logic"
+        }
+      ],
+      "definitions_referenced": [
+        "dfn-overriding-requirement",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-cwe-284",
+          "bib-ownable",
+          "bib-rbac",
+          "bib-solidity-patterns",
+          "bib-swcregistry"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://fravoll.github.io/solidity-patterns/access_restriction.html",
+            "text": "Access Restriction"
+          },
+          {
+            "url": "https://swcregistry.io/docs/SWC-105",
+            "text": "SWC-105"
+          },
+          {
+            "url": "https://swcregistry.io/docs/SWC-126",
+            "text": "SWC-124"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-revocable-permisions",
+      "level": "Q",
+      "title": "Use Revocable and Transferable Access Control Permissions",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.2",
+        "title": "Access Control"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Use Revocable and Transferable Access Control Permissions If the Tested code makes uses of Access Control for privileged actions, it MUST implement a mechanism to revoke and transfer those permissions.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  If the <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> makes uses of Access Control for privileged actions, it",
+        "text": "If the Tested code makes uses of Access Control for privileged actions, it",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-no-single-admin-eoa",
+      "level": "Q",
+      "title": "No Single Admin EOA for Privileged Actions",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.2",
+        "title": "Access Control"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "No Single Admin EOA for Privileged Actions If the Tested code makes uses of Access Control for privileged actions, it MUST ensure that all critical administrative tasks require multiple signatures to be executed, unless there is a multisg admin that has greater privileges and can revoke permissions in case of a compromised or rogue EOA and reverse any adverse action the EOA has taken.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  If the <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> makes uses of Access Control for privileged actions, it",
+        "text": "If the Tested code makes uses of Access Control for privileged actions, it",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-external-calls",
+      "level": "Q",
+      "title": "Verify External Calls",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.3.2",
+        "title": "Access Control"
+      },
+      "modality": [
+        "MUST",
+        "MUST"
+      ],
+      "normative_text": "Verify External Calls Tested Code that contains external calls MUST document the need for them, and MUST protect them in a way that is fully compatible with the claims of the contract author.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> that contains external calls <ul>\n<li>",
+        "text": "Tested Code that contains external calls",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-verify-tx.origin",
+      "level": "Q",
+      "title": "Verify tx.origin Usage",
+      "wrapper_tag": "div",
+      "section": {
+        "level": "4",
+        "secno": "5.3.2",
+        "title": "Access Control"
+      },
+      "modality": [
+        "MUST",
+        "MUST NOT"
+      ],
+      "normative_text": "Verify tx.origin Usage For Tested Code that uses tx.origin, each instance MUST be consistent with the stated security and functionality objectives of the Tested Code, and MUST NOT allow assertions about contract functionality made for [Q] Document Contract Logic or [Q] Document System Architecture to be violated by another contract, even where that contract is called by a user authorized to interact directly with the Tested Code.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\nFor <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> that uses <code>tx.origin</code>, each instance <ul>\n<li>",
+        "text": "For Tested Code that uses tx.origin, each instance",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [
+        {
+          "req_id": "req-3-documented",
+          "relation": "referenced",
+          "link_text": "[Q] Document Contract Logic"
+        },
+        {
+          "req_id": "req-3-document-system",
+          "relation": "referenced",
+          "link_text": "[Q] Document System Architecture"
+        }
+      ],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-cwe-284",
+          "bib-solidity-security"
+        ],
+        "external_links_in_full_block": [
+          {
+            "url": "https://docs.soliditylang.org/en/latest/security-considerations.html?highlight=tx.origin",
+            "text": "section \"tx.origin\""
+          }
+        ]
+      },
+      "enumerated_terms": [
+        "tx.origin"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-3-consistent-solidity-output",
+      "level": "Q",
+      "title": "Specify Solidity Compiler Versions to Produce Consistent Output",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "4",
+        "secno": "5.3.2",
+        "title": "Access Control"
+      },
+      "modality": [
+        "MUST"
+      ],
+      "normative_text": "Specify Solidity Compiler Versions to Produce Consistent Output The Tested Code MUST specify a range of Solidity versions in its pragma directive(s) that produce the same Bytecode given the same compilation options.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>The <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "The Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [
+        "pragma"
+      ],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-check-new-bugs",
+      "level": "GP",
+      "title": "Check For and Address New Security Bugs",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [],
+      "normative_text": "Check For and Address New Security Bugs Check [solidity-bugs-json] and other sources for bugs announced after 1 November 2023 and address them. This version of the specification was finalized late in 2023. New vulnerabilities are discovered from time to time, on an unpredictable schedule. The latest solidity compiler bug accounted for in this version is SOL-2023-3. Checking for security alerts published too late to be incorporated into the current version of this document is an important technique for maintaining the highest possible security. There are other sources of information on new security vulnerabilities, from [CWE] to following the blogs of many security-oriented organizations such as those that contributed to this specification.",
+      "conditioned_scope_clause": {
+        "raw_html": null,
+        "text": null,
+        "is_unconditioned_subject": null
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-cwe",
+          "bib-solidity-bugs-json"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-meet-all-possible",
+      "level": "GP",
+      "title": "Meet as Many Requirements as Possible",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Meet as Many Requirements as Possible The Tested Code SHOULD meet as many requirements of this specification as possible at Security Levels above the Security Level for which it is certified.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>The <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "The Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-use-latest-compiler",
+      "level": "GP",
+      "title": "Use Latest Compiler",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Use Latest Compiler The Tested Code SHOULD use the latest available stable Solidity compiler version.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>The <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "The Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-clean-code",
+      "level": "GP",
+      "title": "Write Clear, Legible Solidity Code",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Write Clear, Legible Solidity Code The Tested Code SHOULD be written for easy understanding.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>The <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "The Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-solidity-style-guide"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-follow-erc-standards",
+      "level": "GP",
+      "title": "Follow Accepted ERC Standards",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Follow Accepted ERC Standards The Tested Code SHOULD conform to finalized [ERC] standards when it is reasonably capable of doing so for its use-case.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>The <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "The Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-eip",
+          "bib-erc",
+          "bib-erc137",
+          "bib-erc20"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-define-license",
+      "level": "GP",
+      "title": "Define a Software License",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Define a Software License The Tested Code SHOULD define a software license",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  The <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "The Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-software-license"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-notify-news",
+      "level": "GP",
+      "title": "Disclose New Vulnerabilities Responsibly",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Disclose New Vulnerabilities Responsibly Security vulnerabilities that are not addressed by this specification SHOULD be brought to the attention of the Working Group and others through responsible disclosure as described in §&nbsp;1.4 Feedback and new vulnerabilities.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\nSecurity vulnerabilities that are not addressed by this specification",
+        "text": "Security vulnerabilities that are not addressed by this specification",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-fuzzing-in-testing",
+      "level": "GP",
+      "title": "Use Fuzzing",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Use Fuzzing Fuzzing SHOULD be used to probe Tested Code for errors.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-fuzzing\" class=\"internalDFN\" data-link-type=\"dfn\">Fuzzing</a>",
+        "text": "Fuzzing",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-fuzzing",
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": [
+          {
+            "url": "https://docs.scribble.codes/tool/instrumented-code",
+            "text": "Scribble"
+          }
+        ]
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-mutation-testing",
+      "level": "GP",
+      "title": "Use Mutation Testing",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Use Mutation Testing Mutation Testing SHOULD be used to evaluate and improve the quality of test suites for smart contracts.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n<a href=\"#dfn-mutation-testing\" class=\"internalDFN\" data-link-type=\"dfn\">Mutation Testing</a>",
+        "text": "Mutation Testing",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-mutation-testing"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-formal-verification",
+      "level": "GP",
+      "title": "Use Formal Verification",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Use Formal Verification The Tested Code SHOULD undergo formal verification.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>The <a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
+        "text": "The Tested Code",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [
+        "dfn-tested-code"
+      ],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [
+          "bib-ef-sl"
+        ],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    },
+    {
+      "req_id": "req-R-multisig-threshold",
+      "level": "GP",
+      "title": "Select an Appropriate Threshold for Multisig Wallets",
+      "wrapper_tag": "p",
+      "section": {
+        "level": "3",
+        "secno": "5.4",
+        "title": "Recommended Good Practices"
+      },
+      "modality": [
+        "SHOULD"
+      ],
+      "normative_text": "Select an Appropriate Threshold for Multisig Wallets Multisignature requirements for privileged actions SHOULD have a sufficient number of signers, and NOT require \"1 of N\" nor all signatures.",
+      "conditioned_scope_clause": {
+        "raw_html": "<br>\n  Multisignature requirements for privileged actions",
+        "text": "Multisignature requirements for privileged actions",
+        "is_unconditioned_subject": false
+      },
+      "overriding_requirements": [],
+      "referenced_requirements": [],
+      "definitions_referenced": [],
+      "exceptions_referenced": [],
+      "external_references": {
+        "bibliographic": [],
+        "external_links_in_full_block": []
+      },
+      "enumerated_terms": [],
+      "maturity": "DRAFT_TRANSLATION"
+    }
+  ],
+  "parsing_notes": [
+    {
+      "req_id": "req-1-compiler-SOL-2022-5-push",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2022-3",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2022-2",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2022-1",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-1-compiler-SOL-2021-1",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-external-calls",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-protect-create2",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-compiler-SOL-2022-5-assembly",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-compiler-SOL-2022-4",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-3-linted",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-3-external-calls",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-3-verify-tx.origin",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-R-check-new-bugs",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-R-check-new-bugs",
+      "issue": "no_rfc2119_keyword_found_in_primary_paragraph",
+      "note": "Modality/scope-clause extraction skipped even after sibling-block extension; requires manual review."
+    }
+  ]
+}

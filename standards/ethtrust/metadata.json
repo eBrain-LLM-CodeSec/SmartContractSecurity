@@ -1,0 +1,24 @@
+{
+  "source_url": "https://entethalliance.org/specs/ethtrust-sl/",
+  "spec_title": "EEA EthTrust Security Levels Specification",
+  "spec_version": "Version 3",
+  "publisher": "Enterprise Ethereum Alliance, Inc. (EEA)",
+  "working_group": "EthTrust Security Levels Working Group",
+  "copyright_notice": "Copyright © 2020-2025 Enterprise Ethereum Alliance.",
+  "license": "Apache License, Version 2.0",
+  "license_url": "http://www.apache.org/licenses/LICENSE-2.0",
+  "license_statement_verbatim": "This specification is licensed by the Enterprise Ethereum Alliance, Inc. (EEA) under the terms of the Apache License, Version 2.0 [License] Unless otherwise explicitly authorised in writing by the EEA, you can only use this specification in accordance with those terms.",
+  "warranty_disclaimer_verbatim": "Unless required by applicable law or agreed to in writing, this specification is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+  "public_source_repo_checked": "https://github.com/entethalliance/EthTrust-public",
+  "public_source_repo_note": "Checked and found to contain only a LICENSE file, README, and a non-member participation agreement PDF -- no machine-readable respec/bikeshed source for the spec text itself. The rendered HTML fetched directly from the published spec URL is therefore treated as the canonical verbatim source.",
+  "retrieved_at": "2026-08-05T18:30:36Z",
+  "retrieval_method": "direct HTTPS GET (curl) of the published spec URL, saved as raw bytes -- NOT the earlier WebFetch-summarized fetch used during planning, which is known to have produced an inaccurate requirement inventory (wrongly reported as ~52 requirements across S/M/Q/GP and wrongly identified the version as 'Version 1 or Version 2').",
+  "raw_snapshot_file": "ethtrust-sl.raw.html",
+  "raw_snapshot_sha256": "7b2cea3b2f19945a463dbf7ad2861494f5a4ab55c5a586e8703547afbcaf60a7",
+  "redistribution_basis": "Apache License 2.0 permits redistribution of verbatim and derivative-work content, subject to: (1) retaining the copyright notice, (2) including a copy of the License, (3) stating changes made to any modified files, (4) reproducing any NOTICE file from the original (none found in the checked source repo). This snapshot directory satisfies (1)-(2) directly (copyright notice above, APACHE-2.0.LICENSE.txt copy in this directory); the structured extraction in ../../rtf/l1_corpus/ is a derivative work and its own README states the transformation performed, satisfying (3).",
+  "requirement_inventory_verified_from_verbatim_text": {
+    "total_requirements": 81,
+    "by_level": {"S": 22, "M": 24, "Q": 24, "GP": 11},
+    "note": "Counted via a full tag-agnostic audit of every id=\"req-*\" occurrence in the document (128 total). Current, normative requirements are written as EITHER <p id=\"req-...\"> (54) OR <div id=\"req-...\"> wrapping an inner <p> (27) -- an initial parser pass only handled the <p> form and undercounted at 53; see rtf/l1_corpus/PARSING_NOTES.md for the full bug writeup. The remaining 47 req-* ids carry class=\"removed\" and live inside a changelog/appendix list of requirements superseded from the prior spec version (mostly individual per-year Solidity compiler-bug requirements later consolidated into the single current requirement 'No Ancient Compilers') -- these are explicitly excluded from the current Requirement Corpus. This 81/22/24/24/11 figure supersedes both the provisional ~52/24/17/9/2 figure from planning (an AI-summarized, not verbatim, fetch) and an intermediate incorrect 53/10/12/20/11 figure produced by the first verbatim-parsing pass before the <div>-wrapper bug was found."
+  }
+}
