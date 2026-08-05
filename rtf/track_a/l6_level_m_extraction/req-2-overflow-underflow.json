@@ -1,0 +1,25 @@
+{
+  "req_id": "req-2-overflow-underflow",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Selected at Track A step 1 as the 'M full-semantic-review candidate' based on a cheap, mechanical selection-time proxy (no override link + zero enumerated <code> terms in L1). On full reading of the requirement text and its context bundle, that proxy turns out NOT to predict the true classification well: there IS a nameable deterministic trigger (arithmetic inside `unchecked {}` blocks, arithmetic in code compiled <0.8.0, or arithmetic in inline assembly -- all three are syntactically detectable via Slither/AST), so this is not text-blind FULL_SEMANTIC_REVIEW. This is EXACTLY the kind of DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION / FULL_SEMANTIC_REVIEW boundary case the plan anticipated and said to record with rationale rather than resolve by fiat -- so it is recorded as such, not silently reclassified to make the selection proxy look more accurate than it was.",
+  "trigger_precision_note": "Unlike req-2-verify-exact-balance-check's narrow trigger, THIS trigger is comparatively COARSE: 'presence of an unchecked{} block / pre-0.8.0 arithmetic / assembly arithmetic' does not by itself mean the arithmetic CAN actually overflow or underflow -- e.g. `unchecked { i++; }` inside a loop already bounded by a small fixed limit cannot overflow in practice, and would be a false positive if the trigger alone were treated as sufficient evidence of applicability. Determining whether overflow/underflow is ACTUALLY reachable given the code's value ranges is itself a semantic/range-analysis question, not a purely syntactic one -- meaning the semantic reviewer's job here is heavier than in req-2-verify-exact-balance-check's case: it must independently judge (a) whether the flagged arithmetic can realistically overflow/underflow given context, in addition to (b) whether a 'demonstrated need' and 'adequate guards' (the requirement's own named exception condition) are present. This blurs the line between 'trigger' and 'semantic condition' more than the balance-check requirement does -- worth treating this variation as a genuine, reportable finding about the SHAPE of DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION cases, not glossing over it as a clean uniform category.",
+  "components": [
+    {
+      "component_id": "trigger-unprotected-arithmetic-context",
+      "component_type": "derived_predicate",
+      "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
+      "status": "NOT_YET_BUILT",
+      "note": "Would flag: (a) any `unchecked {}` block containing +/-/* on an integer type, (b) any arithmetic in a contract compiled at solc <0.8.0 outside a SafeMath-style wrapper, (c) any arithmetic performed via inline assembly opcodes (add/sub/mul without explicit overflow checks). Deliberately over-inclusive per the trigger_precision_note above -- this is evidence collection, not a conformance verdict; the false-positive risk noted above is exactly why judgment_authority is DETERMINISTIC_EVIDENCE_ONLY, not DETERMINISTIC_COMPLETE."
+    },
+    {
+      "component_id": "semantic-review-overflow-risk-and-guards",
+      "component_type": "llm_condition_review",
+      "judgment_authority": "LLM_JUDGMENT",
+      "status": "NOT_YET_BUILT",
+      "inputs_from": ["trigger-unprotected-arithmetic-context"],
+      "note": "Must independently assess BOTH whether the flagged arithmetic site can realistically overflow/underflow given surrounding value constraints, AND (only if so) whether a demonstrated need plus adequate guards -- consistent with the contract author's own claims -- are present, per the requirement's own inline exception text (see context bundle: 'there is a demonstrated need ... and there are guards ... to ensure behavior consistent with the claims of the contract author'). Depends on the L8 shared LLM Judgment Layer, not yet built."
+    }
+  ],
+  "aggregation_rule": "applicability_state = APPLICABLE iff trigger-unprotected-arithmetic-context fires at least once; conformance_state = semantic-review-overflow-risk-and-guards's decision when applicable, NOT_APPLICABLE otherwise.",
+  "maturity": "DRAFT_TRANSLATION"
+}

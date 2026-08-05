@@ -1,0 +1,15 @@
+{
+  "req_id": "req-3-implement-as-documented",
+  "target_grain": "contract",
+  "modality": ["MUST"],
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE to all Tested Code, unconditionally -- 'The Tested code MUST behave as described in the documentation provided for [Q] Document Contract Logic, and [Q] Document System Architecture' has no restrictive clause, and a manual re-read of the predicate finds no hidden restriction either (unlike req-1-eip155-chainid/req-2-overflow-underflow): every contract either has documentation to compare against or doesn't, and both cases are meaningful outcomes for THIS requirement rather than reasons it wouldn't apply.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Unconditioned subject, predicate re-read confirms no embedded restriction (checked specifically because of AR-001's warning).",
+    "derivation_method": "manual re-read of full normative_text against AR-001's warning",
+    "logged_at": "2026-08-05T20:10:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION",
+  "cross_reference_note": "Important distinction for L7: APPLICABILITY (always yes) is separate from ASSESSABILITY. If the referenced documentation requirements (req-3-documented, req-3-document-system) are themselves unmet -- i.e. no documentation exists to compare code against -- the correct conformance state for THIS requirement is likely INSUFFICIENT_EVIDENCE, not NOT_APPLICABLE. Conflating 'nothing to compare against' with 'doesn't apply' would be exactly the applicability/conformance fusion error the plan's Rev. 2 revision was designed to prevent."
+}

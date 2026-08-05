@@ -1,0 +1,23 @@
+{
+  "req_id": "req-1-compiler-060",
+  "components": [
+    {
+      "component_id": "trigger-version-below-080",
+      "component_type": "analyzer_reuse",
+      "source": "rtf/track_a/l4_analyzer_mappings/req-1-compiler-060.json (Slither solc-version detector, lines 134-150 of incorrect_solc.py)",
+      "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
+      "status": "REUSABLE_AS_IS",
+      "note": "compilation_unit.solc_version < '0.8.0' is a hardcoded literal match to this requirement's threshold. Evidence only, not a complete verdict, because of the unresolvable override component below."
+    },
+    {
+      "component_id": "override-set-v2-spec-satisfied",
+      "component_type": "derived_predicate",
+      "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
+      "status": "AMBIGUOUS_TEXT_GAP",
+      "note": "The requirement's exception ('unless it meets all the following requirements from the EEA EthTrust Security Levels Specification Version 2, as Overriding Requirements') refers to a requirement set in a DIFFERENT spec document (V2) not present in our Phase 0 V3 snapshot. This component cannot be derived, mechanically or otherwise, without first acquiring and parsing that separate document -- explicitly out of scope for Track A. Marked AMBIGUOUS_TEXT_GAP rather than assumed satisfied or unsatisfiable, per the plan's 'zero invented catch-alls' rule -- we do not guess this component's outcome to make the overall requirement look complete."
+    }
+  ],
+  "aggregation_rule": "applicability_state = APPLICABLE always (per L3, logical_scope_entailment on the unconditioned subject). conformance_state = FAIL if trigger-version-below-080 fires AND override-set-v2-spec-satisfied can be confirmed false or is unresolvable-and-treated-conservatively; PASS if trigger-version-below-080 does not fire; INCONCLUSIVE if trigger-version-below-080 fires and override-set-v2-spec-satisfied's status is AMBIGUOUS_TEXT_GAP (cannot rule the override in or out) -- chosen deliberately over a forced FAIL, since asserting FAIL would silently treat the unresolved override as never satisfied, which is itself an unsupported assumption this framework should not make quietly.",
+  "overall_status": "PARTIAL_STRATEGY -- one DETERMINISTIC_EVIDENCE_ONLY component reusable now (Slither), one component blocked on out-of-scope V2 spec acquisition. Correctly surfaces INCONCLUSIVE rather than a false-confidence FAIL/PASS when the trigger fires.",
+  "maturity": "DRAFT_TRANSLATION"
+}

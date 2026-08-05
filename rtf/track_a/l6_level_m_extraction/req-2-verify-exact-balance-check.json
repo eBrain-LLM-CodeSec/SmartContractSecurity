@@ -1,0 +1,25 @@
+{
+  "req_id": "req-2-verify-exact-balance-check",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "The applicability trigger (an exact-equality `==` comparison against a balance-like expression -- `address(this).balance == x`, `token.balanceOf(a) == b`, etc.) is a narrow, well-defined SYNTACTIC pattern: an `==`/`!=` BinaryOperation node where one operand resolves to a `.balance` access or a call to a `balanceOf`-shaped function. This is genuinely mechanical -- Slither's IR exposes both `.balance` member accesses and external/internal call resolution, so a custom predicate is plausible (not yet built in this pass; see components below). The CONFORMANCE condition once triggered -- 'MUST protect itself against transfers affecting the balance tested' -- is open-ended: there is no closed list of acceptable protection mechanisms named in the text (could be CEI ordering, a reentrancy guard, snapshotting balance before AND after within the same atomic operation, restricting who can trigger transfers in between, etc.), so evaluating whether a SPECIFIC piece of code's protection is adequate requires semantic judgment, not a second syntactic pattern match.",
+  "components": [
+    {
+      "component_id": "trigger-exact-balance-eq",
+      "component_type": "derived_predicate",
+      "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
+      "status": "NOT_YET_BUILT",
+      "note": "Would detect `==`/`!=` comparisons where an operand is a `.balance` access or a `balanceOf`-shaped external call. Not implemented in this Track A pass -- flagged as the concrete next engineering step for this requirement, not silently assumed to exist."
+    },
+    {
+      "component_id": "semantic-review-transfer-protection",
+      "component_type": "llm_condition_review",
+      "judgment_authority": "LLM_JUDGMENT",
+      "status": "NOT_YET_BUILT",
+      "inputs_from": ["trigger-exact-balance-eq"],
+      "note": "Consumes the trigger component's located exact-balance-check site(s) and the requirement's context bundle (rtf/track_a/context_bundles/req-2-verify-exact-balance-check.json), asks specifically and only whether the code protects against transfers affecting the tested balance between the check and its use -- depends on the L8 shared LLM Judgment Layer, not yet built (see rtf/l8_llm_judgment_layer/)."
+    }
+  ],
+  "trigger_precision_note": "This trigger is comparatively NARROW and clean -- a fairly rare, specific syntactic shape (exact-equality against a balance expression) with low expected false-positive surface. Contrast with req-2-overflow-underflow's much coarser trigger below -- this variation in trigger precision, even within the same DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION category, is itself a research-relevant finding about how much the extraction quality varies requirement-to-requirement.",
+  "aggregation_rule": "applicability_state = APPLICABLE iff trigger-exact-balance-eq fires at least once; conformance_state = semantic-review-transfer-protection's decision (PASS/FAIL/INCONCLUSIVE/INSUFFICIENT_EVIDENCE) when applicable, NOT_APPLICABLE otherwise.",
+  "maturity": "DRAFT_TRANSLATION"
+}

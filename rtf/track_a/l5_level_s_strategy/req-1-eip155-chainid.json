@@ -1,0 +1,22 @@
+{
+  "req_id": "req-1-eip155-chainid",
+  "components": [
+    {
+      "component_id": "applicability-constructs-tx-signing-hash",
+      "component_type": "derived_predicate",
+      "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
+      "status": "AMBIGUOUS_TEXT_GAP",
+      "note": "L3's applicability_rule requires detecting whether the code 'constructs hashes for transaction/signature authorization' at all. Unlike req-1-compiler-sol-2021-4's UDVT case, EthTrust's OWN text does not name a specific Solidity construct for this (no equivalent of 'user-defined value type' here) -- the only textually-anchored term is 'chainid' itself (L1 enumerated_terms). Recognizing conventional signing-hash construction patterns (keccak256+abi.encode feeding ecrecover, EIP-712 domain-separator idioms, etc.) would require importing Solidity-ecosystem domain knowledge NOT stated in the requirement's own normative text or its context bundle -- exactly the kind of invented heuristic the plan prohibits when the standard's text doesn't support it. Marked AMBIGUOUS_TEXT_GAP for the applicability side specifically, not because no predicate is imaginable, but because none is DERIVABLE from the text alone with the rigor this framework requires."
+    },
+    {
+      "component_id": "conformance-hash-incorporates-chainid",
+      "component_type": "derived_predicate",
+      "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
+      "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
+      "note": "GIVEN a hash-construction site is already identified (by some other means -- manual review, or a future applicability component), checking whether `block.chainid` (or a value cached from it) is an input to that specific hash computation IS directly text-grounded ('chainid' is literally L1's enumerated_terms for this requirement) and mechanically checkable via Slither's data-flow/dependency analysis. This component is sound in isolation but has no way to locate WHERE to apply it without the blocked applicability component above."
+    }
+  ],
+  "aggregation_rule": "Cannot be specified completely -- applicability_state cannot be determined deterministically without applicability-constructs-tx-signing-hash, which is blocked. Honest fallback per the plan's Level-M-style reasoning (even though this is a Level S requirement): route to a verbatim-grounded semantic reviewer whose prompt asks 'does this code construct any hash used for transaction/signature authorization, and if so, does it incorporate block.chainid or an equivalent chain identifier' -- i.e. this requirement's real translation strategy converges on something structurally like FULL_SEMANTIC_REVIEW despite being nominally Level S, precisely because its applicability condition (not its conformance condition) resists deterministic derivation from the spec's own text.",
+  "overall_status": "GENUINE_TEXT_DERIVATION_LIMIT -- distinct in kind from req-1-compiler-060's out-of-scope-document gap and req-1-compiler-sol-2021-4's not-yet-implemented gap. This is the clearest example in the tranche of a requirement where 'Level S' (an assurance-hierarchy label) does NOT imply 'cleanly static-analyzable' -- directly validating the plan's own observation that S/M/Q is not a verification-method axis.",
+  "maturity": "DRAFT_TRANSLATION"
+}

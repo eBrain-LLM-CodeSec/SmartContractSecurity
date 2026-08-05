@@ -1,0 +1,23 @@
+{
+  "req_id": "req-1-compiler-sol-2021-4",
+  "components": [
+    {
+      "component_id": "applicability-udvt-under-32-bytes",
+      "component_type": "derived_predicate",
+      "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
+      "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
+      "note": "'Custom value type' is EthTrust's own reference to a formally named Solidity language construct (user-defined value types, `type X is Y;`), and 'shorter than 32 bytes' is an explicit numeric threshold on the underlying type's byte width -- both terms are directly named in the requirement's own conditioned_scope_clause, not imported from outside domain knowledge. Slither's IR exposes user-defined-type declarations and their underlying elementary type, so a predicate walking `compilation_unit`'s custom-type declarations and checking `underlying_type.size < 32` is a legitimate, text-grounded derivation. NOT YET IMPLEMENTED in this pass -- the derivation is judged sound, the code itself is a concrete next engineering step, not a hidden assumption."
+    },
+    {
+      "component_id": "trigger-version-exactly-088",
+      "component_type": "analyzer_reuse",
+      "source": "rtf/track_a/l4_analyzer_mappings/req-1-compiler-sol-2021-4.json (Slither solc-version detector's buggy-version pragma check)",
+      "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
+      "status": "PARTIALLY_REUSABLE_WITH_CAVEATS",
+      "note": "Slither's check confirms 'UserDefinedValueTypesBug' is tracked at exactly 0.8.8 (strong corroborating signal), but per the L4 record it checks PRAGMA TEXT, not the actual compiled version -- for a precise strategy this component should instead check `compilation_unit.solc_version == '0.8.8'` directly (a one-line custom check, not requiring the full Slither detector), avoiding the pragma-vs-compiled-version scope mismatch documented at L4."
+    }
+  ],
+  "aggregation_rule": "applicability_state = APPLICABLE iff applicability-udvt-under-32-bytes fires. conformance_state (when applicable) = FAIL iff compiled solc_version == '0.8.8' exactly; PASS otherwise. Both components are DETERMINISTIC_EVIDENCE_ONLY feeding a simple deterministic AND/equality aggregation -- no semantic judgment is actually needed for this requirement once both components exist, meaning this is closer to FULLY_DETERMINISTIC in character than its S-level compiler-bug siblings that carry an unresolvable override (contrast with req-1-compiler-060 above).",
+  "overall_status": "PARTIAL_STRATEGY -- both components well-derived and judged sound, neither implemented yet in this pass. No AMBIGUOUS_TEXT_GAP here, unlike req-1-eip155-chainid -- this is an 'engineering not yet done' gap, not a 'text doesn't support derivation' gap, and the two are logged distinctly rather than conflated.",
+  "maturity": "DRAFT_TRANSLATION"
+}

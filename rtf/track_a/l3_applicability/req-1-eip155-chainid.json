@@ -1,0 +1,14 @@
+{
+  "req_id": "req-1-eip155-chainid",
+  "target_grain": "contract",
+  "modality": ["MUST"],
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE only to Tested Code that constructs hashes used for off-chain transaction authorization/signing (e.g. EIP-712 typed-data domain separators, meta-transaction hashes, permit-style signature hashes) where chain-id incorporation is meaningful as replay-attack protection. NOT_APPLICABLE to Tested Code that never constructs such a hash at all (e.g. a contract with no signature-based or meta-transaction functionality).",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "L1's is_unconditioned_subject=True flag is misleading here (see AR-001): the bare subject 'Tested code' has no restriction, but the predicate itself does -- 'create hashes FOR TRANSACTIONS that incorporate chainid values' names a specific activity (constructing transaction-style hashes) that most contracts never perform at all. Read literally as unconditioned, this would absurdly require every contract to construct EIP-155-style hashes even if it never does any hash-based signing -- that reading is rejected as producing a requirement EthTrust cannot plausibly have intended. The restriction is explicit in the text (the phrase 'for transactions'), just not in subject-clause position, so basis is explicit_spec_language, not logical_scope_entailment or unsupported_assumption.",
+    "derivation_method": "manual re-read of full normative_text, triggered by AR-001",
+    "logged_at": "2026-08-05T20:06:00Z"
+  },
+  "assumptions_register_ref": "AR-001",
+  "maturity": "DRAFT_TRANSLATION"
+}

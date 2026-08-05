@@ -1,0 +1,15 @@
+{
+  "req_id": "req-2-verify-exact-balance-check",
+  "target_grain": "contract",
+  "modality": ["MUST"],
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE only to Tested Code that contains an exact-equality comparison against an account/token balance (a construct of the form `<balance-expression> == <specified amount or variable>`, e.g. `address(this).balance == x` or `token.balanceOf(a) == b`). NOT_APPLICABLE to code with no such exact-equality balance check.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Explicit in the requirement's own scope clause ('Tested code that checks whether the balance of an account is exactly equal to ... a specified amount or the value of a variable'), matching L1's is_unconditioned_subject=False.",
+    "derivation_method": "L1 conditioned_scope_clause field, confirmed by direct reading",
+    "logged_at": "2026-08-05T20:08:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION",
+  "cross_reference_note": "This requirement is the M-level Overriding Requirement for req-1-exact-balance-check (S) -- and its applicability trigger is IDENTICAL to that S requirement's own trigger (same 'exact balance check' pattern). This is a structural pattern worth generalizing in Track B: S/M override pairs frequently share one applicability trigger, differing only in what conformance obligation applies once triggered (S: 'don't do this check at all'; M: 'if you do this check, also protect against transfers affecting it'). Not yet verified whether this pattern holds for all S/M override pairs in the full 81-requirement corpus -- flagged as a Track B hypothesis, not assumed to generalize."
+}

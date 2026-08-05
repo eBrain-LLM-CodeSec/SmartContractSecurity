@@ -1,0 +1,15 @@
+{
+  "req_id": "req-2-overflow-underflow",
+  "target_grain": "contract",
+  "modality": ["MUST NOT"],
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE to Tested Code containing arithmetic calculations actually capable of overflow/underflow -- i.e. arithmetic inside `unchecked { }` blocks, arithmetic in code compiled with Solidity <0.8.0 (predating default overflow/underflow reverts), or arithmetic performed via inline assembly (which bypasses Solidity's built-in checks entirely). NOT_APPLICABLE to ordinary Solidity arithmetic in code compiled at >=0.8.0 outside unchecked blocks and outside assembly, since the compiler itself already reverts on overflow/underflow there -- the phrase 'calculations that CAN overflow or underflow' presupposes protection is actually absent.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Same pattern as req-1-eip155-chainid (see AR-001): L1 flagged is_unconditioned_subject=True on the bare 'Tested code' subject, but the predicate ('contain calculations that can overflow or underflow') is itself restrictive -- most Solidity arithmetic since 0.8.0 categorically CANNOT overflow/underflow (the compiler reverts), so 'calculations that CAN' is not a universal condition. This requirement's context bundle (rtf/track_a/context_bundles/req-2-overflow-underflow.json) elaboration text explicitly confirms this reading: 'Note that Solidity compiler version 0.8.0 introduced overflow protection that causes transactions to revert.'",
+    "derivation_method": "manual re-read of full normative_text + elaboration text in the context bundle, triggered by AR-001",
+    "logged_at": "2026-08-05T20:09:00Z"
+  },
+  "assumptions_register_ref": "AR-001",
+  "maturity": "DRAFT_TRANSLATION",
+  "cross_reference_note": "This requirement's own exception clause ('unless there is a demonstrated need ... and there are guards ...') is a self-contained prose condition with no target-requirement link at all (see rtf/track_a/SELECTION_NOTES.md) -- this is exactly the kind of judgment-requiring exception that supports its selection as the M full-semantic-review candidate rather than the deterministic-trigger candidate, even though its APPLICABILITY condition (unchecked/pre-0.8.0/assembly arithmetic) is itself fairly mechanical. The hard part for this requirement is the CONFORMANCE judgment ('is there a demonstrated need, and are the guards adequate'), not the applicability gate -- worth distinguishing clearly when L6 classifies this requirement's Level-M strategy."
+}

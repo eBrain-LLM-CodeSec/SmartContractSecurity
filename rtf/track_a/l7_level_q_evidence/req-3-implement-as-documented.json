@@ -1,0 +1,24 @@
+{
+  "req_id": "req-3-implement-as-documented",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "applicability": "APPLICABLE to all Tested Code, unconditionally (see rtf/track_a/l3_applicability/req-3-implement-as-documented.json)",
+  "evidence_expected": [
+    {
+      "category": "business_logic_specification",
+      "derived_from_req_id": "req-3-documented",
+      "text_basis": "'A specification of the business logic that the Tested code functionality is intended to implement MUST be available to anyone who can call the Tested Code.'",
+      "where_to_look_in_repo": ["README.md", "NatSpec (/// or /** */) comments on public/external functions", "docs/ directory", "whitepaper or spec files"],
+      "note_on_repo_scope_limit": "The requirement says documentation MUST be available to 'anyone who can call the Tested Code' -- for a public/permissionless contract this could mean documentation must be publicly discoverable (e.g. a published gitbook, a verified-contract NatSpec on a block explorer), not merely present somewhere in the source repo. A repo-only check can confirm documentation EXISTS in-repo but cannot fully verify it is actually reachable by an arbitrary caller post-deployment -- this gap belongs in evidence_not_verifiable_from_repo when this rubric is actually run."
+    },
+    {
+      "category": "system_architecture_documentation",
+      "derived_from_req_id": "req-3-document-system",
+      "text_basis": "'Documentation of the system architecture for the Tested code MUST be provided that conveys the overall system design, privileged roles, security assumptions and intended usage.'",
+      "where_to_look_in_repo": ["README.md architecture sections", "docs/architecture.md or similar", "diagrams", "access-control role definitions cross-referenced with any RBAC/roles documentation"]
+    }
+  ],
+  "claims_vs_implementation_procedure": "For each documented behavioral claim found under either evidence category above, locate the code component(s) that appear to implement it (by name/symbol matching or by NatSpec @dev/@notice association), then assess consistency: does the code actually behave as the documentation states? Record contradictions explicitly rather than assuming consistency absent evidence either way.",
+  "open_questions_procedure": "Any documented claim with no locatable implementing component, or any implementation behavior with no corresponding documented claim, becomes an open_questions_for_owner_or_expert entry rather than a silent PASS or FAIL -- per the plan's rule against inferring undocumented architecture and judging against the inference.",
+  "conformance_state_decision_rule": "PASS only if evidence_found is non-empty for both categories AND claims_vs_implementation shows no contradictions. FAIL if a documented claim is directly contradicted by code behavior. INSUFFICIENT_EVIDENCE if req-3-documented/req-3-document-system's own evidence is absent (nothing to compare against) -- explicitly NOT the same as NOT_APPLICABLE, per the applicability/assessability distinction logged in this requirement's L3 record. INCONCLUSIVE if documentation exists but is too vague to support a clear consistent/inconsistent judgment.",
+  "not_yet_done": "This rubric has not been executed against any real repository in Track A -- doing so requires the L8 shared LLM Judgment Layer (schema validation, citation-existence verification, second-pass disagreement detection) which is not yet built. Recorded here as the fully-specified next step, not faked."
+}

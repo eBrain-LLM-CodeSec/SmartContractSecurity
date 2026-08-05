@@ -1,0 +1,15 @@
+{
+  "req_id": "req-1-compiler-sol-2021-4",
+  "target_grain": "contract",
+  "modality": ["MUST NOT"],
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE only to Tested Code that declares at least one user-defined/custom value type (Solidity `type X is Y;`) whose underlying type is narrower than 32 bytes (< 256 bits) -- e.g. `type Foo is uint96;`. NOT_APPLICABLE to code with no such declaration.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "The restriction ('uses custom value types shorter than 32 bytes') is explicitly stated in the requirement's own conditioned_scope_clause, matching L1's is_unconditioned_subject=False directly -- no manual re-read needed to find a hidden restriction, this one is already surfaced by the mechanical field.",
+    "derivation_method": "L1 conditioned_scope_clause field, confirmed by direct reading",
+    "logged_at": "2026-08-05T20:07:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION",
+  "cross_reference_note": "Applicability check here (does the code declare a UDVT <32 bytes) is exactly the missing component flagged in this requirement's L4 record (rtf/track_a/l4_analyzer_mappings/req-1-compiler-sol-2021-4.json) -- Slither's solc-version detector never checks it, so this applicability predicate would need a custom Slither-IR check (not yet built, logged as a TODO there) before this requirement's strategy can be DETERMINISTIC_COMPLETE."
+}

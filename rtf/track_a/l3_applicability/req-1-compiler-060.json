@@ -1,0 +1,14 @@
+{
+  "req_id": "req-1-compiler-060",
+  "target_grain": "contract",
+  "modality": ["MUST NOT"],
+  "applicability_basis": "logical_scope_entailment",
+  "applicability_rule": "APPLICABLE to any Tested Code, unconditionally. The subject clause is bare 'Tested code' with no restriction, and -- unlike req-1-eip155-chainid and req-2-overflow-underflow below -- a manual re-read of the full predicate ('use a Solidity compiler version older than 0.8.0') confirms there is no hidden predicate-embedded restriction either: every piece of Tested Code is compiled with SOME solc version, so the condition 'which version was used' applies universally by construction.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Direct entailment from the unconditioned subject clause, cross-checked against the full predicate text specifically because AR-001 flagged that 'unconditioned subject' alone isn't sufficient evidence of true universal applicability -- confirmed here that no predicate-embedded restriction exists, unlike two other requirements in this tranche.",
+    "derivation_method": "manual re-read of full normative_text against AR-001's warning",
+    "logged_at": "2026-08-05T20:05:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION"
+}
