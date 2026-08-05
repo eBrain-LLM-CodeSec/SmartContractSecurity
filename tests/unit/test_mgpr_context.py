@@ -13,7 +13,13 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 VAULT_SOL = FIXTURES / "multi_contract" / "Vault.sol"
 CASTS_SOL = FIXTURES / "features" / "Casts.sol"
 RESTRICTED_SOL = FIXTURES / "modifier_source" / "Restricted.sol"
+ACCOUNTING_SOL = FIXTURES / "accounting_signals" / "Accounting.sol"
 ROUTING_SPEC = Path(__file__).resolve().parents[2] / "routing_spec.yaml"
+
+
+@pytest.fixture(scope="module")
+def accounting_graph():
+    return ProgramGraph.build(ACCOUNTING_SOL)
 
 
 @pytest.fixture(scope="module")
@@ -201,6 +207,32 @@ def test_build_context_merges_unresolved_evidence_alongside_fired(vault_graph):
     # the fired route's normal included evidence is still there too, not
     # replaced by the unresolved evidence
     assert any("base_contract_modifier_def" in item for item in record.included)
+
+
+def test_p5_context_surfaces_transitive_arithmetic_evidence_not_just_assembly(accounting_graph):
+    """Regression for a gap found live during the 27-audit corpus
+    validation: `quoteShares` fires P5_ACCOUNTING_ARITHMETIC via the
+    TRANSITIVE branch (arithmetic lives in `_computeShareQuote`, one
+    internal call away, depth > 0) -- `arithmetic_op_sites` (seed-only,
+    depth 0) finds nothing, and the pre-fix code only ever surfaced
+    assembly-branch evidence into `included`, so a transitively-triggered,
+    non-assembly fire got NO arithmetic evidence at all in its context
+    (confirmed live: ~28% of P5_ACCOUNTING_ARITHMETIC's corpus-wide fires
+    during the Gap B validation run had neither `arithmetic_op_site` nor
+    `assembly_arithmetic_note` in `included`)."""
+    features = FeatureExtractor.compute(accounting_graph)
+    spec = load_routing_spec(ROUTING_SPEC)
+    routes = route_all(accounting_graph, features, spec)
+    route = _find_route(
+        routes, "fn::Accounting.quoteShares(uint256)", "P5_ARITHMETIC_PRECISION", "P5_ACCOUNTING_ARITHMETIC",
+    )
+    assert route.route_would_fire
+
+    bundle, record = build_context(accounting_graph, RouteContextGroup(fired_routes=[route]))
+    assert any("arithmetic_op_site" in item for item in record.included) is False  # seed itself has no direct op
+    assert any(
+        "transitive_arithmetic_note" in item and "_computeShareQuote" in item for item in record.included
+    )
 
 
 # --- build_investigation_context --------------------------------------------

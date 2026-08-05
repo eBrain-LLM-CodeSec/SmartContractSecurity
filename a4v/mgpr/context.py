@@ -220,6 +220,14 @@ def _p5_context(pg: ProgramGraph, seed: str, gates_fired: list[str], unresolved_
         for ev in precision.evidence:
             if "assembly" in ev:
                 included.append(f"{seed} (assembly_arithmetic_note: {ev})")
+            elif "transitive" in ev:
+                # Found in an internal-call BFS at depth > 0, not the seed's
+                # own body -- arithmetic_op_sites (seed-only, depth 0) never
+                # surfaces this, so without this branch a transitively-
+                # triggered fire got NO arithmetic evidence at all in its
+                # context (confirmed live: ~28% of P5_ACCOUNTING_ARITHMETIC's
+                # corpus-wide fires during the Gap B validation run).
+                included.append(f"{seed} (transitive_arithmetic_note: {ev})")
 
     if "P5_EXTERNAL_CALL_ACCOUNTING_WRITE" in gates_fired:
         for t in sorted(pg.neighbors_by_kind(seed, EXTERNAL_CALL)):
