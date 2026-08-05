@@ -1,0 +1,43 @@
+{
+  "req_id": "req-1-compiler-060",
+  "requirement_summary": "Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets all the requirements of a named Set of Overriding Requirements imported from EthTrust Security Levels Specification VERSION 2 (a different spec version, not present in our current V3 snapshot -- see note below).",
+  "analyzer": "slither-analyzer",
+  "detector_id": "solc-version",
+  "source_inspected": true,
+  "source_inspection_notes": "Read .venv/lib/python3.11/site-packages/slither/detectors/attributes/incorrect_solc.py in full (IncorrectSolc class). Two independent checks live in the same detector: (1) lines 134-150: flags if `compilation_unit.solc_version` (the ACTUAL compiled version) is less than ALLOWED_VERSIONS[-1] == '0.8.0' -- a direct, hardcoded literal match to this requirement's '0.8.0' threshold. (2) lines 68-119: a separate pragma-text-based check (_check_pragma/_check_version) that flags pragma statements naming a version present in slither.utils.buggy_versions.bugs_by_version -- unrelated to this specific requirement's threshold, but relevant to req-1-compiler-sol-2021-4 (see that requirement's own L4 record).",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable, confirmed via importlib.metadata in this repo's .venv; crytic-compile==0.3.11, solc-select==1.2.0)",
+  "analyzer_config": {
+    "invocation": "slither <target> --detect solc-version --json -",
+    "excluded_paths": null,
+    "detector_enabled_only": "solc-version"
+  },
+  "compiler_ast_version": "Not applicable to this specific check -- IncorrectSolc reads `compilation_unit.solc_version`, a crytic-compile-reported metadata value about which solc binary was actually invoked, not an AST-version-dependent traversal. No specific solc/AST version is required for this check itself to run correctly (it works across the solc versions Slither/crytic-compile support).",
+  "analysis_target": "source",
+  "known_limitations_checked": {
+    "interprocedural_scope": "not_relevant -- this check inspects compiler metadata, not code control/data flow",
+    "inheritance_resolution": "not_relevant",
+    "library_resolution": "not_relevant",
+    "unsupported_constructs": "not_relevant"
+  },
+  "semantic_boundary_tests": [
+    "Not yet executed against a live compiled fixture in this pass -- the code-reading analysis above establishes the check's logic deterministically (it is a simple version-string comparison, not a heuristic pattern match), so a boundary test would confirm rather than discover behavior. Recorded as a TODO for the Track A verification phase: compile a trivial contract at 0.7.6 (expect flag) and at 0.8.0 exactly (expect no flag from this specific check) to confirm the off-by-one boundary empirically before this record is promoted past DRAFT_TRANSLATION maturity."
+  ],
+  "trigger_equivalence": true,
+  "scope_equivalence": true,
+  "outcome_equivalence": false,
+  "match_classification": "PARTIAL_MATCH",
+  "derivation_trace": {
+    "ethtrust_phrase": "Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets [the named Set of Overriding Requirements from EthTrust-SL v2]",
+    "analyzer_behavior": "IncorrectSolc._detect() (lines 134-150) unconditionally flags whenever compilation_unit.solc_version < '0.8.0', with no awareness of, or check for, any override condition.",
+    "covered_cases": [
+      "Tested Code actually compiled with any solc version below 0.8.0, where no override applies -- Slither's alert and EthTrust's violation coincide exactly."
+    ],
+    "uncovered_cases": [
+      "Tested Code compiled below 0.8.0 where the override SET (imported from a different, not-yet-acquired spec version, EthTrust-SL v2) IS satisfied -- Slither still alerts, but per EthTrust this is NOT a violation. Slither cannot evaluate the override at all, so it necessarily over-reports relative to the requirement's true (conditional) obligation.",
+      "The override's actual content is unknown to this framework -- req-1-compiler-060's L1 record correctly captured that an override exists (via the 'Set of Overriding Requirements' plural pattern) but its target requirements live in EthTrust-SL Version 2, a document not in our current V3 snapshot. This is logged as a research gap below, not guessed at."
+    ],
+    "final_classification": "PARTIAL_MATCH -- outcome equivalence fails specifically because of the unresolvable override; trigger and scope equivalence both hold cleanly for the 'no override applies' case. Usable as an evidence-collector component (flags candidate violations) that must be paired with a separate, currently UNAVAILABLE applicability check for the v2-imported override set before a conformance verdict can be issued."
+  },
+  "role_if_partial": "evidence_collector",
+  "research_gap_note": "This requirement's Set of Overriding Requirements is imported by reference from a DIFFERENT spec version (EthTrust Security Levels Specification Version 2), which is not present in our Phase 0 snapshot (we snapshotted the current, published Version 3). Resolving the override's actual conditions would require a separate Phase-0-style acquisition of the V2 spec text -- explicitly out of scope for this Track A tranche. Logged here rather than guessed at; candidate Assumptions Register entry if/when this requirement's strategy is finalized."
+}

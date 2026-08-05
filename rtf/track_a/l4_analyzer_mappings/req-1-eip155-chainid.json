@@ -1,0 +1,30 @@
+{
+  "req_id": "req-1-eip155-chainid",
+  "requirement_summary": "Tested code MUST create hashes for transactions that incorporate chainid values, following the recommendation described in EIP-155 (replay-attack protection).",
+  "analyzers_evaluated": {
+    "slither-analyzer": {
+      "version": "0.11.5",
+      "source_inspected": true,
+      "source_inspection_notes": "Full detector list obtained via `slither --list-detectors` (104 detectors) and cross-checked against source filenames under .venv/lib/python3.11/site-packages/slither/detectors/ for anything related to chainid, EIP-155, replay protection, or domain-separator/signature-scheme construction. No detector targets this. The nearest-sounding hit, 'chainlink-feed-registry', is an unrelated Chainlink price-feed pattern detector (name collision only, verified by reading its one-line description, not its source, since the name alone was already conclusive as a false lead).",
+      "match_classification": "NO_MATCH",
+      "derivation_trace": {
+        "ethtrust_phrase": "create hashes for transactions that incorporate chainid values",
+        "analyzer_behavior": "No corresponding check exists in Slither's 104 detectors.",
+        "covered_cases": [],
+        "uncovered_cases": ["all cases -- confirmed absent, not merely unchecked, since the full detector list was reviewed"],
+        "final_classification": "NO_MATCH -- Slither has no detector for signature/hash-construction schemes that incorporate chain identifiers (this is a construction requirement -- 'MUST build hashes this way' -- not a prohibition on a dangerous opcode/pattern, which is the shape of check Slither's detector suite is built around)."
+      }
+    },
+    "mythril": {
+      "status": "NOT_EVALUATED",
+      "reason": "Not installed in this environment (`import mythril` fails, no package metadata found, no `myth` CLI on PATH). Installing it is additional infrastructure work (a new tool + its dependency chain) distinct from the translation-methodology question this Track A tranche is testing -- logged as a genuine gap, not silently skipped or assumed NO_MATCH by default."
+    },
+    "semgrep": {
+      "status": "NOT_EVALUATED",
+      "reason": "Not installed in this environment (`pip show semgrep` reports not found, no CLI on PATH). Same reasoning as mythril above -- a Solidity-specific Semgrep ruleset would also need to be sourced/authored, which is itself nontrivial and out of scope for confirming/denying coverage of this one requirement within Track A."
+    }
+  },
+  "match_classification": "UNKNOWN",
+  "match_classification_rationale": "Per the plan's 4-state model, UNKNOWN is for 'not yet fully evaluated', distinct from a confirmed NO_MATCH. Slither is confirmed NO_MATCH; the requirement's overall analyzer-match status stays UNKNOWN, not NO_MATCH, until Mythril and Semgrep are actually installed and checked -- this framework should not silently collapse 'the two analyzers we haven't tried' into 'no analyzer covers this.'",
+  "note_on_eea_tool_registry": "During context-bundle construction (L2), the spec's own Level [S] section intro pointed to an official EEA 'EthTrust Tool Implementation Registry' (github.com/EntEthAlliance/ethtrust-tool-registry, bib ref [ET-tools]). Checked: it lists three community-submitted tools (Slither, Olympix, EY Smart Contract Review Tool) with self-reported per-requirement coverage claims. None of the three list anything matching 'Encode Hashes with chainid' / EIP-155 for this requirement. Per this framework's own rule (decision #1), a registry's claimed coverage is not itself an EXACT_MATCH -- it would still need independent trigger/scope/outcome verification and source inspection -- but its absence here is at least consistent with (not proof of) this requirement having no current tool support, and its presence for other requirements (see registry entries for tx.origin, delegatecall, selfdestruct, exact-balance-check, CEI, etc.) is a legitimate additional candidate-generation input for Track B's full-corpus analyzer-matching pass, logged here for that future use rather than acted on now."
+}

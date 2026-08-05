@@ -1,0 +1,44 @@
+{
+  "req_id": "req-1-compiler-sol-2021-4",
+  "requirement_summary": "Tested Code that uses custom (user-defined) value types shorter than 32 bytes MUST NOT use Solidity compiler version 0.8.8 exactly (a single named version, not a range).",
+  "analyzer": "slither-analyzer",
+  "detector_id": "solc-version",
+  "source_inspected": true,
+  "source_inspection_notes": "Same file as req-1-compiler-060 (incorrect_solc.py), but the RELEVANT code path here is the pragma-text-based check (_check_pragma at line 78, _check_version at line 68), which cross-references slither.utils.buggy_versions.bugs_by_version. Confirmed by direct inspection of that dict (.venv/lib/python3.11/site-packages/slither/utils/buggy_versions.py): bugs_by_version['0.8.8'] == ['VerbatimInvalidDeduplication', 'FullInlinerNonExpressionSplitArgumentEvaluationOrder', 'MissingSideEffectsOnSelectorAccess', 'AbiReencodingHeadOverflowWithStaticArrayCleanup', 'DirtyBytesArrayToStorage', 'DataLocationChangeInInternalOverride', 'NestedCalldataArrayAbiReencodingSizeValidation', 'UserDefinedValueTypesBug', 'SignedImmutables'] -- 'UserDefinedValueTypesBug' is a direct, named match to this requirement's subject (custom/user-defined value types).",
+  "analyzer_version": "slither-analyzer==0.11.5 (same environment as req-1-compiler-060's record)",
+  "analyzer_config": {
+    "invocation": "slither <target> --detect solc-version --json -",
+    "excluded_paths": null,
+    "detector_enabled_only": "solc-version"
+  },
+  "compiler_ast_version": "Not applicable -- this check reads pragma directive text (a lexical/syntactic property Slither's compilation-unit model exposes independent of AST traversal depth), not AST nodes.",
+  "analysis_target": "source",
+  "known_limitations_checked": {
+    "interprocedural_scope": "not_relevant",
+    "inheritance_resolution": "not_relevant",
+    "library_resolution": "not_relevant",
+    "unsupported_constructs": "checked -- see 'trigger mismatch' finding below, which is a real gap, not an edge-case unsupported construct"
+  },
+  "semantic_boundary_tests": [
+    "TODO for Track A verification phase: (a) a contract using a custom value type shorter than 32 bytes, pragma-pinned to exactly 0.8.8 -- expect Slither to flag (true positive, confirms the bug-name match empirically); (b) an equivalent contract pinned to 0.8.8 but with NO custom value type declared at all -- per the source-reading analysis below, Slither is expected to STILL flag (false positive relative to EthTrust, since EthTrust's obligation only applies when the UDVT pattern is present); (c) a contract WITH the UDVT pattern but pragma `^0.8.8` compiled at 0.8.20 -- per the source reading, Slither's pragma-text regex would still match the literal '0.8.8' substring inside `^0.8.8` and flag it, even though the ACTUAL compiled bytecode (0.8.20) postdates the fix -- a second false positive relative to EthTrust's Tested-Code (compiled-artifact) framing, distinct from case (b)."
+  ],
+  "trigger_equivalence": false,
+  "scope_equivalence": false,
+  "outcome_equivalence": false,
+  "match_classification": "PARTIAL_MATCH",
+  "derivation_trace": {
+    "ethtrust_phrase": "Tested Code that uses custom value types shorter than 32 bytes MUST NOT use Solidity compiler version 0.8.8",
+    "analyzer_behavior": "_check_pragma/_check_version match the literal pragma-text version number against bugs_by_version, independent of whether the code actually contains a custom/user-defined value type declaration, and independent of the ACTUAL compiled solc_version when the pragma is a range (e.g. `^0.8.8`) rather than an exact pin.",
+    "covered_cases": [
+      "A contract pragma-pinned to exactly '0.8.8' that DOES use a custom value type shorter than 32 bytes, actually compiled at 0.8.8 -- Slither flags it, EthTrust would also consider it a violation. Correct positive."
+    ],
+    "uncovered_cases": [
+      "TRIGGER mismatch: Slither's check fires purely off the pragma version string -- it never inspects the code for user-defined value type declarations at all, so it cannot distinguish 'uses UDVT<32 bytes' from 'does not use UDVTs' -- a contract pinned to 0.8.8 with zero UDVT usage would still be flagged (false positive relative to EthTrust's conditioned obligation, which is NOT_APPLICABLE without the UDVT pattern).",
+      "SCOPE mismatch: the check inspects the pragma DIRECTIVE TEXT, not `compilation_unit.solc_version` (the actual compiled version) -- a `^0.8.8` or `>=0.8.8` pragma compiled with a later, fixed solc version could still trigger the literal-substring match against '0.8.8', another false positive relative to EthTrust's Tested-Code (compiled-bytecode) framing.",
+      "Slither's alert also fires on OTHER bugs bundled at version 0.8.8 (e.g. SignedImmutables, DirtyBytesArrayToStorage) that are unrelated to req-1-compiler-sol-2021-4 specifically -- the alert text does distinguish bug names, so a downstream consumer COULD filter for 'UserDefinedValueTypesBug' specifically, but the underlying detection logic itself does not gate on the UDVT pattern before deciding whether to check the version at all."
+    ],
+    "final_classification": "PARTIAL_MATCH, and a weaker one than req-1-compiler-060's -- none of the three equivalence checks fully hold. Usable only as a CANDIDATE GENERATOR (a positive Slither finding naming 'UserDefinedValueTypesBug' is a strong, cross-validated hint this requirement may be relevant) rather than an evidence collector for a specific applicability condition, since it doesn't check the triggering pattern at all. A derived custom predicate is still needed to (a) detect actual UDVT declarations with underlying type width < 32 bytes via Slither's IR/AST (Slither does expose `UserDefinedType`/custom-type declarations programmatically, not evaluated in this pass -- flagged as a TODO, not assumed to exist), and (b) check the ACTUAL compiled solc_version, not pragma text, equals exactly '0.8.8'."
+  },
+  "role_if_partial": "candidate_generator",
+  "research_gap_note": "A full custom predicate (checking actual UDVT byte-width via Slither's type-declaration IR, combined with compilation_unit.solc_version == '0.8.8' exactly) was not built in this pass -- Track A's go/no-go criteria require a derivation trace to exist and be auditable, which this record provides, but does not require every requirement to reach a complete strategy in the tranche itself. This is exactly the kind of 'requires further derivation work, honestly scoped rather than shortcut with a broader heuristic' outcome the plan anticipates."
+}
