@@ -1,0 +1,37 @@
+{
+  "req_id": "req-R-check-new-bugs",
+  "bundle": {
+    "self": "Check For and Address New Security Bugs Check [solidity-bugs-json] and other sources for bugs announced after 1 November 2023 and address them. This version of the specification was finalized late in 2023. New vulnerabilities are discovered from time to time, on an unpredictable schedule. The latest solidity compiler bug accounted for in this version is SOL-2023-3. Checking for security alerts published too late to be incorporated into the current version of this document is an important technique for maintaining the highest possible security. There are other sources of information on new security vulnerabilities, from [CWE] to following the blogs of many security-oriented organizations such as those that contributed to this specification.",
+    "definitions": [],
+    "parent_section_context": "This section describes good practices that require substantial human judgement to evaluate, where there isn't a clear way to determine if it has been done or not, or where a poor implementation can reduce rather than increase the security of the Tested Code. Testing for, and meeting these requirements does not directly affect conformance to this document. Note however that meeting the Recommended Good Practice [GP] Meet as Many Requirements as Possible will in practice mean that Tested Code meets all the Requirements based on Compiler Bugs, including the majority of Requirements for Security Level [S].",
+    "referenced_requirements": [],
+    "overriding_requirements": [],
+    "exceptions": [],
+    "external_references": [
+      {
+        "id": "bib-cwe",
+        "text": "[CWE] -- Common Weakness Enumeration. MITRE. URL: https://cwe.mitre.org/index.html"
+      },
+      {
+        "id": "bib-solidity-bugs-json",
+        "text": "[solidity-bugs-json] -- A JSON-formatted list of some known security-relevant Solidity bugs. Ethereum Foundation. URL: https://github.com/ethereum/solidity/blob/develop/docs/bugs.json"
+      }
+    ]
+  },
+  "expansion_log": [
+    {
+      "hop": 1,
+      "item_added": "bib-cwe",
+      "reason": "directly referenced"
+    },
+    {
+      "hop": 1,
+      "item_added": "bib-solidity-bugs-json",
+      "reason": "directly referenced"
+    }
+  ],
+  "traversal_depth_reached": 1,
+  "expansion_cap_hit": false,
+  "assembled_at": "2026-08-05T21:51:59Z",
+  "bundle_hash": "7aec54c5f64e477f2a2538fb1ffe2bc150bf4b523bcfe977433a5661d6dc363b"
+}

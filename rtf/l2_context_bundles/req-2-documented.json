@@ -1,7 +1,7 @@
 {
-  "req_id": "req-1-compiler-sol-2021-4",
+  "req_id": "req-2-documented",
   "bundle": {
-    "self": "Compiler Bug SOL-2021-4 Tested Code that uses custom value types shorter than 32 bytes MUST NOT use Solidity compiler version 0.8.8.",
+    "self": "Document Special Code Use Tested Code MUST document the need for each instance of:",
     "definitions": [
       {
         "id": "dfn-tested-code",
@@ -12,17 +12,27 @@
     "referenced_requirements": [],
     "overriding_requirements": [],
     "exceptions": [],
-    "external_references": []
+    "external_references": [
+      {
+        "id": "bib-ethtrust-sl-v1",
+        "text": "[EthTrust-sl-v1] -- EEA EthTrust Security Levels Specification. Version 1. Enterprise Ethereum Alliance. URL: https://entethalliance.org/specs/ethtrust-sl/v1/"
+      }
+    ]
   },
   "expansion_log": [
     {
       "hop": 1,
       "item_added": "dfn-tested-code",
       "reason": "directly referenced"
+    },
+    {
+      "hop": 1,
+      "item_added": "bib-ethtrust-sl-v1",
+      "reason": "directly referenced"
     }
   ],
   "traversal_depth_reached": 1,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T19:11:37Z",
-  "bundle_hash": "cecc64a0368e6c0fdb400347bbab3f8925d1d8b4a6b355f76727fad91d2c70df"
+  "assembled_at": "2026-08-05T21:51:59Z",
+  "bundle_hash": "7547db0737ae2ebc2d0183bffe4a6bc32a3226cf9d87f9a5d9cfc174891e6c27"
 }

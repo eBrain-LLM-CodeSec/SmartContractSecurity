@@ -1,4 +1,4 @@
-"""Track A step 2, L2: Context Bundle Constructor.
+"""L2: Context Bundle Constructor.
 
 Builds the "requirement + normative dependencies" translation unit per the
 RTF plan: self text, referenced definitions, overriding/exception/
@@ -13,6 +13,12 @@ that's an "unresolved normative reference" and triggers one more hop.
 Hard cap at 3 hops; anything still unresolved when the cap is hit is
 logged as a bundle-insufficiency finding, not silently dropped or expanded
 further.
+
+Originally built and validated in Track A against six requirements; the
+mechanism generalizes directly (no per-requirement code, purely data-
+driven from the L1 corpus), so it was run unchanged across all 81
+requirements for Track B once Track A's go/no-go passed -- see
+BUNDLES_NOTES.md for that run's results (81/81, zero cap hits).
 """
 from __future__ import annotations
 
@@ -25,7 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SPEC_HTML = ROOT / "standards" / "ethtrust" / "ethtrust-sl.raw.html"
 CORPUS_JSON = ROOT / "rtf" / "l1_corpus" / "requirement_corpus.json"
-OUT_DIR = Path(__file__).resolve().parent / "context_bundles"
+OUT_DIR = Path(__file__).resolve().parent
 
 TAG_RE = re.compile(r"<[^>]+>")
 WS_RE = re.compile(r"\s+")
@@ -241,12 +247,11 @@ def main(req_ids: list[str]) -> None:
 if __name__ == "__main__":
     import sys
 
-    ids = sys.argv[1:] or [
-        "req-1-compiler-060",
-        "req-1-eip155-chainid",
-        "req-1-compiler-sol-2021-4",
-        "req-2-verify-exact-balance-check",
-        "req-2-overflow-underflow",
-        "req-3-implement-as-documented",
-    ]
+    if sys.argv[1:]:
+        ids = sys.argv[1:]
+    else:
+        # No args: build bundles for every requirement in the L1 corpus
+        # (Track B default, since this run at 81/81, zero cap hits). Pass
+        # specific req_ids as argv to rebuild/inspect just a subset.
+        ids = [r["req_id"] for r in json.loads(CORPUS_JSON.read_text())["requirements"]]
     main(ids)

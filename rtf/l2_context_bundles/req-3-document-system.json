@@ -1,7 +1,7 @@
 {
-  "req_id": "req-2-overflow-underflow",
+  "req_id": "req-3-document-system",
   "bundle": {
-    "self": "Safe Overflow/Underflow Tested code MUST NOT contain calculations that can overflow or underflow unless",
+    "self": "Document System Architecture Documentation of the system architecture for the Tested code MUST be provided that conveys the overrall system design, privileged roles, security assumptions and intended usage.",
     "definitions": [
       {
         "id": "dfn-tested-code",
@@ -12,27 +12,17 @@
     "referenced_requirements": [],
     "overriding_requirements": [],
     "exceptions": [],
-    "external_references": [
-      {
-        "id": "bib-swcregistry",
-        "text": "[swcregistry] -- Smart Contract Weakness Classification Registry. ConsenSys Diligence. URL: https://swcregistry.io"
-      }
-    ]
+    "external_references": []
   },
   "expansion_log": [
     {
       "hop": 1,
       "item_added": "dfn-tested-code",
       "reason": "directly referenced"
-    },
-    {
-      "hop": 1,
-      "item_added": "bib-swcregistry",
-      "reason": "directly referenced"
     }
   ],
   "traversal_depth_reached": 1,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T19:11:37Z",
-  "bundle_hash": "39f884fa44c0ebe7cdcead93c01f43e646ee0a867b1ff933ac36b11b2eee76cb"
+  "assembled_at": "2026-08-05T21:51:59Z",
+  "bundle_hash": "f06a94cbd29f6152c70aff550e27c189e2dcd69b3fd068d8482f2d551dbc44d6"
 }

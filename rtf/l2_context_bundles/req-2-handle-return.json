@@ -1,7 +1,7 @@
 {
-  "req_id": "req-2-verify-exact-balance-check",
+  "req_id": "req-2-handle-return",
   "bundle": {
-    "self": "Verify Exact Balance Checks Tested code that checks whether the balance of an account is exactly equal to (i.e. ==) a specified amount or the value of a variable. MUST protect itself against transfers affecting the balance tested. This is an Overriding Requirement for [S] No Exact Balance Check.",
+    "self": "Handle External Call Returns Tested Code that makes external calls MUST reasonably handle possible errors. This is an Overriding Requirement for [S] Check External Calls Return.",
     "definitions": [
       {
         "id": "dfn-overriding-requirement",
@@ -18,14 +18,18 @@
       {
         "id": "sets-of-overriding-requirements",
         "text": null
+      },
+      {
+        "id": "dfn-low-level-call-functions",
+        "text": "Normally, exceptions in calls cause a revert. This will \"bubble up\", unless it is handled in a try/catch. However Solidity defines a set of Low-level Call Functions:"
       }
     ],
-    "parent_section_context": "EEA EthTrust Certification at Security Level [M] means that the Tested Code has been carefully reviewed by a human auditor or team, doing a manual analysis, and important security issues have been addressed to their satisfaction. This level includes a number of Overriding Requirements for cases when Tested Code does not meet a Security Level [S] requirement directly, because it uses an uncommon feature that introduces higher risk, or because in certain circumstsances testing that the requirement has been met requires human judgement. Passing the relevant Overriding Requirement tests that the feature has been implemented sufficiently well to satisfy the auditor that it does not expose the Tested Code to the known vulnerabilities identified in this Security Level.",
+    "parent_section_context": null,
     "referenced_requirements": [],
     "overriding_requirements": [
       {
-        "req_id": "req-1-exact-balance-check",
-        "normative_text": "No Exact Balance Check Tested code MUST NOT test that the balance of an account is exactly equal to (i.e. ==) a specified amount or the value of a variable unless it meets the Overriding Requirement [M] Verify Exact Balance Checks."
+        "req_id": "req-1-check-return",
+        "normative_text": "Check External Calls Return Tested Code that makes external calls using the Low-level Call Functions (i.e. call(), delegatecall(), staticcall(), and send()) MUST check the returned value from each usage to determine whether the call failed, unless it meets the Overriding Requirement [M] Handle External Call Returns."
       }
     ],
     "exceptions": [],
@@ -44,7 +48,7 @@
     },
     {
       "hop": 1,
-      "item_added": "req-1-exact-balance-check",
+      "item_added": "req-1-check-return",
       "reason": "directly referenced"
     },
     {
@@ -56,10 +60,15 @@
       "hop": 2,
       "item_added": "sets-of-overriding-requirements",
       "reason": "unresolved normative reference"
+    },
+    {
+      "hop": 2,
+      "item_added": "dfn-low-level-call-functions",
+      "reason": "unresolved normative reference"
     }
   ],
   "traversal_depth_reached": 2,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T19:11:37Z",
-  "bundle_hash": "b9cb0c625cbbc4c08619cf6075902edca490b12921c4f53409e425c49b5be28f"
+  "assembled_at": "2026-08-05T21:51:59Z",
+  "bundle_hash": "bffb8a4aa9edc273c0b4f530a5c153a2b654ee80d55cdfe3615ec30fb6dc96be"
 }
