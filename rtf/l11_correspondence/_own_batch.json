@@ -1,0 +1,119 @@
+[
+  {
+    "finding_id": "2024-03-coinbase/H-01",
+    "req_id": "req-1-eip155-chainid",
+    "relationship": "PARTIAL",
+    "justification": "The wallet supports an alternate execution path, executeWithoutChainIdValidation, whose signatures are deliberately not bound to a specific chain so that owner-management operations can be replayed across chains. The finding shows this exact lack of chain-binding is what allows removeOwnerAtIndex to be replayed on a chain where the owner set has diverged, removing a different (or the only) owner than intended. This is the same failure mode chainid-binding in transaction/signature hashes (per EIP-155) exists to prevent -- unauthorized replay of a signed action across chain contexts -- but it is a deliberate cross-chain-replayable design feature with an edge-case exploit, not a simple omission of chainid from an otherwise chain-scoped hash, so it only partially matches the requirement's obligation.",
+    "supporting_evidence": [
+      "via an ERC-4337 EntryPoint transaction calling `executeWithoutChainIdValidation`",
+      "anyone could take that signature and replay it on Arbitrum, Avalanche, etc as there is no check to stop the user from removing the final owner"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2024-05-loop/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly quotes two protocol invariants stated in the audit README's business-logic documentation, and demonstrates concrete attack scenarios that break each of them: the 'deposits active only before contracts are set' invariant and the '1:1 ETH/WETH to lpETH conversion' invariant. This is precisely a case of code not behaving as its own documentation describes.",
+    "supporting_evidence": [
+      "One of the main invariants stated in the audit is the following: > Deposits are active up to the lpETH contract and lpETHVault contract are set ... there are currently two ways this invariant can be broken",
+      "although it also breaks another invariant of a 1:1 swap. > Users that deposit ETH/WETH get the correct amount of lpETH on claim (1 to 1 conversion)"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2024-05-loop/H-01",
+    "req_id": "req-2-verify-exact-balance-check",
+    "relationship": "PARTIAL",
+    "justification": "The exploit works because claimedAmount is derived from address(this).balance, which an attacker inflates beforehand by directly donating ETH to the contract, then the inflated balance-derived value is used to mint lpETH. This is the same underlying hazard req-2 addresses -- using a raw account balance in accounting logic without protecting against externally-triggered transfers into that balance -- though the vulnerable code reads the balance directly for a calculation rather than performing an explicit `== ` exact-equality comparison against a specified amount, so it is a close but not clean match.",
+    "supporting_evidence": [
+      "Since claimedAmount is set as address(this).balance here, claimedAmount is computed as the addition of ETH receive from LRT swapped + user donated ETH.",
+      "Donate ETH directly to contract. ... claimedAmount worth of lpETH is subsequently claimed/staked"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2024-08-wildcat/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly cites a core protocol invariant and shows a concrete sequence (market closure plus interleaved queued withdrawals) that violates it, causing a later legitimate withdrawal to revert. This is a direct case of the code failing to conform to its own documented invariant about batch withdrawal accounting.",
+    "supporting_evidence": [
+      "Also breaks core invariant: > The sum of all transfer amounts for withdrawal executions in a batch must be less than or equal to batch.normalizedAmountPaid"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2023-07-pooltogether/H-02",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "Vault._burn() truncates the shares-to-burn value by casting uint256 to uint96, silently discarding the excess above type(uint96).max. This unguarded, unintended truncation is exactly the class of arithmetic fault req-2 prohibits (there is no demonstrated need for the truncation and no guard ensuring behavior consistent with the contract's accounting claims); it directly enables theft of other depositors' assets.",
+    "supporting_evidence": [
+      "Vault._burn() only burns uint96(shares) shares of the malicious users - see Vault.sol line 1155.",
+      "Consider adjusting the Vault._burn function to not convert from uint256 to uint96 when burning shares."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2023-10-nextgen/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "CONTEXTUAL",
+    "justification": "The judge's confirmation characterizes the exploited property (mint-count limits enforcing collection scarcity) as 'a main invariant of the system' that is broken by the reentrancy. This is relevant background showing the finding touches a business-logic guarantee, but the finding's own narrative is centered on a missing checks-effects-interactions pattern (reentrancy), not on a specific quoted piece of documentation describing intended behavior, so it cannot by itself establish nonconformance with req-3 as cleanly as findings that quote README invariants directly.",
+    "supporting_evidence": [
+      "a main invariant of the system (mint limitations so scarcity of an NFT) can be broken arbitrarily as the re-entrancy attack can be repetitively replayed"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2024-02-althea-liquid-infrastructure/H-01",
+    "req_id": "req-2-verify-exact-balance-check",
+    "relationship": "PARTIAL",
+    "justification": "The vulnerable logic performs an exact-equality balance test (`this.balanceOf(to) != 0`, i.e. testing balance == 0) to decide whether to add an address to the holders array, and this test is gamed by externally-triggered zero-amount transfers/burns that the ERC20 standard permits. This matches req-2's concern about balance-equality checks needing to be protected against transfers that affect the tested balance, though the attack vector here is a zero-value transfer edge case rather than a direct-donation inflation of the balance, so it is a partial rather than clean match.",
+    "supporting_evidence": [
+      "bool exists = (this.balanceOf(to) != 0); if (!exists) { holders.push(to); }",
+      "the ERC20 contract allows for transferring and burning with amount = 0, enabling users to manipulate the holders array"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2024-03-canto/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly quotes a system-architecture invariant from the project README ('ASDRouter native balance should always be zero') and demonstrates concrete call paths where native gas tokens become permanently stuck in the contract, directly contradicting that documented invariant.",
+    "supporting_evidence": [
+      "the present behaviour violates a protocol invariant, according to the README: > ASDRouter native balance should always be zero."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2024-03-gitcoin/H-01",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "The proof-of-concept shows that once the userTotalStaked accounting invariant is broken, subsequent legitimate withdrawals revert with Solidity's arithmetic underflow panic, and the finding narrative itself states users can lose funds due to underflow errors in withdraw methods. This is a direct instance of an unguarded underflow with real fund-loss consequences.",
+    "supporting_evidence": [
+      "Users might lose funds due to underflow errors in withdraw methods.",
+      "revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2024-03-gitcoin/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly quotes the project README's stated invariant for userTotalStaked accounting and shows that the release() code path fails to maintain it, a direct instance of implementation diverging from documented business logic.",
+    "supporting_evidence": [
+      "According to the readme, userTotalStaked invariant should always hold true: `userTotalStaked[address] = selfStakes[address].amount + sum(communityStakes[address][x].amount for all x staked on by this address)`",
+      "this can be broken in release() flow due to userTotalStaked is not updated together with selfStakes[address].amount or communityStakes[address][x].amount"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  },
+  {
+    "finding_id": "2024-05-olas/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "CONTEXTUAL",
+    "justification": "The judge's severity justification states the bug 'break[s] the core accounting of VoteWeighting' such that the actual sum of weights diverges from the declared sum -- relevant background indicating a business-logic/accounting guarantee is undermined. However, this characterization comes from judge commentary rather than a quoted piece of project documentation describing the intended behavior, so it is contextual rather than a direct, citable documentation mismatch.",
+    "supporting_evidence": [
+      "Marking as high, because this is going to break the core accounting of VoteWeighting every time a nominee is removed. The actual sum of the weights is going to be more than the declared sum."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure"
+  }
+]

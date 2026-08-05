@@ -1,0 +1,684 @@
+[
+  {
+    "finding_id": "2024-03-coinbase/H-01",
+    "req_id": "req-1-eip155-chainid",
+    "relationship": "PARTIAL",
+    "justification": "The wallet exposes an ERC-4337 path (executeWithoutChainIdValidation) that deliberately allows a signed operation to be replayed across chains without chain-specific binding. The finding shows that when combined with divergent per-chain owner state, this cross-chain-replayable signature scheme causes a legitimate owner to be removed on unintended chains, i.e. real harm caused by a signature/hash that is not chain-bound. This is the same failure class EIP-155 chain-binding is meant to prevent (a signature valid on one chain being usable on another), though here cross-chain replay is an intentional wallet feature rather than an omitted default, so it is not a clean 1:1 violation of 'always incorporate chainid'.",
+    "supporting_evidence": [
+      "via an ERC-4337 EntryPoint transaction calling `executeWithoutChainIdValidation`",
+      "anyone could take that signature and replay it on Arbitrum, Avalanche, etc as there is no check to stop the user from removing the final owner"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-05-loop/H-01",
+    "req_id": "req-2-verify-exact-balance-check",
+    "relationship": "PARTIAL",
+    "justification": "The vulnerable code derives claimedAmount from address(this).balance, which an attacker can inflate beforehand by directly donating ETH to the contract, corrupting the accounting used to mint lpETH. This is the same underlying failure mode req-2 targets (a balance value used in accounting without protection against externally-triggered transfers), though the code pattern is 'use raw balance as an accounting input' rather than a literal `balance == expectedAmount` equality check, so it is not a clean match to the requirement's literal '==' wording.",
+    "supporting_evidence": [
+      "Since claimedAmount is set as address(this).balance here, claimedAmount is computed as the addition of ETH receive from LRT swapped + user donated ETH.",
+      "1. Donate ETH directly to contract. 2. Call claim()/claimAndStake(), claiming all tokens..."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-05-loop/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly quotes a documented protocol invariant from the audit README and demonstrates two concrete ways the implementation violates it, plus a second documented invariant (1:1 conversion) also broken.",
+    "supporting_evidence": [
+      "One of the main invariants stated in the audit is the following: > Deposits are active up to the lpETH contract and lpETHVault contract are set. However, there are currently two ways this invariant can be broken",
+      "it also breaks another invariant of a 1:1 swap. > Users that deposit ETH/WETH get the correct amount of lpETH on claim (1 to 1 conversion)"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-08-wildcat/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly cites a stated protocol invariant about withdrawal batch accounting and shows a concrete sequence of operations (early execution after market close) that breaks it, directly matching the requirement that implementation must behave as documented for business logic.",
+    "supporting_evidence": [
+      "Also breaks core invariant: > The sum of all transfer amounts for withdrawal executions in a batch must be less than or equal to batch.normalizedAmountPaid",
+      "However, this invariant could be broken, if the market is closed as it allows for a batch's withdraws to be executed, before all requests are added."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2023-07-pooltogether/H-02",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "CONTEXTUAL",
+    "justification": "CORRECTED after verification against the source finding (see rtf/l9_assumptions_register/REGISTER.jsonl AR-003): the vulnerability is a narrowing type-cast truncation (uint256(_shares) cast to uint96 in Vault._burn, silently dropping bits above type(uint96).max), not an arithmetic calculation overflowing or underflowing. The confirmed fix was \"Added SafeCast\" -- a cast-safety library, distinct from arithmetic overflow/underflow protection. req-2-overflow-underflow's text specifically addresses \"calculations that can overflow or underflow\", not narrowing casts; EthTrust likely has (or should have) a separate requirement for unsafe casts, not one of this tranche's six. Downgraded from the original DIRECT classification, which conflated the two failure classes. Retained as CONTEXTUAL rather than NONE since both are numeric-safety-adjacent failure classes and a careless reviewer could reasonably conflate them, which is itself worth recording.",
+    "supporting_evidence": [
+      "Vault._burn() only burns uint96(shares) shares of the malicious users - see Vault.sol line 1155.",
+      "Consider adjusting the Vault._burn function to not convert from uint256 to uint96 when burning shares.",
+      "PoolTogether mitigated: > Added SafeCast"
+    ],
+    "review_status": "corrected_on_manual_verification_by_orchestrating_session",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-02-althea-liquid-infrastructure/H-01",
+    "req_id": "req-2-verify-exact-balance-check",
+    "relationship": "PARTIAL",
+    "justification": "The bug hinges on `bool exists = (this.balanceOf(to) != 0)` — an exact-equality-to-zero balance check — being gamed by attacker-triggered zero-amount transfers/burns, letting the same address be pushed onto the holders array repeatedly and inflate its distribution share. This is conceptually the same failure mode as req-2 (a balance-equality check manipulated via an externally-triggered transfer), though the manipulation vector is a zero-value transfer edge case rather than a donation/inflation attack, so it is a partial rather than clean match.",
+    "supporting_evidence": [
+      "bool exists = (this.balanceOf(to) != 0); if (!exists) { holders.push(to); }",
+      "An approved user that has yet to receive tokens can initiate a transfer from another address to themself with an amount of `0`. This enables them to add their address to the holders array multiple times."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-canto/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly quotes a README-documented invariant about the router's native balance and shows concrete code paths in _sendASD where excess msg.value is never refunded, directly violating that documented invariant.",
+    "supporting_evidence": [
+      "the present behaviour violates a protocol invariant, according to the README: > ASDRouter native balance should always be zero.",
+      "On successful transfer (within Canto chain): 0 of msg.value is used and any remaining value will be stuck."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-gitcoin/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding quotes an explicit documented invariant formula for userTotalStaked from the audit README and shows that the release() code path updates the underlying stake amounts without updating this invariant-tracking variable, directly breaking the documented accounting relationship.",
+    "supporting_evidence": [
+      "According to the readme, userTotalStaked invariant should always hold true: userTotalStaked[address] = selfStakes[address].amount + sum(communityStakes[address][x].amount for all x staked on by this address)",
+      "However, this can be broken in release() flow due to userTotalStaked is not updated together with selfStakes[address].amount or communityStakes[address][x].amount."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-gitcoin/H-01",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "The broken invariant directly manifests as an arithmetic underflow: the PoC shows withdrawal reverting with Solidity's built-in ARITHMETIC_UNDER_OR_OVERFLOW panic because userTotalStaked is smaller than the balance a user is entitled to withdraw, and users can only withdraw a fraction of restored funds due to this unguarded subtraction.",
+    "supporting_evidence": [
+      "await expect((this.identityStaking.connect(this.userAccounts[0]).withdrawSelfStake(100000))).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW);",
+      "Alice's unlocked but cannot withdraw the 100000x2 ether balance due to underflow. She can only withdraw 20000x2 ether."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-06-size/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding shows the fee formula implemented in getCreditAmountIn() diverges from the fee formula specified in Size's own technical documentation, and the project's own team confirmed this in comments as an incorrect implementation of a formula that was correctly specified in the docs.",
+    "supporting_evidence": [
+      "the swap fee stated in Example 2 is 0.5, which is different with the result calculated from in the formulas.",
+      "H-03 and H-04 are two incorrect implementations of formulas correctly specified in the tech documentation, much like H-01. Note that this means that three of the four high-severity issues were simply incorrect implementations of formulas."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-06-size/H-03",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The collateral-remainder-cap calculation deviates from the formula specified in the technical documentation (using the full liquidation collateral ratio instead of only the excess above it), directly confirmed by the project team as an incorrect implementation of a documented formula.",
+    "supporting_evidence": [
+      "The cap should be 30%, but it is currently calculated as 130%, which is the CR for liquidation itself.",
+      "H-03 and H-04 are two incorrect implementations of formulas correctly specified in the tech documentation, much like H-01."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-06-size/H-04",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The liquidator profit calculation mixes token decimals (18-decimal collateral vs 6-decimal debt) causing the computed reward to be roughly 1e12x smaller than intended, and the project team explicitly confirmed this as an incorrect implementation of a formula that was correctly specified in the technical documentation.",
+    "supporting_evidence": [
+      "assignedCollateral and debtInCollateralToken values are denominated in ETH's decimal (18), whereas debtPosition.futureValue is denominated in USDC's decimal (6)... the calculated profit is equal to the exact profit divided by 1e12.",
+      "H-03 and H-04 are two incorrect implementations of formulas correctly specified in the tech documentation"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-06-thorchain/H-01",
+    "req_id": "req-2-verify-exact-balance-check",
+    "relationship": "PARTIAL",
+    "justification": "The vault's allowance/accounting logic assumes a deposited token amount remains constant, but for a rebasing token (AMPL) the actual balance changes underneath it, letting an attacker exploit the mismatch between recorded amount and true balance to steal funds. This is the same underlying failure mode req-2 addresses (trusting a previously-recorded balance/amount without protecting against it changing), though expressed as an allowance-vs-rebasing-balance bug rather than a literal `balance == amount` check.",
+    "supporting_evidence": [
+      "the router is being approved based on the amount of tokens he deposited. However, since that is a rebasing token, that amount can change and allow him to steal funds",
+      "The contract assumes that the amount that was received time ago through a deposit will stay the same across that time which would not be the case."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-06-thorchain/H-02",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly quotes a stated main protocol invariant about event correctness and demonstrates a concrete edge case (failed ETH send bouncing back to the vault) where the emitted event's `to` field is wrong, directly violating the quoted documented invariant.",
+    "supporting_evidence": [
+      "One of the main invariant of the protocol is: > Only valid events emitted from the Router contract itself should result in the txInItem parameter being populated...",
+      "This invariants breaks in the edge cases of the transferOut()... the event TransferOut will be wrong."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-basin/H-02",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "PARTIAL",
+    "justification": "The root cause is a variable-name typo in decodeWellData (checking decimal0 instead of decimal1), but the demonstrated, concrete failure mode is an unguarded arithmetic underflow/overflow panic in downstream scaling calculations, which is the failure class req-2 targets. The requirement is only partially matched because the underlying defect is a decode/logic bug rather than an inherently overflow-prone calculation lacking guards.",
+    "supporting_evidence": [
+      "[FAIL. Reason: panic: arithmetic underflow or overflow (0x11)] test_calcLpTokenSupply_sameDecimals2()",
+      "if (decimal0 == 0) { //@audit decimal1 = 18; }"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-traitforge/H-03",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The judge concluded the taxCut variable is 'clearly intended to be a percentage' based on code comments and documentation, and the implementation (simple division) produces severely wrong percentages whenever taxCut is changed from its default, which is a business-logic-vs-documentation mismatch. This is only a partial/contested match because several wardens disputed that percentage semantics were actually documented as a firm specification rather than inferred from a comment.",
+    "supporting_evidence": [
+      "It is clearly intended to be a percentage. We can see this from the comment in the code: ... uint256 devShare = msg.value / taxCut; // Calculate developer's share (10%)",
+      "When taxCut = 5, 1/5 = 0.2 = 20% (intended 5%, actually 20%)."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-traitforge/H-02",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "CONTEXTUAL",
+    "justification": "The finding and rebuttals both quote airdrop documentation text ('If they nuke, that allocation given by the entity is removed') to argue for opposite conclusions about whether the observed behavior (a new owner nuking a transferred token reduces the original minter's airdrop credit) is a bug or documented/intended design. Because the documentation's meaning is actively disputed by the judge, warden, and project, it provides relevant background but cannot by itself establish nonconformance with the 'implement as documented' requirement.",
+    "supporting_evidence": [
+      "Everytime someone mints directly or forges to mint, they are recorded in the AirDrop Contract... If they nuke, that allocation given by the entity is removed.",
+      "I believe this issue is not valid... This implies that the incentive should be removed when an entity is nuked... Therefore, I believe this should be considered either a design choice or potentially a user error."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2025-01-next-generation/H-01",
+    "req_id": "req-1-eip155-chainid",
+    "relationship": "DIRECT",
+    "justification": "The finding is a textbook violation of this requirement: the Forwarder's signature verification accepts an attacker/user-supplied domainSeparator instead of computing it from block.chainid, so a signature valid on one chain is accepted unchanged on another chain. The recommended fix is explicitly to incorporate block.chainid into the domain separator, which is precisely EIP-155-style chain binding.",
+    "supporting_evidence": [
+      "The `_verifySig` function in `Forwarder.sol` accepts the `domainSeparator` as a user-provided input instead of computing it internally. This introduces a vulnerability where signatures can be replayed across different chains",
+      "Use Chain-Specific Identifiers: Incorporate block.chainid into the domain separator computation to prevent cross-chain signature reuse."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2025-02-thorwallet/H-01",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "There is no guard preventing total deposited TGT from exceeding the hardcoded TGT_TO_EXCHANGE bound the exchange-rate math assumes, and once exceeded, `remainingTitnAfter1Year - initialTotalClaimable` underflows/reverts, causing later claimants to lose funds or be unable to claim at all — exactly the unguarded-arithmetic failure mode req-2 targets.",
+    "supporting_evidence": [
+      "The contract has no actual logic which would limit the deposited Tgt to MergeTgt.",
+      "uint256 unclaimedTitn = remainingTitnAfter1Year - initialTotalClaimable; ... this line overflows, as remainingTitnAfter1Year becomes less than the initialTotalClaimable."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2026-01-tempo-stablecoin-dex/H-04",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "The withdrawal function wraps balance subtraction in an explicit `unchecked` block with no prior validation that the withdrawal amount does not exceed the recorded balance, letting an attacker underflow their balance to near type(uint128).max and drain the DEX. This is precisely the case req-2 prohibits: an unguarded calculation that can underflow with no demonstrated need and no guard consistent with the contract's intended accounting.",
+    "supporting_evidence": [
+      "unchecked { balances[user][token] -= amount; } ... VULNERABLE: No balance validation before unchecked subtraction",
+      "When amount > balances[user][token], the subtraction underflows to type(uint128).max - (amount - balance), giving the attacker an enormous recorded balance."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-benddao/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "YieldStakingBase treats the shares returned by depositing into Etherfi/Lido as if they equal the deposited assets, while getAccountYieldBalance() computes totalAssets from the actual ETH balance of the position. This is a deviation from the intended accounting model (deposited amount should map consistently to claimable yield), causing incorrect per-NFT yield distribution rather than an overflow or a balance-equality check issue. The remediation section states the intended (documented) behavior explicitly: 'the claimed amount should be the assets deposited (roughly equal to the borrowed amount minus rounding errors)' — the implementation deviates from this intended invariant. It is only PARTIAL because the finding is about an accounting/units mismatch rather than a README-stated formula being explicitly cited as violated.",
+    "supporting_evidence": [
+      "\"YieldStakingBase uses the returned shares value from depositing as if they were assets... But then, it calculates totalAssets to compute the yield using the actual ETH balance of the positions\"",
+      "\"On YieldStakingBase::deposit() the claimed amount should be the assets deposited (roughly equal to the borrowed amount minus rounding errors).\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-benddao/H-02",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "The finding's own walkthrough traces a concrete underflow: by omitting an onBehalf==nftOwner check in isolateRepay(), an attacker can reduce a victim's userScaledIsolateBorrow below the victim's actual scaled loan amount, causing a later subtraction (loanData.scaledAmount subtracted from the corrupted balance) to underflow. This underflow is the exploited mechanism, not incidental, so it is a direct instance of an unguarded calculation that can underflow, contrary to req-2.",
+    "supporting_evidence": [
+      "\"userScaledIsolateBorrow[bob] = 99\" ... \"userScaledIsolateBorrow[bob] = loanData[NFT_2].scaledAmount = 99 - 100 =====> underflow.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-benddao/H-04",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly identifies and reproduces an arithmetic underflow: erc20TransferOutBidAmountToLiqudity() subtracts the accrued borrowAmount (inflated by interest) from assetData.totalBidAmout, which was only credited with the original (smaller) bid amount, causing `assetData.totalBidAmout -= amount` to revert with Solidity's arithmetic underflow check. This is a direct, demonstrated violation of req-2 (unguarded subtraction that can underflow given normal interest accrual, with no compensating guard).",
+    "supporting_evidence": [
+      "\"The liquidator wins the auction but he can't withdraw/unlock the NFT, due to an Arithmetic over/underflow and fails when reducing the assetData.totalBidAmout value\"",
+      "\"vm.expectRevert(stdError.arithmeticError);\" in the PoC test, and category tag \"Math\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-munchables/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The core game architecture is that each plot is occupied by exactly one renter (tracked via the plotOccupied mapping and ToilerState.plotId). transferToUnoccupiedPlot() fails to update toilerState[tokenId].plotId after a transfer, so the contract's internal bookkeeping diverges from the actual occupied-plot state, directly violating the intended single-occupant-per-plot system invariant and enabling a second user to stake into the same plot the contract believes is unoccupied.",
+    "supporting_evidence": [
+      "Finding title: \"Single plot can be occupied by multiple renters\"",
+      "\"@audit plotId isn't update inside toilerState\" ... \"missing toilerState[tokenId].plotId = plotId;\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-munchables/H-02",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The documented/intended economic invariant is that a plot stops accruing rewards once the landlord has unlocked all backing funds (i.e., numPlots becomes 0 for that landlord). The `_getNumPlots(landlord) < _toiler.plotId` check fails to catch the plotId==0 edge case, so plot 0 remains farmable indefinitely after funds are fully unlocked — the implementation directly contradicts the intended reward-eligibility rule tied to locked funds.",
+    "supporting_evidence": [
+      "\"The _getNumPlots function should return zero when all funds are unlocked, invalidating the plot and setting the dirty flag. However, the current implementation fails to do so, it only determines if NumPlots is less than the plotId and allows plot 0 to remain farmable.\"",
+      "Judge: \"will continue to attribute rewards for a plot with an ID of 0 regardless of whether the landlord has staked any tokens\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-munchables/H-03",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "The finding directly demonstrates that casting a computed negative int256 (schnibblesTotal + schnibblesTotal*finalBonus, when finalBonus is negative) into uint256 produces a value near type(uint256).max, which then causes the subsequent multiplication/scaling calculation to overflow and revert — an unguarded arithmetic overflow triggered under ordinary negative-bonus conditions (~26% chance per the finding), with the category explicitly tagged 'Math' / 'Under/Overflow'-adjacent.",
+    "supporting_evidence": [
+      "\"the conversion to uint256 will cause the value to evaluate to something near type(uint256).max. In that case the next calculation of schnibblesLandlord will revert due to overflow\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-munchables/H-03",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly states the documented intent of finalBonus ('meant as a percentage change in the Schnibbles earned') and shows the implementation's order of operations does not match that intent, computing `(schnibblesTotal + schnibblesTotal*finalBonus)/100` instead of `schnibblesTotal + (schnibblesTotal*finalBonus)/100`, causing both incorrect reward math and (per the overflow record) a revert — a direct deviation from the documented business-logic formula.",
+    "supporting_evidence": [
+      "\"finalBonus is meant as a percentage change in the Schnibbles earned by a Munchable. Change the calculation of schnibblesTotal in _farmPlots() to reflect that by removing the brackets\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-munchables/H-04",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "DIRECT",
+    "justification": "The finding traces an explicit subtraction underflow: when PRICE_PER_PLOT increases, _farmPlots() substitutes `timestamp = plotMetadata[landlord].lastUpdated` (an old value), then computes `timestamp - _toiler.lastToilDate`, where lastToilDate (set at stake time) is larger than the stale lastUpdated timestamp, causing a 'panic revert' — a concrete demonstrated underflow with no guard against the case where the renter is more active than the landlord.",
+    "supporting_evidence": [
+      "\"we subtract timestamp (which is now landlord.lastUpdated which is too old timeStamp) from _toiler.lastToilDate which is larger than timestamp that will lead to panic revert.\"",
+      "Finding title: \"in farmPlots() an underflow in edge case leading to freeze of funds (NFT)\", category \"Under/Overflow\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-munchables/H-04",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The judge's own comment explicitly frames this in documented-invariant terms: a Munchable NFT must never become permanently deadlocked, and this is stated to be a documented invariant of the audit that the implementation violates when PRICE_PER_PLOT changes independently of any landlord fund-lock/unlock action.",
+    "supporting_evidence": [
+      "\"Given that a Munchable becoming deadlocked is a documented invariant of the audit, I am inclined to award this with a high-severity rating.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-07-munchables/H-05",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The documented purpose of transferToUnoccupiedPlot() is to let a dirty/invalid-plot user move to a valid plot and resume earning rewards. The implementation validates the move to a valid plot but never resets the `dirty` flag, so `_farmPlots()`'s `if (_toiler.dirty) continue;` check keeps skipping reward accrual even after the move — a direct deviation from the function's documented/intended effect.",
+    "supporting_evidence": [
+      "\"Since the function checks that the transfer is to a valid plot, it should mean users are now eligible to start earning rewards again. However, it doesn't update the user's dirty flag back to false, meaning the user will still not be earning any rewards even after they have moved to a valid plot.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-08-phi/H-01",
+    "req_id": "req-1-eip155-chainid",
+    "relationship": "DIRECT",
+    "justification": "This finding is a textbook violation of req-1-eip155-chainid: PhiFactory::signatureClaim() decodes the signed payload as `(expiresIn_, minter_, ref_, verifier_, artId_, , bytes32 data_)`, explicitly skipping the encoded chainId field ('in between of artId and data_ there is the encoded chainId, which is ignored'), so the signature hash never binds to a specific chain. This directly enables cross-chain signature replay, exactly the failure mode req-1-eip155-chainid is designed to prevent by requiring chainid to be incorporated into signed hashes.",
+    "supporting_evidence": [
+      "\"Notice the fragment uint256 artId_,, bytes32 data_: in between of artId and data_ there is the encoded chainId, which is ignored.\"",
+      "\"signature obtained from the Phi signer on one chain can be employed to claim NFT rewards on any other chain\"",
+      "\"We recommend to apply in PhiFactory::signatureClaim the same approach as in Claimable::signatureClaim, i.e., to repack the signature data substituting the chainId with block.chainid.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-12-secondswap/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "CONTEXTUAL",
+    "justification": "The finding shows that listing order causes two vesting buyers in economically identical situations to end up with different claimable amounts (one can claim immediately, one cannot), which is inconsistent with the intended step-vesting release schedule. However, it does not cite an explicit documented invariant being broken (unlike H-03's explicit maxSellPercent invariant), so it only provides background on the vesting business-logic inconsistency rather than establishing a clean documentation violation on its own.",
+    "supporting_evidence": [
+      "Since the first listing has no claimedSteps, users with no previous vestings allocation can buy any of the listings and their listing won't have claimed steps, allowing them to claim immediately after their purchase.",
+      "Due to the first listing having a positive claimedSteps amount, users with no previous vesting allocations will have their vestings inherit the claimedSteps, meaning they won't be able to claim if they are on the current step corresponding to claimedSteps."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-12-secondswap/H-02",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The vesting contract's core documented purpose is to lock tokens on a step schedule and only release them as steps elapse. This finding shows that because stepsClaimed is shared/inherited incorrectly across marketplace resales, a buyer can claim tokens immediately that 'should actually still be locked' per the vesting schedule, and an attacker can repeat the exploit to unlock more early. This is a business-logic deviation from the vesting contract's intended lock behavior, though no external README/spec text is quoted, so it is not a clean documentation citation.",
+    "supporting_evidence": [
+      "If a new user who doesn't have a vesting yet buys one, they would adopt the wrong value for stepsClaimed ... This then leads to the user being able to directly claim a part of the tokens without waiting.",
+      "An attacker can repeat this as often as he likes to unlock more and more tokens early which should actually still be locked."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-12-secondswap/H-03",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The finding explicitly identifies violation of a stated protocol invariant (maxSellPercent cap on vesting sales) and shows the release-rate recalculation lets a seller reclaim tokens already paid out, i.e., unlock more tokens than were initially locked by the vesting schedule. This is a deviation from the vesting contract's documented locking/release business logic, though the 'invariant' reference is the reporter's own framing rather than a literal quoted spec.",
+    "supporting_evidence": [
+      "It could also violate the invariant that no more than the maxSellPercent is ever sold, as this bug could allow an attacker to unlock more than the maxSellPercent.",
+      "the grantorVesting.releaseRate is calculated incorrectly, which leads to the sender being able to unlock more tokens than were initially locked."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2025-04-forte/H-03",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding explicitly quotes the Float128 library's own documentation claim of precision/mathematical accuracy and that Natural Logarithm is a supported operation, then demonstrates that ln() silently accepts negative and zero inputs (outside the mathematically valid domain of the natural-log formula) and returns finite, incorrect results instead of enforcing the domain constraints implied by that documented guarantee. This is a direct case of implementation not matching the documented mathematical formula/spec.",
+    "supporting_evidence": [
+      "The Float128 library documentation emphasizes precision and mathematical accuracy, stating that \"Natural Logarithm (ln)\" is among its available operations. Yet the implementation fails to enforce the basic domain constraints of the logarithm function.",
+      "For a negative input of -2.0, the function returns a value approximately equal to ln(2) ≈ 0.693. ... Both results are mathematically invalid."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2025-04-forte/H-04",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding quotes the library's own inline documentation describing the packed-float bitmap format (mantissa can be M: 38 digits or L: 72 digits, with an L_MANTISSA_FLAG bit) and shows that eq(), whose documented purpose is to determine whether two packed floats are mathematically equal, ignores this documented format distinction and instead does a raw bit-unwrap comparison, causing mathematically-equal values with different mantissa sizes to be reported as unequal. This is a direct violation of documented format/spec producing incorrect documented-function behavior.",
+    "supporting_evidence": [
+      "255 ... EXPONENT ... 242, L_MATISSA_FLAG (241), MANTISSA_SIGN (240), 239 ... MANTISSA L..., 127 .. MANTISSA M ... 0",
+      "if there are two packed floats which are equal in nature upon deduction, but one of them has 38 digit mantissa and other has the 72 digit mantissa, the eq function would fail as unwrapping custom float type to underlying type (uint) means that the packed float with 72 digit mantissa will have the L_MANTISSA_FLAG set; which would introduce an incorrect unwrapped version than intended leading to false values."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2025-04-forte/H-05",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The finding argues that toPackedFloat (a foundational function all arithmetic depends on) silently loses up to 33 digits of precision for mantissas in a specific boundary range, which contradicts the library's stated design priority of preserving precision over gas efficiency. Since this is a precision-degradation issue (partial loss, not a total functional failure of a documented formula) and the 'library explicitly prioritizes precision' claim is the reporter's characterization rather than a literally quoted doc passage, this is a partial rather than clean match.",
+    "supporting_evidence": [
+      "This precision loss becomes especially significant when the mantissa is near the lower boundary of MIN_L_DIGIT_NUMBER. For example, a mantissa of 2^235 can lead to a precision loss of up to 33 digits.",
+      "To preserve precision, which this library explicitly prioritizes over gas efficiency, consider incorporating digitsMantissa into the logic that determines the result mantissa's size."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2025-04-virtuals/H-03",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding quotes the project's own whitepaper describing the documented contribution/governance architecture (contributions go through a frontend consensus framework and are finalized on-chain only once accepted via governance), then shows that ServiceNft::updateImpact is public and callable by anyone with any virtualId/proposalId, directly contradicting that documented governance-gated process and allowing users to manipulate their own reward-affecting impact scores. This is a direct case of system architecture not matching documentation.",
+    "supporting_evidence": [
+      "Contribution Process: Contributors submit their proposals through our frontend, utilizing the modular consensus framework. Each proposal generates a contribution NFT regardless of acceptance, authenticating the submission's origin.",
+      "the ServiceNft::updateImpact's visibility modifier is public, allowing anyone to call it with any virtualId/proposalId. So if the admin decides to call the ServiceNft::setDatasetImpactWeight, there would be a cascading issue where users would simply update the impact accordingly to their own favour."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2025-04-virtuals/H-04",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding quotes the same whitepaper-documented contribution process (proposals go through a frontend/consensus framework) and shows ContributionNft::mint is unguarded, letting any proposal proposer directly mint contribution NFTs with arbitrary coreId/parentId/isModel/datasetId values, bypassing the documented consensus/validation process and corrupting downstream reward and maturity calculations. This is a direct contradiction between documented process and actual unguarded implementation.",
+    "supporting_evidence": [
+      "Contribution Process: Contributors submit their proposals through our frontend, utilizing the modular consensus framework. Each proposal generates a contribution NFT regardless of acceptance, authenticating the submission's origin.",
+      "the ContributionNft::mint is un-gaurded, allowing proposers to mint their own NFTs ... An issue arises here when these proposers are able to pass in incorrect/bogus values of incorrect coreId, newTokenURI, parentId, isModel_ and datasetId."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2025-04-virtuals/H-05",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "CONTEXTUAL",
+    "justification": "The finding shows validatorScore/getPastValidatorScore initialize new validators with a base score equal to total historical proposals, letting them earn full participation-based rewards without ever voting, which is inconsistent with the evident intent of a participation-weighted reward system. No documentation or whitepaper text is quoted to establish the intended fairness invariant, so this only provides contextual support (an implied, not demonstrated, documented-behavior deviation) rather than a clean match.",
+    "supporting_evidence": [
+      "This base score is then added to the validator's actual participation score ... meaning validators with artificially inflated scores receive unearned rewards.",
+      "New validators can earn full rewards without ever voting on proposals ... This is unfair to other validators who might have started voting from the beginning but missed 1 proposal."
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-01-renft/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The finding's root cause is that Create.sol, acting as a Seaport Zone, fails to implement the specific safeguard that Seaport's own documentation states a zone integrating 'tipping'-capable order fulfillment must implement (enforcing allocation of consideration extensions or fully-declared consideration items). The tested code does not conform to this documented architectural requirement for how a restricted-order zone must behave, which is what enables the exploit.",
+    "supporting_evidence": [
+      "\"it is important that orders fulfilled in this manner either leverage 'restricted' order types with a zone that enforces appropriate allocation of consideration extensions, or that each offer item is fully spent and each consideration item is appropriately declared on order creation.\"",
+      "\"This other passage, while discussing a different issue, even highlights the root cause of this vulnerability (the zone does not properly allocate consideration extensions)\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-01-renft/H-06",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The Create contract has a named architectural invariant, enforced by _executionInvariantChecks(), that is documented in the finding itself: ERC20 tokens must go to the Escrow and NFTs must go to the corresponding Safe wallet. The finding demonstrates that this documented invariant can be entirely bypassed by crafting an order fulfillment whose totalExecutions length is zero, so no recipient checks fire at all, yet the rental is still registered and the escrow deposit still recorded as if the invariant had been honored.",
+    "supporting_evidence": [
+      "\"The Create contract checks the expected receivers of ERC20 tokens and NFTs via _executionInvariantChecks() ... This is to make sure that ERC20 tokens go to the Escrow contract, while NFTs go to the corresponding Safe wallet.\"",
+      "\"The key point of the attack is to fulfill an order, so that the executions length is zero and no execution is checked.\" / \"No recipient checks are performed, since there are no executions\" / \"The STORE storage will add the new rental for Carol, while increasing the deposit amount in the Escrow\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-01-renft/H-05",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The finding quotes reNFT's own creating-a-rental.md documentation, which defines zoneHash as 'a hashed value of data which describes the unique values of this particular rental' i.e. the EIP-712 hash of OrderMetadata. It then shows that _deriveOrderMetadataHash/_deriveRentPayloadHash/_deriveRentalOrderHash do not actually compute EIP-712-compliant hashes (omitting orderType, emittedExtraData, rentalWallet), so that following the documented 'correct' EIP-712 hash construction would cause fulfillment to revert. This is a direct mismatch between the project's stated hashing specification and its implementation, though it is a secondary/lesser sub-issue within the broader report rather than the report's main exploit path.",
+    "supporting_evidence": [
+      "\"Note that the documentation defines the zoneHash as the EIP-712 hashed version of the OrderMetadata struct. Observe the following quote from the creating-a-rental.md documentation: ... If the creator instead uses the 'correct' EIP-712 hash, then the following comparison performed during order fulfillment will result in a revert\"",
+      "\"The following functions have been identified to be non-compliant with EIP-712: the _deriveRentalOrderHash, _deriveRentPayloadHash, and the _deriveOrderMetadataHash functions.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-abracadabra-money/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The judge explicitly frames the bug as the TWAP algorithm itself being wrong relative to the standard/documented TWAP formula (citing the canonical time-weighted-average-price definition), because _twapUpdate() accumulates price*timeElapsed using the reserves AFTER they are changed rather than before, unlike the reference UniswapV2/Beanstalk implementations. This is a deviation of the implementation from the documented/expected formula for what a time-weighted average price must compute, causing the value exposed by _BASE_PRICE_CUMULATIVE_LAST_ to not actually behave as a manipulation-resistant TWAP.",
+    "supporting_evidence": [
+      "\"I think this is valid, the problem is that the TWAP algorithm is wrong, TWAP: https://en.wikipedia.org/wiki/Time-weighted_average_price. By the way, the code here is consistent with DODOV2.\"",
+      "\"The root cause of the issue is that the TWAP is updated after reserve changes. Since the TWAP multiplies the duration of time since the last update with the new reserves, an attacker has control over the registered price for the entire passed duration.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-abracadabra-money/H-01",
+    "req_id": "req-2-overflow-underflow",
+    "relationship": "CONTEXTUAL",
+    "justification": "The finding surfaces an explicitly documented, intentional unchecked overflow in _twapUpdate() ('It is desired and expected for this value to overflow once it has hit the max of type.uint256'), which is the demonstrated-need/guarded pattern the overflow requirement's exception clause allows. This is relevant background to understanding the arithmetic behavior of the accumulator, but the finding's actual vulnerability (manipulable price feed via update ordering) is unrelated to the overflow itself, so it does not by itself establish nonconformance with the overflow/underflow requirement.",
+    "supporting_evidence": [
+      "\"/// @dev It is desired and expected for this value to\\n /// overflow once it has hit the max of `type.uint256`.\\n unchecked {\\n _BASE_PRICE_CUMULATIVE_LAST_ += getMidPrice() * timeElapsed;\\n }\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-abracadabra-money/H-02",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding is a textbook implementation-vs-documented-invariant mismatch: I is defined as 'the ideal ratio between the two reserves', a core architectural invariant of MagicLP pools that the Factory is 'supposed to enforce'. The buyShares() rounding-direction bug (using mulFloor instead of mulCeil for the shares vs. quoteBalance comparison) causes the actual established base:quote ratio to become double the documented I ratio (1:19999 instead of 1:1000 in the given example), directly violating the documented pricing invariant and causing subsequent trades to use incorrect pricing.",
+    "supporting_evidence": [
+      "\"One of the two key parameters in MagicLP pools is I, which is defined to be the ideal ratio between the two reserves.\"",
+      "\"The result is the ratio 1:19999, when the intended ratio from I is 1:1000... Note that users will legitimately trust any MagicLP pool created by the Factory as it is supposed to enforce that ratio.\"",
+      "\"The impact demonstrated is doubling the ratio of the pool, which is a core invariant of the MIMswap platform.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-abracadabra-money/H-03",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "This finding is a concrete, real-world instantiation of the same buyShares() target/reserve invariant break identified in H-02 (I ratio not honored for the initial depositor), here manifesting through the documented BlastOnboarding-to-MagicLP bootstrap flow: locked MIM/USDB tokens are expected to establish a balanced pool at the intended price, but because targets and reserves diverge for the first depositor, an attacker can extract real value from the bootstrapped pool. It is a downstream/product-specific consequence of the same underlying invariant violation rather than the primary description of the invariant itself, hence PARTIAL rather than DIRECT.",
+    "supporting_evidence": [
+      "\"base reserve ==> 1,000... base target ==> 1,000... quote reserve ==> 3,000... quote target ==> 1,000... As you can see, the target of the quote token is lower than its reserve.\"",
+      "\"We should ensure that the targets and reserves are the same for the first depositor.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-taiko/H-01",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The code's own comment documents the intended issuance formula ('after each L1 block time, config.gasTarget more gas is issued'), and the finding demonstrates the implementation actually issues gasTargetPerL1Block multiplied by the number of L1 blocks since lastSyncedBlock was last updated (which only updates every 5 blocks), inflating issuance up to 3x the documented amount. This is a direct, code-comment-documented formula that the implementation fails to satisfy, leading to base-fee mismatch and potential chain halt.",
+    "supporting_evidence": [
+      "\"// Calculate how much more gas to issue to offset gas excess.\\n // after each L1 block time, config.gasTarget more gas is issued,\\n // the gas excess will be reduced accordingly.\"",
+      "\"Instead of issuing _config.gasTargetPerL1Block for each L1 block we end up issuing uint256 issuance = (_l1BlockOd - lastSyncedBlock) * _config.gasTargetPerL1Block.\" / \"Issue exactly config.gasTargetPerL1Block for each L1 block.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-03-taiko/H-03",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The documented design states tokens 'unlock linearly' and 'only become fully withdrawable at claimEnd + withdrawalWindow'. The implementation's ongoingWithdrawals modifier uses a strict '<' comparison (claimEnd + withdrawalWindow < block.timestamp) that makes it practically impossible for a user to call withdraw() at the exact moment of full unlock, so users can never actually claim 100% of their documented allocation — the PoC shows Alice receiving only 50 of her 100 claimable tokens.",
+    "supporting_evidence": [
+      "\"During this withdrawal period, the tokens unlock linearly i.e. the tokens only become fully withdrawable at claimEnd + withdrawalWindow.\"",
+      "\"The issue is that once the tokens for a user are fully unlocked, the withdraw() function cannot be called anymore due to the ongoingWithdrawals modifier having a strict claimEnd + withdrawalWindow < block.timestamp check\"",
+      "\"Alice balance: 50\" (out of her total 100 tokens claimable amount)"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-04-noya/H-09",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The finding explicitly quotes Prisma's own documentation describing the recovery-mode invariant that a liquidated borrower can reclaim surplus collateral above 110% via claimCollateral(). Noya's PrismaConnector never exposes a call path to that documented function, so the documented protocol behavior (surplus collateral recoverability) is never realized in the integrated system, permanently stranding funds. This is a partial match rather than direct because the violated specification is the underlying Prisma protocol's documentation of its own mechanism, not a Noya-authored README/spec, and the defect is an omission (missing integration) rather than an implemented-but-wrong business rule.",
+    "supporting_evidence": [
+      "\"During Recovery Mode... Any residual amount, i.e. the collateral above 110% (and below the Global Total Collateral Ratio or GTCR), can be recouped by the borrower who faced liquidation by claiming the surplus collateral.\" (quoted from Prisma docs)",
+      "\"But in PrismaConnector contract, it does not have function to call claimCollateral() function, lead to surplusBalances is stucked forever.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-04-noya/H-11",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The finding cites Synthetix's own source/comments for getCollateralTotals (totalDepositedD18 = totalAssignedD18 + amountAvailableForDelegationD18) to show that Noya's SNXConnector double-counts collateral (summing totalDeposited and totalAssigned, which already overlap) and omits the corresponding minted-USD debt from the TVL formula. This demonstrates the TVL business-logic implementation deviates from the documented semantics of the underlying protocol's accounting function, though the 'documentation' here is the referenced protocol source/interface rather than an explicit Noya spec.",
+    "supporting_evidence": [
+      "\"totalDeposited already includes totalAssigned\" citing Synthetix's getCollateralTotals: \"totalAssignedD18 = getAssignedCollateral(...); totalDepositedD18 = totalAssignedD18 + self.collaterals[collateralType].amountAvailableForDelegationD18;\"",
+      "\"Note that the minted SUSD tokens are already calculated into TVL... so the debt part must be calculated as well.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-04-noya/H-13",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding directly quotes Balancer's official documentation on valuing LP tokens ('poolValueUsd = sum(balances[i]*price[i])', no weight division needed because getPoolTokens already returns split balances) and shows BalancerConnector::_getPositionTVL instead divides by pool.weights[pool.tokenIndex], producing a TVL that is off by roughly the token's weight fraction (worked numeric example giving ~0.484 instead of the correct value). This is a clean case of the tested code failing to implement the documented valuation formula for its business logic.",
+    "supporting_evidence": [
+      "\"If we take a look at the balancer documentation and especially how the tokens are being valued, we can see that they are not using weight to determine the price... which is not the case in Noya\"",
+      "\"return (((1e18 * token1bal * lpBalance) / _weight) / _totalSupply);\" ... \"≈ 0.484\" worked example showing the deviation from the documented formula"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-04-noya/H-14",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding quotes Balancer's documentation distinguishing totalSupply() (legacy pools) from getActualSupply() (pools with pre-minted BPT, which must be used to value user positions), and shows BalancerConnector::_getPositionTVL calls totalSupply() on a pool with pre-minted BPT, producing a wildly wrong denominator (documented totalSupply of ~2.6e33 vs. actual usable supply of ~1.04e24). This is a direct demonstration that the implementation does not follow the documented valuation spec for this pool type.",
+    "supporting_evidence": [
+      "\"getActualSupply is used by the most recent versions of Weighted and Stable Pools. It accounts for pre-minted BPT... totalSupply only makes sense to call for older 'legacy' pools.\" (quoted from Balancer docs)",
+      "\"totalSupply is 2596148430608596515167161432296901. totalAcutalSupply is 1036029413274776191102780.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-04-noya/H-15",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The finding cites Silo's own NatSpec documentation of the AssetStorage struct, which explicitly defines collateralToken, collateralOnlyToken, and debtToken as distinct share tokens with different underlying exchange rates ('COLLATERAL', 'COLLATERAL ONLY', 'DEBT' semantics). SiloConnector::_getPositionTVL sums collateralToken and collateralOnlyToken balances as if fungible and multiplies share-token amounts (rather than underlying-token amounts) by the underlying asset's price, contradicting the documented data model. Partial because the documentation cited describes data semantics rather than an explicit valuation formula, and the fix still requires an unwritten conversion step.",
+    "supporting_evidence": [
+      "\"collateralToken and collateralOnlyToken are 2 different tokens and protocol is summing them as if they represents amounts of the same token.\"",
+      "\"/// @dev Token that represents a share in totalDeposits of Silo\\n IShareToken collateralToken;\\n /// @dev Token that represents a share in collateralOnlyDeposits of Silo\\n IShareToken collateralOnlyToken;\" (quoted Silo interface documentation)"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-04-noya/H-16",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "PARTIAL",
+    "justification": "The finding shows that repay() enforces the protocol's own documented minimum-health-factor invariant via SolvencyV2.isSolvent(), but borrow() — which is at least as capable of pushing a position underwater — omits the identical check entirely, allowing an insolvent position to be opened from inception. This is an inconsistent implementation of the system's own stated solvency invariant across symmetric operations, matching the 'behave as documented for business logic' requirement, though the invariant is evidenced by the codebase's own pattern rather than an external written spec, hence PARTIAL not DIRECT.",
+    "supporting_evidence": [
+      "\"this check is missing in the borrow() function which allows for a position (in Silo) to be opened that is insolvent (according to the NOYA solvency check in SolvencyV2) from the start.\"",
+      "\"Breaks protocol invariant of minimum health factor and also the position is easier to get liquidated.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-04-noya/H-21",
+    "req_id": "req-2-verify-exact-balance-check",
+    "relationship": "PARTIAL",
+    "justification": "decreasePosition() relies on isMarketEmpty(), which checks exact zero-equality across the SY/PT/YT/market token balances of the connector to decide whether to remove a holding position (and thus stop counting it toward TVL). The check is incomplete because it omits the connector's staked balance held in the external Penpie pool, so the exact-balance-equality test can return true (all tracked balances == 0) while real value the connector still owns is excluded from accounting. This is not the classic donation-attack direction described by the requirement, but it is the same category of fragility: a business-critical decision gated on balance == 0 across an incomplete set of balance sources.",
+    "supporting_evidence": [
+      "\"return ( _SY.balanceOf(address(this)) == 0 && _PT.balanceOf(address(this)) == 0 && _YT.balanceOf(address(this)) == 0 && market.balanceOf(address(this)) == 0 );\"",
+      "\"the function however does not check if the connector still has a balance in the Penpie pool for this market (a stake), and that will allow the connector to remove its holding position for a market, effectively excluding its stake in the Penpie pool from the connector and the AccountingManager TVL.\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2024-04-noya/H-22",
+    "req_id": "req-3-implement-as-documented",
+    "relationship": "DIRECT",
+    "justification": "The finding quotes Pendle's own documentation for getLpToAssetRate ('Serves the same purpose, but in terms of SY's asset' — i.e., returns LP price in terms of the underlying asset), and shows PendleConnector's TVL code treats that return value as if it were priced in SY instead ('SYAmount += lpBalance * getLpToAssetRate(10) / 1e18'), the same misuse applying to getPtToAssetRate. A worked Foundry test demonstrates the resulting TVL corruption (100 -> 59 after depositing into the market). This is a direct demonstration that the implementation contradicts the documented semantics of the API it calls.",
+    "supporting_evidence": [
+      "\"getLpToAssetRate: Serves the same purpose, but in terms of SY's asset.\" (quoted from Pendle docs) ... \"the protocol is using this function assuming that it returns the price of LP in terms of SY\"",
+      "\"TVL drops to 59 USDC - which is wrong because of the invalid TVL calculation\""
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  }
+]
