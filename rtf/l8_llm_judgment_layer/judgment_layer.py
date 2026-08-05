@@ -80,8 +80,22 @@ class LLMJudgmentLayer:
         question: str,
         repo_root: Path | None = None,
         temperature: float = 0.0,
+        bypass_cache: bool = False,
     ) -> dict:
         messages = build_judgment_prompt(requirement_context_bundle, question)
+        if bypass_cache:
+            # ChatClient caches by exact (model, messages, temperature) -- fine
+            # for normal single-shot use, but repeated "independent" calls with
+            # identical inputs (second-pass review, stability testing) would
+            # otherwise just replay the SAME cached response every time,
+            # silently defeating both mechanisms (disagreement can never be
+            # detected, flip rate is trivially always 0). Caught live during
+            # RTF L8 validation (2026-08-06). Deleting the cache entry just
+            # before the call forces a genuine fresh completion; only used by
+            # judge_with_second_pass/judge_stability's repeat calls, not by
+            # ordinary single judge_once() use, where caching stays valuable.
+            cache_path = self.chat_client._cache_path(self.chat_client._cache_key(messages, temperature))
+            cache_path.unlink(missing_ok=True)
         data, chat_result = self.chat_client.complete_json(messages, temperature=temperature)
 
         # Fill in the framework-tracked fields the model isn't asked to invent itself.
@@ -105,9 +119,12 @@ class LLMJudgmentLayer:
         """Two independent calls (temperature 0 each, but the model may still
         vary run-to-run) with explicit disagreement detection -- per plan L8
         rule, a second independent review pass is mandatory before an L6/L7
-        consumer may trust a PASS/FAIL."""
+        consumer may trust a PASS/FAIL. The second call bypasses the cache
+        (see judge_once's bypass_cache docstring) -- without that, this method
+        would silently always report AGREE, since it would just be comparing
+        the first response against itself."""
         first = self.judge_once(requirement_context_bundle, question, repo_root)
-        second = self.judge_once(requirement_context_bundle, question, repo_root)
+        second = self.judge_once(requirement_context_bundle, question, repo_root, bypass_cache=True)
         agree = first["decision"] == second["decision"]
         first["second_pass_agreement"] = "AGREE" if agree else "DISAGREE"
         second["second_pass_agreement"] = "AGREE" if agree else "DISAGREE"
@@ -116,5 +133,12 @@ class LLMJudgmentLayer:
     def judge_stability(
         self, requirement_context_bundle: dict, question: str, n_runs: int = 10, repo_root: Path | None = None
     ) -> dict:
-        runs = [self.judge_once(requirement_context_bundle, question, repo_root) for _ in range(n_runs)]
+        """Runs beyond the first bypass the cache (see judge_once's
+        bypass_cache docstring) -- otherwise every run after the first would
+        just replay the same cached response, and flip_rate would be
+        meaningless-but-always-zero rather than a real measurement."""
+        runs = [
+            self.judge_once(requirement_context_bundle, question, repo_root, bypass_cache=(i > 0))
+            for i in range(n_runs)
+        ]
         return {"runs": runs, "stability": compute_stability(runs)}

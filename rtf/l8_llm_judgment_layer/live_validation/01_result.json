@@ -1,0 +1,95 @@
+{
+  "runs": [
+    {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Verify Exact Balance Checks"
+      ],
+      "evidence": [],
+      "reasoning_summary": "A scan of Vault.sol did not reveal any instances where an account balance (native or token) is compared for exact equality using `==` against a specific amount or variable. The contract uses inequalities (e.g., `!= 0`, `>`, `>=`) around balances and supply but no exact equality checks of balances, so the overriding requirement to verify protections does not appear to be triggered by this code.",
+      "open_questions": [
+        "If future revisions introduce exact-equality balance checks, they should be reviewed for protections against balance changes between check and use."
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "f8fb62a2-c9cc-474f-a6aa-bff31d670496"
+    },
+    {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Verify Exact Balance Checks"
+      ],
+      "evidence": [],
+      "reasoning_summary": "A scan of Vault.sol did not reveal any instances where an account balance (native or token) is compared for exact equality using `==` against a specific amount or variable. The contract uses inequalities (e.g., `!= 0`, `>`, `>=`) around balances and supply but no exact equality checks of balances, so the overriding requirement to verify protections does not appear to be triggered by this code.",
+      "open_questions": [
+        "If future revisions introduce exact-equality balance checks, they should be reviewed for protections against balance changes between check and use."
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "1bed7710-7732-40d2-adfb-a53045473222"
+    },
+    {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Verify Exact Balance Checks"
+      ],
+      "evidence": [],
+      "reasoning_summary": "A scan of Vault.sol did not reveal any instances where an account balance (native or token) is compared for exact equality using `==` against a specific amount or variable. The contract uses inequalities (e.g., `!= 0`, `>`, `>=`) around balances and supply but no exact equality checks of balances, so the overriding requirement to verify protections does not appear to be triggered by this code.",
+      "open_questions": [
+        "If future revisions introduce exact-equality balance checks, they should be reviewed for protections against balance changes between check and use."
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "40a43185-7499-4470-9553-cab8b486a00a"
+    },
+    {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Verify Exact Balance Checks"
+      ],
+      "evidence": [],
+      "reasoning_summary": "A scan of Vault.sol did not reveal any instances where an account balance (native or token) is compared for exact equality using `==` against a specific amount or variable. The contract uses inequalities (e.g., `!= 0`, `>`, `>=`) around balances and supply but no exact equality checks of balances, so the overriding requirement to verify protections does not appear to be triggered by this code.",
+      "open_questions": [
+        "If future revisions introduce exact-equality balance checks, they should be reviewed for protections against balance changes between check and use."
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "74f3e8b4-9633-47be-b7ff-94ac67135ac9"
+    },
+    {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Verify Exact Balance Checks"
+      ],
+      "evidence": [],
+      "reasoning_summary": "A scan of Vault.sol did not reveal any instances where an account balance (native or token) is compared for exact equality using `==` against a specific amount or variable. The contract uses inequalities (e.g., `!= 0`, `>`, `>=`) around balances and supply but no exact equality checks of balances, so the overriding requirement to verify protections does not appear to be triggered by this code.",
+      "open_questions": [
+        "If future revisions introduce exact-equality balance checks, they should be reviewed for protections against balance changes between check and use."
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "593358da-3c21-4f0d-aaa7-39ac16dc8aba"
+    }
+  ],
+  "stability": {
+    "n_runs": 5,
+    "decision_counts": {
+      "INCONCLUSIVE": 5
+    },
+    "modal_decision": "INCONCLUSIVE",
+    "modal_count": 5,
+    "flip_count": 0,
+    "flip_rate_fraction": 0.0,
+    "flip_rate_display": "0/5"
+  }
+}

@@ -32,6 +32,32 @@ class ChatResult:
     cached: bool
 
 
+def _parse_json_tolerant(s: str) -> dict:
+    """`json.loads`, falling back to decoding just the first complete JSON
+    value in `s` if there's trailing garbage after it. Hit live (RTF L8
+    validation, 2026-08-06): openai/gpt-5.1-codex-max occasionally emits one
+    extra stray closing brace after an otherwise complete, valid object --
+    e.g. `{"decision": "PASS", ...}}` with an extra `}` tacked on. Plain
+    `json.loads` raises "Extra data" on this even though the actual object
+    is well-formed; `raw_decode` parses the first valid value and reports
+    where it ended, ignoring whatever comes after.
+    """
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError as e:
+        if e.msg != "Extra data":
+            raise
+        obj, _end = json.JSONDecoder().raw_decode(s)
+        return obj
+
+
+def _strip_fence_language_tag(body: str) -> str:
+    first_newline = body.find("\n")
+    if first_newline != -1 and body[:first_newline].strip().isalpha():
+        return body[first_newline + 1:]
+    return body
+
+
 def extract_last_fenced_json(text: str) -> dict:
     """Parse the outermost fenced code block in `text` as JSON: the *first*
     ``` in the text is the opening delimiter, the *last* ``` is the closing
@@ -40,17 +66,30 @@ def extract_last_fenced_json(text: str) -> dict:
     inner block's closing fence, not the outer opening one) -- first/last is
     the version of this fix that survives that case. Falls back to parsing
     the whole text if there are no fences at all.
+
+    Three cases, not two: hit live (RTF L8 validation, 2026-08-06) --
+    openai/gpt-5.1-codex-max sometimes opens a ```json fence and never closes
+    it (the body itself is complete, well-formed JSON; only the closing
+    marker is missing). The original two-way branch conflated "no fence at
+    all" with "exactly one fence, unclosed", parsing the WHOLE text
+    (including the leading ```json prefix) in both cases -- wrong for the
+    unclosed-fence case, which needs the prefix stripped like the normal
+    case, just reading to the end of the string instead of to a closing
+    fence.
     """
     fence = "```"
     first_open = text.find(fence)
     last_close = text.rfind(fence)
-    if first_open == -1 or first_open == last_close:
-        return json.loads(text)
+
+    if first_open == -1:
+        return _parse_json_tolerant(text)
+    if first_open == last_close:
+        # Exactly one fence marker -- opened but never closed.
+        body = text[first_open + len(fence):]
+        return _parse_json_tolerant(_strip_fence_language_tag(body).strip())
+
     body = text[first_open + len(fence):last_close]
-    first_newline = body.find("\n")
-    if first_newline != -1 and body[:first_newline].strip().isalpha():
-        body = body[first_newline + 1:]
-    return json.loads(body.strip())
+    return _parse_json_tolerant(_strip_fence_language_tag(body).strip())
 
 
 class ChatClient:

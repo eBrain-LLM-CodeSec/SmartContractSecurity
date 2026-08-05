@@ -1,0 +1,256 @@
+{
+  "runs": [
+    {
+      "decision": "PASS",
+      "requirement_citations": [
+        "vault/src/Vault.sol:95-99",
+        "vault/src/Vault.sol:75-76"
+      ],
+      "evidence": [
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1219-1222",
+          "claim": "Function _setYieldFeePercentage reverts with YieldFeePercentageGTPrecision when yieldFeePercentage_ exceeds FEE_PRECISION (1e9, equivalent to 1.0), enforcing the documented limit."
+        },
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1199-1202",
+          "claim": "Function _requireVaultCollateralized checks _isVaultCollateralized() and reverts with VaultUnderCollateralized if false, implementing the under-collateralization error."
+        }
+      ],
+      "reasoning_summary": "The error for yield fee percentage >1 is enforced in _setYieldFeePercentage, which reverts when the passed percentage exceeds the 1.0 precision constant. The under-collateralization error is enforced via _requireVaultCollateralized, which reverts when the vault is not collateralized and is invoked by operations such as mintYieldFee and liquidate.",
+      "open_questions": [],
+      "confidence": "HIGH",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "f9e1c810-e9ef-4e84-bee4-17b4ec60ba0d",
+      "citation_check": {
+        "valid": 2,
+        "invalid": 0,
+        "total": 2,
+        "validity_fraction": 1.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "vault/src/Vault.sol:1219-1222",
+            "ok": true,
+            "reason": null
+          },
+          {
+            "index": 1,
+            "location": "vault/src/Vault.sol:1199-1202",
+            "ok": true,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "decision": "PASS",
+      "requirement_citations": [
+        "req-3-documented",
+        "req-3-document-system"
+      ],
+      "evidence": [
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1218-1221",
+          "claim": "The internal setter `_setYieldFeePercentage` reverts with `YieldFeePercentageGTPrecision` if `yieldFeePercentage_` exceeds `FEE_PRECISION` (1e9), enforcing the documented check that the yield fee percentage cannot be greater than 1."
+        },
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1198-1201",
+          "claim": "The helper `_requireVaultCollateralized` checks `_isVaultCollateralized()` and reverts with `VaultUnderCollateralized` if false, implementing the under‑collateralization error described in the NatSpec comment."
+        },
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:394-401",
+          "claim": "An example enforcement: `mintYieldFee` calls `_requireVaultCollateralized()` before minting yield fees, so it will revert with `VaultUnderCollateralized` when the vault is under‑collateralized."
+        }
+      ],
+      "reasoning_summary": "The code includes explicit checks matching the documented error conditions. `_setYieldFeePercentage` rejects values over `FEE_PRECISION` (the 1.0 threshold in 9‑decimal precision), reverting with the documented `YieldFeePercentageGTPrecision` error. Under‑collateralization is enforced by `_requireVaultCollateralized`, which reverts with `VaultUnderCollateralized`, and this helper is used in functions such as `mintYieldFee` and `liquidate` to guard operations when the vault is under‑collateralized. These implementations align with the NatSpec descriptions.",
+      "open_questions": [],
+      "confidence": "HIGH",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "55691c5c-23fb-4a55-80e0-1f81d26c1880",
+      "citation_check": {
+        "valid": 3,
+        "invalid": 0,
+        "total": 3,
+        "validity_fraction": 1.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "vault/src/Vault.sol:1218-1221",
+            "ok": true,
+            "reason": null
+          },
+          {
+            "index": 1,
+            "location": "vault/src/Vault.sol:1198-1201",
+            "ok": true,
+            "reason": null
+          },
+          {
+            "index": 2,
+            "location": "vault/src/Vault.sol:394-401",
+            "ok": true,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "decision": "PASS",
+      "requirement_citations": [
+        "req-3-documented",
+        "req-3-document-system"
+      ],
+      "evidence": [
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1218-1222",
+          "claim": "Yield fee percentage setter _setYieldFeePercentage reverts with YieldFeePercentageGTPrecision when the provided percentage exceeds the maximum precision (1 in decimal, represented by FEE_PRECISION)."
+        },
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1198-1201",
+          "claim": "_requireVaultCollateralized enforces collateralization by reverting with VaultUnderCollateralized when _isVaultCollateralized() is false, guarding operations such as mintYieldFee and liquidate."
+        }
+      ],
+      "reasoning_summary": "The documented error for setting a yield fee above 1 is enforced in _setYieldFeePercentage, which reverts with YieldFeePercentageGTPrecision if the provided value exceeds the 1e9 precision corresponding to 1. The under-collateralization error is enforced via _requireVaultCollateralized, which reverts with VaultUnderCollateralized when the exchange rate indicates under-collateralization and is invoked by functions like mintYieldFee and liquidate. Both behaviors align with the NatSpec comments.",
+      "open_questions": [],
+      "confidence": "HIGH",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "af127601-5fad-444a-8d00-9b250e053884",
+      "citation_check": {
+        "valid": 2,
+        "invalid": 0,
+        "total": 2,
+        "validity_fraction": 1.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "vault/src/Vault.sol:1218-1222",
+            "ok": true,
+            "reason": null
+          },
+          {
+            "index": 1,
+            "location": "vault/src/Vault.sol:1198-1201",
+            "ok": true,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "decision": "PASS",
+      "requirement_citations": [
+        "req-3-documented",
+        "req-3-document-system"
+      ],
+      "evidence": [
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1218-1223",
+          "claim": "Setter _setYieldFeePercentage reverts with YieldFeePercentageGTPrecision if the provided yieldFeePercentage_ exceeds FEE_PRECISION (1, meaning 1e9), enforcing the documented 'greater than 1' check."
+        },
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1198-1201",
+          "claim": "_requireVaultCollateralized reverts with VaultUnderCollateralized when _isVaultCollateralized() is false, matching the documented under-collateralization error; this check is invoked by functions like mintYieldFee (line 394) and liquidate (line 557)."
+        }
+      ],
+      "reasoning_summary": "The documented error for yield fee percentage over 1 is enforced in _setYieldFeePercentage by reverting when the input exceeds the defined precision of 1. The under-collateralization error is raised via _requireVaultCollateralized, which reverts when the vault's exchange rate indicates insufficient collateral and is used by functions that require collateralization. Both behaviors match their NatSpec descriptions.",
+      "open_questions": [],
+      "confidence": "HIGH",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "841ad2a5-baca-4034-948c-bdc71c97d039",
+      "citation_check": {
+        "valid": 2,
+        "invalid": 0,
+        "total": 2,
+        "validity_fraction": 1.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "vault/src/Vault.sol:1218-1223",
+            "ok": true,
+            "reason": null
+          },
+          {
+            "index": 1,
+            "location": "vault/src/Vault.sol:1198-1201",
+            "ok": true,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "decision": "PASS",
+      "requirement_citations": [
+        "Emitted when the yield fee percentage being set is greater than 1",
+        "Emitted when the vault is under-collateralized"
+      ],
+      "evidence": [
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1218-1223",
+          "claim": "Function _setYieldFeePercentage reverts with YieldFeePercentageGTPrecision when the supplied yield fee percentage exceeds FEE_PRECISION (1e9, representing 1.0), implementing the documented error condition for setting a fee greater than 1."
+        },
+        {
+          "source": "vault/src/Vault.sol",
+          "location": "vault/src/Vault.sol:1198-1201",
+          "claim": "_requireVaultCollateralized checks _isVaultCollateralized() and reverts with VaultUnderCollateralized if false, enforcing the documented under-collateralization error."
+        }
+      ],
+      "reasoning_summary": "The documented yield fee percentage guard is implemented in _setYieldFeePercentage, which reverts with YieldFeePercentageGTPrecision when the value is above the 1.0 precision constant. The under-collateralization error is enforced in _requireVaultCollateralized, which reverts with VaultUnderCollateralized if the vault’s exchange rate drops below 1. Both behaviors align with the NatSpec descriptions.",
+      "open_questions": [],
+      "confidence": "HIGH",
+      "second_pass_agreement": "N/A",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "b04a1be6-655c-4c86-9e63-58ab059e1c4a",
+      "citation_check": {
+        "valid": 2,
+        "invalid": 0,
+        "total": 2,
+        "validity_fraction": 1.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "vault/src/Vault.sol:1218-1223",
+            "ok": true,
+            "reason": null
+          },
+          {
+            "index": 1,
+            "location": "vault/src/Vault.sol:1198-1201",
+            "ok": true,
+            "reason": null
+          }
+        ]
+      }
+    }
+  ],
+  "stability": {
+    "n_runs": 5,
+    "decision_counts": {
+      "PASS": 5
+    },
+    "modal_decision": "PASS",
+    "modal_count": 5,
+    "flip_count": 0,
+    "flip_rate_fraction": 0.0,
+    "flip_rate_display": "0/5"
+  }
+}

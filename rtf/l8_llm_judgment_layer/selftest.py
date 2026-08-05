@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 from .citation_check import verify_evidence_citations
-from .judgment_layer import build_judgment_prompt
+from .judgment_layer import LLMJudgmentLayer, build_judgment_prompt
 from .schema import validate_judgment
 from .stability import compute_stability
 
@@ -175,6 +175,85 @@ def test_prompt_uses_only_context_bundle_content() -> None:
     )
 
 
+class FakeChatClient:
+    """Mimics just enough of a4v.llm.ChatClient's interface to test
+    judge_once/judge_with_second_pass/judge_stability's cache-bypass logic
+    without any network access. Records every call and every cache-path
+    lookup so the test can assert on ordering/bypass behavior directly."""
+
+    def __init__(self, tmp_cache_dir: Path):
+        self.tmp_cache_dir = tmp_cache_dir
+        self.complete_json_calls = 0
+        self.cache_path_lookups: list[Path] = []
+
+    def _cache_key(self, messages, temperature):
+        return "fixed-key-since-messages-are-identical-across-repeat-calls"
+
+    def _cache_path(self, key):
+        p = self.tmp_cache_dir / f"{key}.json"
+        self.cache_path_lookups.append(p)
+        return p
+
+    def complete_json(self, messages, temperature=0.0):
+        self.complete_json_calls += 1
+        data = {
+            "decision": "PASS",
+            "requirement_citations": [],
+            "evidence": [{"source": "x", "location": "x.sol:1", "claim": "y"}],
+            "reasoning_summary": f"call number {self.complete_json_calls}",
+            "open_questions": [],
+            "confidence": "HIGH",
+        }
+
+        class Result:
+            prompt_tokens = 1
+            completion_tokens = 1
+
+        return data, Result()
+
+
+def test_judge_once_bypass_cache_deletes_entry() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        cache_dir = Path(tmp)
+        fake = FakeChatClient(cache_dir)
+        layer = LLMJudgmentLayer(chat_client=fake, model_version="test-model")
+        bundle_record = {"bundle": {"self": "x", "parent_section_context": None, "definitions": [],
+                                     "overriding_requirements": [], "exceptions": [], "referenced_requirements": []}}
+        cache_file = cache_dir / "fixed-key-since-messages-are-identical-across-repeat-calls.json"
+        cache_file.write_text("{}")  # simulate a pre-existing cache entry
+
+        layer.judge_once(bundle_record, "q?", bypass_cache=True)
+        check("judge_once(bypass_cache=True) deletes the pre-existing cache file", not cache_file.exists())
+
+
+def test_judge_with_second_pass_uses_fresh_second_call() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        fake = FakeChatClient(Path(tmp))
+        layer = LLMJudgmentLayer(chat_client=fake, model_version="test-model")
+        bundle_record = {"bundle": {"self": "x", "parent_section_context": None, "definitions": [],
+                                     "overriding_requirements": [], "exceptions": [], "referenced_requirements": []}}
+        layer.judge_with_second_pass(bundle_record, "q?")
+        check(
+            "judge_with_second_pass makes exactly 2 real completion calls (not cache-shortcut to 1)",
+            fake.complete_json_calls == 2,
+            fake.complete_json_calls,
+        )
+
+
+def test_judge_stability_bypasses_cache_for_all_but_first_run() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        fake = FakeChatClient(Path(tmp))
+        layer = LLMJudgmentLayer(chat_client=fake, model_version="test-model")
+        bundle_record = {"bundle": {"self": "x", "parent_section_context": None, "definitions": [],
+                                     "overriding_requirements": [], "exceptions": [], "referenced_requirements": []}}
+        layer.judge_stability(bundle_record, "q?", n_runs=4)
+        check(
+            "judge_stability(n_runs=4) makes exactly 4 real completion calls",
+            fake.complete_json_calls == 4,
+            fake.complete_json_calls,
+        )
+
+
 def main() -> int:
     test_schema_valid_pass()
     test_schema_rejects_evidence_free_pass()
@@ -183,6 +262,9 @@ def main() -> int:
     test_stability_aggregation()
     test_stability_requires_min_two_runs()
     test_prompt_uses_only_context_bundle_content()
+    test_judge_once_bypass_cache_deletes_entry()
+    test_judge_with_second_pass_uses_fresh_second_call()
+    test_judge_stability_bypasses_cache_for_all_but_first_run()
 
     print(f"PASSED: {len(PASSES)}")
     for p in PASSES:
