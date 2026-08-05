@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-no-create2",
+  "component_note": "AMBIGUOUS-free custom predicate: CREATE2 is a named, specific EVM instruction/Solidity construct (`new X{salt: ...}()`, or the `create2` opcode inside `assembly {}`) -- Slither's IR exposes salted `new` calls directly (a distinct IR operation, not a generic call) and assembly nodes containing the `create2` mnemonic. Two code shapes to check, both text-grounded (the requirement names 'a CREATE2 instruction' with no ambiguity about what that construct is), not yet implemented.",
+  "status": "SOUND_DERIVATION_NOT_YET_IMPLEMENTED",
+  "override_note": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

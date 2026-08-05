@@ -1,0 +1,13 @@
+{
+  "req_id": "req-1-compiler-SOL-2021-1",
+  "target_grain": "contract",
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE only to Tested Code with 2+ occurrences of keccak(mem,length) sharing mem but with unequal, non-multiple-of-32 length values -- explicit in the conditioned_scope_clause. Also requires the Optimizer to be enabled (a second, distinct applicability dimension the L1 conditioned_scope_clause field doesn't separately flag, since it's stated in the modality clause itself: 'MUST NOT use the Optimizer with a Solidity compiler version...').",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Restriction explicitly stated in the requirement's own conditioned_scope_clause (PATTERN_AND_VERSION_PLUS_OPTIMIZER_FLAG), matching L1's is_unconditioned_subject=False directly.",
+    "derivation_method": "L1 conditioned_scope_clause field, confirmed by direct reading",
+    "logged_at": "2026-08-06T01:00:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

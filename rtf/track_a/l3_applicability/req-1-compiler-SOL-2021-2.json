@@ -1,0 +1,13 @@
+{
+  "req_id": "req-1-compiler-SOL-2021-2",
+  "target_grain": "contract",
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE only to Tested Code using abi.decode() on byte arrays as memory -- explicit in the conditioned_scope_clause.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Restriction explicitly stated in the requirement's own conditioned_scope_clause (PATTERN_AND_VERSION), matching L1's is_unconditioned_subject=False directly.",
+    "derivation_method": "L1 conditioned_scope_clause field, confirmed by direct reading",
+    "logged_at": "2026-08-06T01:00:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

@@ -1,0 +1,13 @@
+{
+  "req_id": "req-1-no-ancient-compilers",
+  "target_grain": "contract",
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE to any Tested Code, unconditionally. No override clause exists (L1 confirms empty overriding_requirements) -- the simplest requirement found in the whole S-level batch: a single, unconditioned, pure version-threshold check with no pattern trigger and no escape hatch.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Unconditioned subject, predicate re-read confirms no embedded restriction and no override clause -- the simplest applicability case in this batch.",
+    "derivation_method": "L1 conditioned_scope_clause field, confirmed by direct reading",
+    "logged_at": "2026-08-06T01:00:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

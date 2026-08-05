@@ -1,0 +1,9 @@
+{
+  "req_id": "req-1-compiler-SOL-2022-1",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)",
+  "detector_id": "solc-version (bugs_by_version pragma-text mechanism)",
+  "source_inspected": true,
+  "match_classification": "PARTIAL_MATCH",
+  "source_inspection_notes": "bugs_by_version['0.8.11'] and ['0.8.12'] both include 'AbiEncodeCallLiteralAsFixedBytesBug' -- an exceptionally strong, almost-verbatim name match ('EncodeCall', 'Literal', 'FixedBytes') to this requirement's exact subject. The strongest corroboration found across this entire compiler-bug batch. Version match is also exact: this requirement names exactly 0.8.11 and 0.8.12 (not a range), matching the two versions where the bug is listed."
+}

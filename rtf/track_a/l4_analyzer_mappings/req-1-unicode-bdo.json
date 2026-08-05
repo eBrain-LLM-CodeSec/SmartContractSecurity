@@ -1,0 +1,20 @@
+{
+  "match_classification": "PARTIAL_MATCH",
+  "detector_id": "rtlo",
+  "source_inspected": true,
+  "source_inspection_notes": "Read rtlo.py in full: its regex (`re.compile('.*\\u202e.*')`) checks ONLY for U+202E (Right-to-Left Override). EthTrust's requirement names NINE characters: U+2066, U+2067, U+2068, U+2029, U+202A, U+202B, U+202C, U+202D, U+202E. Slither covers 1 of 9.",
+  "derivation_trace": {
+    "ethtrust_phrase": "any of the Unicode Direction Control Characters U+2066, U+2067, U+2068, U+2029, U+202A, U+202B, U+202C, U+202D, or U+202E",
+    "analyzer_behavior": "Regex-matches only U+202E in the raw source bytes.",
+    "covered_cases": [
+      "U+202E occurrences"
+    ],
+    "uncovered_cases": [
+      "the other 8 named characters -- U+2066, U+2067, U+2068, U+2029, U+202A, U+202B, U+202C, U+202D -- entirely uncovered"
+    ],
+    "final_classification": "PARTIAL_MATCH -- a real, substantial coverage gap (8/9 characters), not a technicality. Trivially fixable: rtlo.py's own regex approach generalizes directly to a 9-character alternation, since EthTrust names the exact codepoints -- no interpretation needed, purely mechanical extension of an existing, already-reused technique."
+  },
+  "req_id": "req-1-unicode-bdo",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)"
+}

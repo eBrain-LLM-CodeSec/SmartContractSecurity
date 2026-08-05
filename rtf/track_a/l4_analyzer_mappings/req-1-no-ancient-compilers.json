@@ -1,0 +1,9 @@
+{
+  "req_id": "req-1-no-ancient-compilers",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)",
+  "detector_id": "solc-version (bugs_by_version pragma-text mechanism)",
+  "source_inspected": true,
+  "match_classification": "NO_MATCH",
+  "source_inspection_notes": "Slither's solc-version detector (incorrect_solc.py) hardcodes ALLOWED_VERSIONS=['0.8.0'] -- a DIFFERENT, higher threshold than this requirement's stated '0.3'. Reusing the detector as-is would over-flag relative to this specific requirement (it would also flag every version in [0.3.0, 0.8.0), which req-1-no-ancient-compilers doesn't itself prohibit -- those versions are separately covered by req-1-compiler-060's own, different 0.8.0 rule). The detector's hardcoded constant is the wrong tool for this specific requirement; the underlying DATA it reads (compilation_unit.solc_version) is directly reusable with the correct threshold."
+}

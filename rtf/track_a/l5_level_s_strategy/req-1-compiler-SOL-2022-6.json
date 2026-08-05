@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-compiler-SOL-2022-6",
+  "sub_type": "PATTERN_AND_VERSION",
+  "status": "DERIVATION_PLAUSIBLE_NOT_YET_IMPLEMENTED",
+  "note": "Pattern component would need to detect ABIEncoderV2 tuple encoding with a calldata static array (uint/bytes32) as the last element -- a fairly specific ABI-encoding shape, not yet evaluated against Slither's IR for feasibility.",
+  "maturity": "DRAFT_TRANSLATION"
+}

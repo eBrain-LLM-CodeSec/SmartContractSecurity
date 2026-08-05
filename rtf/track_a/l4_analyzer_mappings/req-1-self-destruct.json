@@ -1,0 +1,14 @@
+{
+  "match_classification": "NO_MATCH",
+  "detector_id": "suicidal (considered and rejected)",
+  "source_inspected": true,
+  "source_inspection_notes": "Read suicidal.py in full: only flags selfdestruct()/suicide() in a PUBLIC/EXTERNAL, non-constructor function that is UNPROTECTED (func.is_protected() is false). This conflates two questions EthTrust deliberately separates across levels: 'is selfdestruct present at all' (S) vs 'is it adequately protected' (M, req-2-self-destruct). A protected selfdestruct call -- which EthTrust's S-level text still prohibits outright, deferring to the M-level override for the protection question -- produces NO finding from this detector, indistinguishable from selfdestruct being entirely absent. This detector answers a different, though related, question -- it is not usable even as a partial evidence collector for the S-level presence check.",
+  "derivation_trace": {
+    "ethtrust_phrase": "contain the selfdestruct() instruction or its now-deprecated alias suicide()",
+    "analyzer_behavior": "suicidal.py flags UNPROTECTED public/external selfdestruct calls only -- silence means 'absent OR present-but-protected', which cannot be disambiguated from its output alone.",
+    "final_classification": "NO_MATCH for the S-level mere-presence question specifically -- suicidal.py is a candidate signal for the M-level override (req-2-self-destruct's protection-adequacy question) instead, itself imperfectly (its notion of 'protected' is Slither's own access-control-modifier heuristic, not necessarily EthTrust's)."
+  },
+  "req_id": "req-1-self-destruct",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)"
+}

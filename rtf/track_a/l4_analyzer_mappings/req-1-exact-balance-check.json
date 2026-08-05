@@ -1,0 +1,13 @@
+{
+  "match_classification": "NO_MATCH",
+  "source_inspected": true,
+  "source_inspection_notes": "No Slither detector checks for exact-equality balance comparisons -- confirmed via the same full detector-list review used for req-1-eip155-chainid (104 detectors, none related).",
+  "derivation_trace": {
+    "ethtrust_phrase": "test that the balance of an account is exactly equal to (i.e. ==) a specified amount or the value of a variable",
+    "analyzer_behavior": "None exists.",
+    "final_classification": "NO_MATCH."
+  },
+  "req_id": "req-1-exact-balance-check",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)"
+}

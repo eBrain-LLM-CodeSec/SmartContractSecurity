@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-no-assembly",
+  "component_note": "Component 1 (reusable, high confidence): assembly detector as evidence_collector for presence. Component 2 (not yet built, and substantial): resolving whether ANY of the 6 overriding requirements + 1 external predecessor is satisfied -- this Set is the largest of any requirement in the corpus so far, and req-1-no-assembly's real conformance determination will require composing evidence from all of them, a genuinely bigger undertaking than most S requirements.",
+  "status": "PARTIAL_STRATEGY",
+  "override_note": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

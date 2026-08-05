@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-check-return",
+  "status": "PARTIAL_STRATEGY",
+  "note": "Two-component reuse (unchecked-lowlevel + unchecked-send) covers the bulk of cases; the state-variable-storage loophole is a known, documented gap requiring a stricter custom predicate if full precision is needed later.",
+  "override_note": "Excepted by req-2-handle-return (M).",
+  "maturity": "DRAFT_TRANSLATION"
+}

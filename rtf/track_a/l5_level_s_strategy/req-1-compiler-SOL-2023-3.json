@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-compiler-SOL-2023-3",
+  "sub_type": "PATTERN_AND_VERSION",
+  "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
+  "note": "Two components needed: (1) a Yul-code pattern predicate (detect repeated `verbatim` calls surrounded by identical code -- would need to inspect Slither's Yul/inline-assembly IR, not yet evaluated in depth) and (2) an exact compiled-version check against the stated 0.8.5-0.8.22 range.",
+  "maturity": "DRAFT_TRANSLATION"
+}

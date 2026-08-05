@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-compiler-SOL-2022-5-push",
+  "sub_type": "PATTERN_AND_VERSION",
+  "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED_NO_CORROBORATION",
+  "note": "Pattern component (empty .push() writing to a non-32-byte-multiple copied array) and version component (<0.8.15) both need to be built from EthTrust's text alone, without a Slither-side cross-check to lean on -- a slightly higher-risk derivation than its siblings in this batch.",
+  "maturity": "DRAFT_TRANSLATION"
+}

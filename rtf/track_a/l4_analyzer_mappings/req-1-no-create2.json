@@ -1,0 +1,13 @@
+{
+  "match_classification": "NO_MATCH",
+  "source_inspected": true,
+  "source_inspection_notes": "Grepped Slither's full detectors/ tree (`grep -ril create2`) -- zero hits. No detector, existing or partial, targets CREATE2 usage at all.",
+  "derivation_trace": {
+    "ethtrust_phrase": "contain a CREATE2 instruction",
+    "analyzer_behavior": "None exists in Slither 0.11.5.",
+    "final_classification": "NO_MATCH, confirmed by exhaustive search, not absence of search."
+  },
+  "req_id": "req-1-no-create2",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)"
+}

@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-self-destruct",
+  "component_note": "Custom predicate directly derivable, reusing Slither's own internal-call-name matching (the same mechanism suicidal.py uses internally, minus its protection/visibility filters): any internal call named 'selfdestruct(address)' or 'suicide(address)' anywhere in the compiled project.",
+  "status": "SOUND_DERIVATION_NOT_YET_IMPLEMENTED",
+  "override_note": "Excepted by a Set of Overriding Requirements (req-2-self-destruct, req-2-documented) -- suicidal.py's 'protected' signal may be a useful INPUT to eventually judging req-2-self-destruct's own adequacy question, logged here for that future L6 work, not used for this S-level check.",
+  "maturity": "DRAFT_TRANSLATION"
+}

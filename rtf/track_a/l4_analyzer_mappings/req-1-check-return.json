@@ -1,0 +1,8 @@
+{
+  "req_id": "req-1-check-return",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)",
+  "source_inspected": true,
+  "match_classification": "PARTIAL_MATCH",
+  "source_inspection_notes": "Two detectors combine for full function coverage: unchecked-lowlevel (flags LowLevelCall IR -- call/delegatecall/staticcall -- whose return value is never subsequently read) and unchecked-send (same UnusedReturnValues logic, for Send IR). Together they cover all four named functions. Real gap found on reading unchecked_low_level_return_values.py: a return value ASSIGNED TO A STATE VARIABLE is treated as 'checked' even if never branched on afterward ('if a return value is stored in a state variable, it's ok', line 63-64) -- this is looser than EthTrust's text, which requires the value be checked 'to determine whether the call failed', not merely stored. A contract that stores the boolean into a state var and never reads it again would satisfy Slither's heuristic but not EthTrust's actual intent."
+}

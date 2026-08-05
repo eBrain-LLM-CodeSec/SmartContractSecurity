@@ -1,0 +1,9 @@
+{
+  "req_id": "req-1-compiler-SOL-2021-2",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)",
+  "detector_id": "solc-version (bugs_by_version pragma-text mechanism)",
+  "source_inspected": true,
+  "match_classification": "PARTIAL_MATCH",
+  "source_inspection_notes": "bugs_by_version['0.4.16'] through ['0.8.3'] include 'ABIDecodeTwoDimensionalArrayMemory' -- plausible match ('ABIDecode', 'Memory') at the exact stated range (0.4.16-0.8.3), though EthTrust's text doesn't mention 'two dimensional' specifically -- flagged as PLAUSIBLE rather than certain, similar caveat to SOL-2022-6."
+}

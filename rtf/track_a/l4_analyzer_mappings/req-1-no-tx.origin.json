@@ -1,0 +1,20 @@
+{
+  "match_classification": "PARTIAL_MATCH",
+  "detector_id": "tx-origin",
+  "source_inspected": true,
+  "source_inspection_notes": "Read tx_origin.py in full: TxOrigin._contains_incorrect_tx_origin_use only flags tx.origin read inside a CONDITIONAL node (if/require/assert) AND only when msg.sender is NOT also read in the same node (an explicit anti-false-positive carve-out for msg.sender==tx.origin patterns). EthTrust's requirement prohibits tx.origin's mere presence anywhere, unconditionally -- a tx.origin read used non-conditionally (e.g. logged in an event, or used in arithmetic) would violate EthTrust's text but never trigger this detector.",
+  "derivation_trace": {
+    "ethtrust_phrase": "contain a tx.origin instruction",
+    "analyzer_behavior": "Flags tx.origin only when read inside if/require/assert AND msg.sender isn't also read there.",
+    "covered_cases": [
+      "tx.origin used in an authorization conditional -- the highest-risk case, and covered"
+    ],
+    "uncovered_cases": [
+      "tx.origin read in any non-conditional context (logging, arithmetic, non-auth branches) -- violates EthTrust's unconditional text but never flagged"
+    ],
+    "final_classification": "PARTIAL_MATCH -- evidence collector for the auth-relevant subset; full coverage needs a broader 'any read of solidity variable tx.origin' custom predicate reusing Slither's own `solidity_variables_read` without the conditional-node/msg.sender carve-outs."
+  },
+  "req_id": "req-1-no-tx.origin",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)"
+}

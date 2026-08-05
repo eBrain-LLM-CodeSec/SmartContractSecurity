@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-use-c-e-i",
+  "status": "PARTIAL_STRATEGY",
+  "note": "Slither's reentrancy suite is a strong candidate_generator for the exploitable subset. A broader, more literal CEI-ordering predicate (any state write occurring in a node reachable after an external-call node, within the same function, regardless of exploitability) would need to be built separately from Slither's own heuristic reentrancy detectors, reusing only the underlying external-call/state-write node identification they already do.",
+  "override_note": "Excepted by a Set of Overriding Requirements (req-2-external-calls, req-2-documented).",
+  "maturity": "DRAFT_TRANSLATION"
+}

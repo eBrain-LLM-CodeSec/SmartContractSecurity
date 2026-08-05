@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-exact-balance-check",
+  "component_note": "Custom predicate directly derivable: an `==`/`!=` BinaryOperation node where one operand is a `.balance` member access (matching the exact wording -- 'balance of an account' -- corrected per AR-002 to native-ETH `.balance` only, not ERC20 balanceOf()). This is the SAME predicate already specified (not yet implemented) for the M-level override req-2-verify-exact-balance-check in Track A's L6 record -- the S and M requirements share one trigger, differing only in what's required once it fires (S: don't do this at all; M: if you do, protect against transfers affecting it).",
+  "status": "SOUND_DERIVATION_NOT_YET_IMPLEMENTED",
+  "override_note": "Excepted by req-2-verify-exact-balance-check (M).",
+  "maturity": "DRAFT_TRANSLATION"
+}

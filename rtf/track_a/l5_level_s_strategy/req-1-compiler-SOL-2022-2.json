@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-compiler-SOL-2022-2",
+  "sub_type": "PATTERN_AND_VERSION",
+  "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
+  "note": "Pattern component: nested array (array-of-arrays/array-of-structs-with-arrays) passed to an external call, abi.encode(), or emit statement -- directly checkable via Slither's type system on call/event arguments.",
+  "maturity": "DRAFT_TRANSLATION"
+}

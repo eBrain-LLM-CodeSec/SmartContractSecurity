@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-compiler-SOL-2021-1",
+  "sub_type": "PATTERN_AND_VERSION_PLUS_OPTIMIZER_FLAG",
+  "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
+  "note": "Three-part applicability: (1) 2+ keccak(mem,length) call sites, (2) same mem/differing non-32-multiple length across them, (3) Optimizer enabled in the compile config -- the most compound applicability condition in this entire compiler-bug batch, and the only one needing compiler-CONFIG (not just source-pattern) inspection.",
+  "maturity": "DRAFT_TRANSLATION"
+}

@@ -1,0 +1,9 @@
+{
+  "req_id": "req-1-compiler-SOL-2022-6",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)",
+  "detector_id": "solc-version (bugs_by_version pragma-text mechanism)",
+  "source_inspected": true,
+  "match_classification": "PARTIAL_MATCH",
+  "source_inspection_notes": "bugs_by_version['0.5.8'] through ['0.8.15'] both include 'AbiReencodingHeadOverflowWithStaticArrayCleanup' -- plausible match ('static array', 'reencoding') to this requirement's ABIEncoderV2/static-array subject, and the version range (0.5.8-0.8.15) matches exactly. Flagged as PLAUSIBLE, not certain -- the bug name doesn't mention tuples or 'last element' specifically, so this corroboration is inferential, not a confirmed identical match."
+}

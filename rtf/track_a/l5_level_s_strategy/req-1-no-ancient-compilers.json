@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-no-ancient-compilers",
+  "sub_type": "VERSION_ONLY",
+  "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED -- likely DETERMINISTIC_COMPLETE",
+  "note": "A one-line custom check (`compilation_unit.solc_version < '0.3.0'`) is the entire strategy needed -- no pattern component, no override component. The cleanest, simplest requirement encountered in Track B so far.",
+  "maturity": "DRAFT_TRANSLATION"
+}

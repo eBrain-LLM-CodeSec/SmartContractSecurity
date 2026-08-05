@@ -1,0 +1,20 @@
+{
+  "match_classification": "PARTIAL_MATCH",
+  "detector_id": "encode-packed-collision",
+  "source_inspected": true,
+  "source_inspection_notes": "Read encode_packed.py in full: flags abi.encodePacked() calls with >1 consecutive dynamic-type (string/bytes/dynamic-array) argument, but ONLY when the argument is 'tainted' (traceable to external/attacker-controllable input via Slither's data-dependency analysis). EthTrust's text has no such taint/exploitability qualifier -- it is an unconditional prohibition on the pattern itself.",
+  "derivation_trace": {
+    "ethtrust_phrase": "use abi.encodePacked() with consecutive variable length arguments",
+    "analyzer_behavior": "Flags only when the dynamic argument(s) are tainted by external input.",
+    "covered_cases": [
+      "consecutive dynamic args where at least one is attacker-influenceable -- the exploitable case"
+    ],
+    "uncovered_cases": [
+      "consecutive dynamic args that are internal-only/hardcoded, never externally tainted -- still literally matches EthTrust's unconditional text, never flagged by this detector"
+    ],
+    "final_classification": "PARTIAL_MATCH -- this is the one requirement in this batch with NO override clause, so if a fully-matching predicate existed it could reach EXACT_MATCH; the taint-filter gap is what keeps it at PARTIAL, not an override ambiguity."
+  },
+  "req_id": "req-1-no-hashing-consecutive-variable-length-args",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)"
+}

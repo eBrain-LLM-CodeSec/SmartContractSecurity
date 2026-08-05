@@ -1,0 +1,9 @@
+{
+  "req_id": "req-1-compiler-SOL-2021-1",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)",
+  "detector_id": "solc-version (bugs_by_version pragma-text mechanism)",
+  "source_inspected": true,
+  "match_classification": "PARTIAL_MATCH",
+  "source_inspection_notes": "bugs_by_version tracks 'KeccakCaching' from version 0.1.0 through 0.8.2 (absent from 0.8.3 onward) -- matching this requirement's 'Optimizer' + 'keccak' subject and its exact stated threshold ('older than 0.8.3', i.e. fixed at 0.8.3) closely. Initially overlooked in a first pass over this batch (the name alone doesn't scream 'Optimizer'), found on a second, targeted search -- a small reminder that absence of an obvious name match on first read doesn't mean absence of corroboration."
+}

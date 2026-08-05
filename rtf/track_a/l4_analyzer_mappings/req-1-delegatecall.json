@@ -1,0 +1,20 @@
+{
+  "match_classification": "PARTIAL_MATCH",
+  "detector_id": "controlled-delegatecall (considered and downgraded)",
+  "source_inspected": true,
+  "source_inspection_notes": "Read controlled_delegatecall.py in full: only flags delegatecall()/callcode() whose DESTINATION address is 'tainted' (attacker-controllable). A delegatecall to a fixed, hardcoded, or owner-set-but-currently-static address -- which still violates EthTrust's unconditional 'MUST NOT contain the delegatecall() instruction' -- produces no finding. Same structural pattern as tx-origin/suicidal/encode-packed-collision in this batch: Slither's detector suite is built around 'dangerous usage', EthTrust's S-level text is built around 'mere presence'.",
+  "derivation_trace": {
+    "ethtrust_phrase": "contain the delegatecall() instruction",
+    "analyzer_behavior": "Flags delegatecall/callcode only when the destination is tainted by external input.",
+    "covered_cases": [
+      "delegatecall to an attacker-influenceable address -- the classic proxy-hijack exploit shape"
+    ],
+    "uncovered_cases": [
+      "delegatecall to any fixed/hardcoded/admin-set-but-static address -- common in legitimate proxy patterns, still literally prohibited by EthTrust's S-level text (the proxy pattern is exactly what the Set-of-Overriding-Requirements, req-2-external-calls + req-2-documented, exists to legitimize)"
+    ],
+    "final_classification": "PARTIAL_MATCH -- evidence collector for the taint-controlled subset only."
+  },
+  "req_id": "req-1-delegatecall",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)"
+}

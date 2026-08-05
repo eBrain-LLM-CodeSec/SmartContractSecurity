@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-delegatecall",
+  "component_note": "Custom predicate directly derivable, reusing Slither's own `function.low_level_calls` IR (the same data controlled_delegatecall.py already reads) minus the taint filter: any low-level call named 'delegatecall' or 'callcode', regardless of destination taint.",
+  "status": "PARTIAL_STRATEGY",
+  "override_note": "Excepted by a Set of Overriding Requirements (req-2-external-calls, req-2-documented) -- this is the same override pair as req-1-use-c-e-i, worth cross-checking together in a later pass.",
+  "maturity": "DRAFT_TRANSLATION"
+}

@@ -1,0 +1,13 @@
+{
+  "req_id": "req-1-no-create2",
+  "target_grain": "contract",
+  "applicability_basis": "logical_scope_entailment",
+  "applicability_rule": "APPLICABLE to any Tested Code, unconditionally -- bare 'Tested code' subject, predicate ('contain a CREATE2 instruction') is a mere-presence check with no hidden restriction (verified: no verb-phrase qualifier the way eip155-chainid/overflow-underflow had).",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Unconditioned subject, predicate re-read confirms no embedded restriction (checked per AR-001's warning) -- a mere-presence prohibition applies wherever the named construct could occur, i.e. everywhere.",
+    "derivation_method": "manual re-read of full normative_text against AR-001's warning",
+    "logged_at": "2026-08-06T00:00:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

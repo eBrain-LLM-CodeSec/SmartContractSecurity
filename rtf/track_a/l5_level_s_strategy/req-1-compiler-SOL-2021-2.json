@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-compiler-SOL-2021-2",
+  "sub_type": "PATTERN_AND_VERSION",
+  "status": "DERIVATION_PLAUSIBLE_NOT_YET_IMPLEMENTED",
+  "note": "Pattern component: abi.decode() call with a target type resolving to a byte-array-in-memory shape, combined with the ABIEncoderV2 pragma being active -- not yet evaluated against Slither's IR for feasibility.",
+  "maturity": "DRAFT_TRANSLATION"
+}

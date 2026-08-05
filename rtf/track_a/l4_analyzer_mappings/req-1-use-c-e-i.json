@@ -1,0 +1,8 @@
+{
+  "req_id": "req-1-use-c-e-i",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)",
+  "source_inspected": true,
+  "match_classification": "PARTIAL_MATCH",
+  "source_inspection_notes": "Slither's reentrancy-eth/reentrancy-no-eth/reentrancy-benign/reentrancy-events detectors are heuristic-based (their own docstring: 'Based on heuristics, it may lead to FP and FN') and check for EXPLOITABLE reentrancy specifically (an external call followed by a state write AND a plausible attacker-reachable reentrant path), not raw CEI-ordering adherence. EthTrust's requirement is broader: it wants the CHECKS-EFFECTS-INTERACTIONS ORDERING itself followed (effects before interaction), regardless of whether a concrete exploit is currently reachable -- a function that writes state after an external call, with no CURRENTLY provable reentrancy path (e.g. no reentrant call surface today, but the ordering is still 'wrong' and fragile to future changes), would satisfy EthTrust's own conditioned scope for evaluation but might not trigger any of Slither's reentrancy detectors."
+}

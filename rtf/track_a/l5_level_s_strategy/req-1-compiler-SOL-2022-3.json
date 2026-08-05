@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-compiler-SOL-2022-3",
+  "sub_type": "PATTERN_AND_VERSION",
+  "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
+  "note": "Pattern component needs to detect an internal-call site whose signature resolution predates a data-location change across an override -- an inheritance/override-resolution analysis, more involved than a simple syntactic scan.",
+  "maturity": "DRAFT_TRANSLATION"
+}

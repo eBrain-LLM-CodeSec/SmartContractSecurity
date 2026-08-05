@@ -1,0 +1,20 @@
+{
+  "match_classification": "PARTIAL_MATCH",
+  "detector_id": "assembly",
+  "source_inspected": true,
+  "source_inspection_notes": "Read assembly.py in full: flags any node with `NodeType.ASSEMBLY` in any function DECLARED in the contract being analyzed (`f.contract_declarer != contract: continue` skips inherited-but-not-redeclared functions). This is a genuine mere-PRESENCE check with no safety/protection judgment baked in -- the cleanest trigger/scope match found in this batch. Run across every contract in the compiled project (not just one), it should catch assembly usage wherever it's actually declared, including in library/parent contracts analyzed as their own compilation-unit members.",
+  "derivation_trace": {
+    "ethtrust_phrase": "contain the assembly {} instruction",
+    "analyzer_behavior": "Flags every function-declaring contract's own ASSEMBLY-type nodes, unconditionally on any safety judgment.",
+    "covered_cases": [
+      "all directly-declared assembly usage in the compiled project"
+    ],
+    "uncovered_cases": [
+      "the Set-of-Overriding-Requirements exception (req-2-safe-assembly / req-2-documented / three named compiler-bug overrides / one external v1-predecessor reference) -- this detector fires unconditionally on presence, so like req-1-compiler-060, it cannot by itself determine whether an override applies, capping this at PARTIAL_MATCH rather than EXACT_MATCH despite otherwise clean trigger/scope equivalence"
+    ],
+    "final_classification": "PARTIAL_MATCH -- the cleanest trigger/scope fit in this batch, held back from EXACT_MATCH purely by the override-outcome issue common to nearly every requirement in this Set-of-Overriding-Requirements family, not by any detector imprecision."
+  },
+  "req_id": "req-1-no-assembly",
+  "analyzer": "slither-analyzer",
+  "analyzer_version": "slither-analyzer==0.11.5 (pip-resolvable via importlib.metadata in this repo's .venv)"
+}

@@ -1,0 +1,7 @@
+{
+  "req_id": "req-1-no-tx.origin",
+  "component_note": "Component 1: reuse tx-origin detector as evidence_collector (auth-context subset). Component 2 (not yet built): broader custom predicate over `solidity_variables_read` for the non-conditional cases the detector misses.",
+  "status": "PARTIAL_STRATEGY",
+  "override_note": "Excepted by req-3-verify-tx.origin (Q) -- like req-1-compiler-060, a confirmed presence doesn't automatically mean FAIL; INCONCLUSIVE if the Q-level override can't be independently confirmed satisfied.",
+  "maturity": "DRAFT_TRANSLATION"
+}
