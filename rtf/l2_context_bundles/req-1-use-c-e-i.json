@@ -41,7 +41,7 @@
       },
       {
         "req_id": "req-2-documented",
-        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of:"
+        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of: CREATE2, assembly {}, selfdestruct() or its deprecated alias suicide(), external calls, delegatecall(), code that can cause an overflow or underflow, block.number or block.timestamp, or Use of oracles and pseudo-randomness,"
       }
     ],
     "exceptions": [
@@ -51,7 +51,7 @@
       },
       {
         "req_id": "req-2-documented",
-        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of:"
+        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of: CREATE2, assembly {}, selfdestruct() or its deprecated alias suicide(), external calls, delegatecall(), code that can cause an overflow or underflow, block.number or block.timestamp, or Use of oracles and pseudo-randomness,"
       }
     ],
     "external_references": [
@@ -142,6 +142,6 @@
   ],
   "traversal_depth_reached": 2,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "b842fc78603242234ecd4342f6f164442bbc688bfc473c0ce535991e1730e9b1"
+  "assembled_at": "2026-08-05T22:59:55Z",
+  "bundle_hash": "367c7a05a4f443eeb0b5afdd9fa907ea99917a8ccc179163ff5c80b60c1f2ca5"
 }

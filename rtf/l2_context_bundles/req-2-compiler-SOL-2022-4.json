@@ -24,11 +24,11 @@
     "referenced_requirements": [
       {
         "req_id": "req-2-safe-assembly",
-        "normative_text": "Avoid Common assembly {} Attack Vectors Tested Code MUST NOT use the assembly {} instruction to change a variable unless the code cannot:"
+        "normative_text": "Avoid Common assembly {} Attack Vectors Tested Code MUST NOT use the assembly {} instruction to change a variable unless the code cannot: create storage pointer collisions, nor allow arbitrary values to be assigned to variables of type function."
       },
       {
         "req_id": "req-2-documented",
-        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of:"
+        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of: CREATE2, assembly {}, selfdestruct() or its deprecated alias suicide(), external calls, delegatecall(), code that can cause an overflow or underflow, block.number or block.timestamp, or Use of oracles and pseudo-randomness,"
       },
       {
         "req_id": "req-2-compiler-SOL-2022-5-assembly",
@@ -106,6 +106,6 @@
   ],
   "traversal_depth_reached": 2,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "2b5d6a9600f62ded3279f195b7af0f74ba83483dbd0e85359ee33446dcc9f788"
+  "assembled_at": "2026-08-05T22:59:56Z",
+  "bundle_hash": "ee309e308f0bfd8cf05211bb70a3901a47bfce549a49e40d4f623ab35e7827b4"
 }

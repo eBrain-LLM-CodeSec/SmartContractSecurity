@@ -190,17 +190,53 @@ def classify_set_of_overriding_requirements(primary_html: str, tail_after_primar
     return rels, False
 
 
+def _looks_incomplete(text: str) -> bool:
+    """True if `text` doesn't yet read as a complete normative clause.
+    Three real cases found in the spec (AR-005):
+    (1) No RFC2119 keyword at all yet -- the original, narrower check.
+    (2) Header ends with ':' -- introduces a <ul> needed to complete the
+        sentence, even though a keyword already appears earlier in the
+        header (e.g. req-2-documented: 'MUST document the need for each
+        instance of:').
+    (3) A keyword is present but DANGLING -- essentially nothing follows it
+        in this block (e.g. req-2-self-destruct's header ends "... MUST</p>"
+        with the actual predicate only starting in a following <ul>).
+    """
+    stripped = strip_tags(text).strip()
+    if not stripped:
+        return True
+    if stripped.endswith(":"):
+        return True
+    matches = list(RFC2119_RE.finditer(text))
+    if not matches:
+        return True
+    # RFC2119_RE matches only the OPENING <em class="rfc2119" ...> tag --
+    # text right after .end() is the keyword's own visible text (e.g.
+    # "MUST"), not real predicate content. Measure the tail from after the
+    # matching closing </em>, not from after the opening tag, or a bare
+    # dangling keyword (the actual bug this function exists to catch) gets
+    # miscounted as having "MUST" itself as three-plus characters of tail.
+    close_idx = text.find("</em>", matches[-1].end())
+    tail_start = close_idx + len("</em>") if close_idx != -1 else matches[-1].end()
+    tail_plain = strip_tags(text[tail_start:]).strip()
+    if len(tail_plain) < 3:
+        return True
+    return False
+
+
 def extend_until_modality(html: str, start_pos: int, boundary_limit: int, initial_text: str, max_blocks: int = 4) -> tuple[str, int, bool]:
     """Some requirements split their normative clause across sibling blocks:
     the header <p> ends before any RFC2119 keyword (e.g. "Tested code
-    that</p>"), and the actual MUST/MUST NOT lives inside a following <ul>'s
-    <li> items, or in a subsequent sibling <p> after the list. If the
-    initial header content has no RFC2119 match, glue immediately-following
-    sibling <ul>/<p> blocks onto it (only whitespace allowed between them)
-    until one is found, capped at `max_blocks` to avoid runaway. Returns
-    (extended_text, new_end_pos, was_extended).
+    that</p>"), or ends with a colon introducing a <ul>, or ends with a
+    keyword itself dangling with nothing after it in this block -- in all
+    three cases (see _looks_incomplete), the actual MUST/MUST NOT predicate
+    continues inside a following <ul>'s <li> items or a subsequent sibling
+    <p>. Glue immediately-following sibling <ul>/<p> blocks onto the text
+    (only whitespace allowed between them) until it reads as complete,
+    capped at `max_blocks` to avoid runaway. Returns (extended_text,
+    new_end_pos, was_extended).
     """
-    if RFC2119_RE.search(initial_text):
+    if not _looks_incomplete(initial_text):
         return initial_text, start_pos, False
 
     accumulated = initial_text
@@ -216,7 +252,7 @@ def extend_until_modality(html: str, start_pos: int, boundary_limit: int, initia
         accumulated += " " + block
         cur_pos = m.end()
         extended = True
-        if RFC2119_RE.search(block):
+        if not _looks_incomplete(accumulated):
             break
     return accumulated, cur_pos, extended
 
@@ -288,11 +324,14 @@ def parse() -> dict:
                 {
                     "req_id": req_id,
                     "issue": "normative_clause_extended_into_sibling_blocks",
-                    "note": "Header paragraph had no RFC2119 keyword; normative "
-                    "text was extended to include immediately-following "
-                    "sibling <ul>/<p> block(s) until one was found. Not an "
-                    "error -- logged so the extension is auditable rather than "
-                    "silent.",
+                    "note": "Header paragraph read as an incomplete normative "
+                    "clause (AR-005: no RFC2119 keyword yet, OR header ends "
+                    "with ':' introducing a list, OR a keyword is present but "
+                    "dangling with no real predicate text after it in this "
+                    "block); normative text was extended to include "
+                    "immediately-following sibling <ul>/<p> block(s) until it "
+                    "read as complete. Not an error -- logged so the extension "
+                    "is auditable rather than silent.",
                 }
             )
 

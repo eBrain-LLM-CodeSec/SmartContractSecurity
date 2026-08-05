@@ -2,7 +2,7 @@
   "spec_version": "Version 3",
   "spec_source_hash": "7b2cea3b2f19945a463dbf7ad2861494f5a4ab55c5a586e8703547afbcaf60a7",
   "spec_retrieved_at": "2026-08-05T18:30:36Z",
-  "parser_run_at": "2026-08-05T18:42:43Z",
+  "parser_run_at": "2026-08-05T22:58:26Z",
   "parser_script": "rtf/l1_corpus/parse_spec.py",
   "total_requirements": 81,
   "by_level": {
@@ -671,45 +671,30 @@
       "modality": [
         "MUST NOT"
       ],
-      "normative_text": "No delegatecall() Tested Code MUST NOT contain the delegatecall() instruction unless it meets the Set of Overriding Requirements:",
+      "normative_text": "No delegatecall() Tested Code MUST NOT contain the delegatecall() instruction unless it meets the Set of Overriding Requirements: [M] Protect External Calls, and [M] Document Special Code Use,",
       "conditioned_scope_clause": {
         "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
         "text": "Tested Code",
         "is_unconditioned_subject": true
       },
-      "overriding_requirements": [
+      "overriding_requirements": [],
+      "referenced_requirements": [
         {
           "req_id": "req-2-external-calls",
-          "relation": "this_requirement_is_excepted_by_one_of_set",
-          "link_text": "[M] Protect External Calls",
-          "condition_text": null
+          "relation": "referenced",
+          "link_text": "[M] Protect External Calls"
         },
         {
           "req_id": "req-2-documented",
-          "relation": "this_requirement_is_excepted_by_one_of_set",
-          "link_text": "[M] Document Special Code Use",
-          "condition_text": null
+          "relation": "referenced",
+          "link_text": "[M] Document Special Code Use"
         }
       ],
-      "referenced_requirements": [],
       "definitions_referenced": [
         "dfn-sets-of-overriding-requirements",
         "dfn-tested-code"
       ],
-      "exceptions_referenced": [
-        {
-          "req_id": "req-2-external-calls",
-          "relation": "this_requirement_is_excepted_by_one_of_set",
-          "link_text": "[M] Protect External Calls",
-          "condition_text": null
-        },
-        {
-          "req_id": "req-2-documented",
-          "relation": "this_requirement_is_excepted_by_one_of_set",
-          "link_text": "[M] Document Special Code Use",
-          "condition_text": null
-        }
-      ],
+      "exceptions_referenced": [],
       "external_references": {
         "bibliographic": [],
         "external_links_in_full_block": []
@@ -1092,7 +1077,7 @@
       "modality": [
         "MUST NOT"
       ],
-      "normative_text": "Use a Modern Compiler Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets all the following requirements from the EEA EthTrust Security Levels Specification Version 2, as Overriding Requirements:",
+      "normative_text": "Use a Modern Compiler Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets all the following requirements from the EEA EthTrust Security Levels Specification Version 2, as Overriding Requirements: [S] No Overflow/Underflow [S] Compiler Bug SOL-2020-11-push [S] Compiler Bug SOL-2020-10 [S] Compiler Bug SOL-2020-9 [S] Compiler Bug SOL-2020-8 [S] Compiler Bug SOL-2020-6 [S] Compiler Bug SOL-2020-7 [S] Compiler Bug SOL-2020-5 [S] Compiler Bug SOL-2020-4",
       "conditioned_scope_clause": {
         "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
         "text": "Tested code",
@@ -1622,7 +1607,7 @@
       "modality": [
         "MUST"
       ],
-      "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of:",
+      "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of: CREATE2, assembly {}, selfdestruct() or its deprecated alias suicide(), external calls, delegatecall(), code that can cause an overflow or underflow, block.number or block.timestamp, or Use of oracles and pseudo-randomness,",
       "conditioned_scope_clause": {
         "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
         "text": "Tested Code",
@@ -1645,7 +1630,15 @@
           }
         ]
       },
-      "enumerated_terms": [],
+      "enumerated_terms": [
+        "CREATE2",
+        "assembly {}",
+        "block.number",
+        "block.timestamp",
+        "delegatecall()",
+        "selfdestruct()",
+        "suicide()"
+      ],
       "maturity": "DRAFT_TRANSLATION"
     },
     {
@@ -1659,9 +1652,12 @@
         "title": "Documented Defensive Coding"
       },
       "modality": [
+        "MUST",
+        "MUST",
+        "MUST NOT",
         "MUST"
       ],
-      "normative_text": "Ensure Proper Rounding of Computations Affecting Value Tested code MUST identify and protect against exploiting rounding errors:",
+      "normative_text": "Ensure Proper Rounding of Computations Affecting Value Tested code MUST identify and protect against exploiting rounding errors: The possible range of error introduced by such rounding MUST be documented. Tested code MUST NOT unintentionally create or lose value through rounding. Tested code MUST apply rounding in a way that does not allow round-trips \"creating\" value to repeat causing unexpectedly large transfers.",
       "conditioned_scope_clause": {
         "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a>",
         "text": "Tested code",
@@ -1700,9 +1696,10 @@
         "title": "Documented Defensive Coding"
       },
       "modality": [
+        "MUST",
         "MUST"
       ],
-      "normative_text": "Protect Self-destruction Tested code that contains the selfdestruct() or suicide() instructions MUST",
+      "normative_text": "Protect Self-destruction Tested code that contains the selfdestruct() or suicide() instructions MUST ensure that only authorised parties can call the method, and MUST protect those calls in a way that is fully compatible with the claims of the contract author,",
       "conditioned_scope_clause": {
         "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested code</a> that contains the <code>selfdestruct()</code> or <code>suicide()</code>\n  instructions",
         "text": "Tested code that contains the selfdestruct() or suicide() instructions",
@@ -1748,7 +1745,7 @@
       "modality": [
         "MUST NOT"
       ],
-      "normative_text": "Avoid Common assembly {} Attack Vectors Tested Code MUST NOT use the assembly {} instruction to change a variable unless the code cannot:",
+      "normative_text": "Avoid Common assembly {} Attack Vectors Tested Code MUST NOT use the assembly {} instruction to change a variable unless the code cannot: create storage pointer collisions, nor allow arbitrary values to be assigned to variables of type function.",
       "conditioned_scope_clause": {
         "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a>",
         "text": "Tested Code",
@@ -1781,7 +1778,8 @@
         ]
       },
       "enumerated_terms": [
-        "assembly {}"
+        "assembly {}",
+        "function"
       ],
       "maturity": "DRAFT_TRANSLATION"
     },
@@ -1992,7 +1990,7 @@
       "modality": [
         "MUST"
       ],
-      "normative_text": "No Improper Usage of Signatures for Replay Attack Protection Tested Code using signatures to prevent replay attacks MUST ensure that signatures cannot be reused:",
+      "normative_text": "No Improper Usage of Signatures for Replay Attack Protection Tested Code using signatures to prevent replay attacks MUST ensure that signatures cannot be reused: In the same function to verify the same message, nor In more than one function to verify the same message within the Tested Code, nor In more than one contract address to verify the same message, in which the same account(s) may be signing messages, nor In the same contract address across multiple chains,",
       "conditioned_scope_clause": {
         "raw_html": "<br>\n<a href=\"#dfn-tested-code\" class=\"internalDFN\" data-link-type=\"dfn\">Tested Code</a> using signatures to prevent replay attacks",
         "text": "Tested Code using signatures to prevent replay attacks",
@@ -3614,69 +3612,109 @@
   ],
   "parsing_notes": [
     {
+      "req_id": "req-1-delegatecall",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-1-delegatecall",
+      "issue": "set_of_overriding_requirements_mentioned_but_no_adjacent_ul_found",
+      "note": "Requires manual review to locate the actual override targets."
+    },
+    {
       "req_id": "req-1-compiler-SOL-2022-5-push",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-1-compiler-SOL-2022-3",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-1-compiler-SOL-2022-2",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-1-compiler-SOL-2022-1",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-1-compiler-SOL-2021-1",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-1-compiler-060",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-2-external-calls",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-documented",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-check-rounding",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-self-destruct",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-safe-assembly",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-2-protect-create2",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
+    },
+    {
+      "req_id": "req-2-malleable-signatures-for-replay",
+      "issue": "normative_clause_extended_into_sibling_blocks",
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-2-compiler-SOL-2022-5-assembly",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-2-compiler-SOL-2022-4",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-3-linted",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-3-external-calls",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-3-verify-tx.origin",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-R-check-new-bugs",
       "issue": "normative_clause_extended_into_sibling_blocks",
-      "note": "Header paragraph had no RFC2119 keyword; normative text was extended to include immediately-following sibling <ul>/<p> block(s) until one was found. Not an error -- logged so the extension is auditable rather than silent."
+      "note": "Header paragraph read as an incomplete normative clause (AR-005: no RFC2119 keyword yet, OR header ends with ':' introducing a list, OR a keyword is present but dangling with no real predicate text after it in this block); normative text was extended to include immediately-following sibling <ul>/<p> block(s) until it read as complete. Not an error -- logged so the extension is auditable rather than silent."
     },
     {
       "req_id": "req-R-check-new-bugs",

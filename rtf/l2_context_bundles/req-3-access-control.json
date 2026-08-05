@@ -30,7 +30,7 @@
     "overriding_requirements": [
       {
         "req_id": "req-2-self-destruct",
-        "normative_text": "Protect Self-destruction Tested code that contains the selfdestruct() or suicide() instructions MUST"
+        "normative_text": "Protect Self-destruction Tested code that contains the selfdestruct() or suicide() instructions MUST ensure that only authorised parties can call the method, and MUST protect those calls in a way that is fully compatible with the claims of the contract author,"
       }
     ],
     "exceptions": [],
@@ -116,6 +116,6 @@
   ],
   "traversal_depth_reached": 2,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "a2974813a6125a506f30b3ca01da3d38b0ebabf3bb3de87360e2ccdce195ae65"
+  "assembled_at": "2026-08-05T22:59:56Z",
+  "bundle_hash": "8bb6f3a52c4fb5b12fb4b48e0416c357237aa53cbfb3ec77ee38e24f44d0427c"
 }

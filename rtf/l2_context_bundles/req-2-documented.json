@@ -1,7 +1,7 @@
 {
   "req_id": "req-2-documented",
   "bundle": {
-    "self": "Document Special Code Use Tested Code MUST document the need for each instance of:",
+    "self": "Document Special Code Use Tested Code MUST document the need for each instance of: CREATE2, assembly {}, selfdestruct() or its deprecated alias suicide(), external calls, delegatecall(), code that can cause an overflow or underflow, block.number or block.timestamp, or Use of oracles and pseudo-randomness,",
     "definitions": [
       {
         "id": "dfn-tested-code",
@@ -33,6 +33,6 @@
   ],
   "traversal_depth_reached": 1,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "7547db0737ae2ebc2d0183bffe4a6bc32a3226cf9d87f9a5d9cfc174891e6c27"
+  "assembled_at": "2026-08-05T22:59:56Z",
+  "bundle_hash": "78a374c513e4e68fa639ef593e0f832cd1a3416296b1056439cc24a77d882442"
 }

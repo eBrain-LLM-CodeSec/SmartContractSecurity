@@ -1,7 +1,7 @@
 {
   "req_id": "req-2-check-rounding",
   "bundle": {
-    "self": "Ensure Proper Rounding of Computations Affecting Value Tested code MUST identify and protect against exploiting rounding errors:",
+    "self": "Ensure Proper Rounding of Computations Affecting Value Tested code MUST identify and protect against exploiting rounding errors: The possible range of error introduced by such rounding MUST be documented. Tested code MUST NOT unintentionally create or lose value through rounding. Tested code MUST apply rounding in a way that does not allow round-trips \"creating\" value to repeat causing unexpectedly large transfers.",
     "definitions": [
       {
         "id": "dfn-tested-code",
@@ -51,6 +51,6 @@
   ],
   "traversal_depth_reached": 1,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "88b21c9802f02c112dbf551882406f52b35be0af0e097382f0004f4a7b30b3a7"
+  "assembled_at": "2026-08-05T22:59:56Z",
+  "bundle_hash": "3295976051060eaa6d4c0ecfcf72bcea9b0d5587c02162781928999e58ff6fb2"
 }

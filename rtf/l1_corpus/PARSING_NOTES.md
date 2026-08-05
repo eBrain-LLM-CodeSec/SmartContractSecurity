@@ -51,6 +51,44 @@ uses consistently, not to interpretation of meaning:
    own location, listing all members of that set) — 2 requirements needed
    this before it resolved correctly.
 
+## A third variant of the same bug, found during Track B (AR-005)
+
+Bug 2 above (list-split normative clauses) only handled the case where
+the header has **no** RFC2119 keyword at all. Two more shapes exist,
+found while doing Track B's M-level analysis (they weren't present in
+Track A's original 6 requirements, so went uncaught until the broader
+sweep):
+
+- **Colon-terminated header with an early keyword**: e.g.
+  `req-2-documented`'s header reads "Tested Code MUST document the need
+  for each instance of:" — a MUST is already present, so the original
+  no-keyword check never triggered extension, silently truncating the
+  actual 8-item list of named triggers that gives the requirement its
+  real content.
+- **Dangling keyword with an empty tail**: e.g. `req-2-self-destruct`'s
+  header ends "...instructions MUST</p>" with the real predicate
+  ("ensure that only authorised parties can call the method...") only
+  starting in a following `<ul>`. The keyword is technically present, so
+  this also evaded the original check.
+
+Both are now covered by a generalized `_looks_incomplete()` check (not
+just "keyword absent") that also fires on a colon-terminated header or a
+keyword whose measured tail (correctly computed *after* the keyword's
+closing `</em>` tag, not after its opening tag — an off-by-one caught
+during this same fix) is near-empty. Re-running after the fix changed
+`normative_text` for 7 requirements, all pure *extensions* — a diff
+against the pre-fix corpus confirmed zero requirements got shorter,
+zero requirements newly gained an unwanted extension, and referential
+integrity (zero dangling cross-references) held both before and after.
+
+One of the seven, `req-1-compiler-060` (already translated in Track A),
+had its override-set's *contents* revealed for the first time — 9 named
+EthTrust-SL v2 requirements, previously invisible because the truncation
+landed exactly at the colon introducing that list. This narrowed, but
+did not close, that research gap — see the requirement's own L4 record
+(`rtf/track_a/l4_analyzer_mappings/req-1-compiler-060.json`) for the
+update.
+
 ## One genuine spec-content gap (not a parser bug)
 
 `req-R-check-new-bugs` ("[GP] Check For and Address New Security Bugs")

@@ -25,7 +25,7 @@
     "overriding_requirements": [
       {
         "req_id": "req-2-malleable-signatures-for-replay",
-        "normative_text": "No Improper Usage of Signatures for Replay Attack Protection Tested Code using signatures to prevent replay attacks MUST ensure that signatures cannot be reused:"
+        "normative_text": "No Improper Usage of Signatures for Replay Attack Protection Tested Code using signatures to prevent replay attacks MUST ensure that signatures cannot be reused: In the same function to verify the same message, nor In more than one function to verify the same message within the Tested Code, nor In more than one contract address to verify the same message, in which the same account(s) may be signing messages, nor In the same contract address across multiple chains,"
       }
     ],
     "exceptions": [],
@@ -60,6 +60,6 @@
   ],
   "traversal_depth_reached": 2,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "20d798a783d0f669321a49d6d8095f64062fcd6d748bccbec5424edb1bea71e3"
+  "assembled_at": "2026-08-05T22:59:56Z",
+  "bundle_hash": "522dd88c7c630e77aa2649b22642bb4aff5a4e513fe80fdc333605b74be19102"
 }

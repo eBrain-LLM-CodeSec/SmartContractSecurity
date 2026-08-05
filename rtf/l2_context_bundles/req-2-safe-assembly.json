@@ -1,7 +1,7 @@
 {
   "req_id": "req-2-safe-assembly",
   "bundle": {
-    "self": "Avoid Common assembly {} Attack Vectors Tested Code MUST NOT use the assembly {} instruction to change a variable unless the code cannot:",
+    "self": "Avoid Common assembly {} Attack Vectors Tested Code MUST NOT use the assembly {} instruction to change a variable unless the code cannot: create storage pointer collisions, nor allow arbitrary values to be assigned to variables of type function.",
     "definitions": [
       {
         "id": "dfn-tested-code",
@@ -42,6 +42,6 @@
   ],
   "traversal_depth_reached": 1,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "c3a6c70b0e19ed8b89053416d9101eaf6c21a596339754b2ac23f36c2ad11614"
+  "assembled_at": "2026-08-05T22:59:56Z",
+  "bundle_hash": "e0ff8ec092c7f466bef3c3c3a4cc19ec1d300e05ce0fd8fcf7d30b4d32d7c1ac"
 }

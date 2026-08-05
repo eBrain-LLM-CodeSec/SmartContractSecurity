@@ -1,7 +1,7 @@
 {
   "req_id": "req-1-compiler-060",
   "bundle": {
-    "self": "Use a Modern Compiler Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets all the following requirements from the EEA EthTrust Security Levels Specification Version 2, as Overriding Requirements:",
+    "self": "Use a Modern Compiler Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets all the following requirements from the EEA EthTrust Security Levels Specification Version 2, as Overriding Requirements: [S] No Overflow/Underflow [S] Compiler Bug SOL-2020-11-push [S] Compiler Bug SOL-2020-10 [S] Compiler Bug SOL-2020-9 [S] Compiler Bug SOL-2020-8 [S] Compiler Bug SOL-2020-6 [S] Compiler Bug SOL-2020-7 [S] Compiler Bug SOL-2020-5 [S] Compiler Bug SOL-2020-4",
     "definitions": [
       {
         "id": "dfn-overriding-requirement",
@@ -60,6 +60,6 @@
   ],
   "traversal_depth_reached": 2,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "1a437e10f585d28431bc3b036a2a0fa15991379446e2f3fc7b2c446421e42a0a"
+  "assembled_at": "2026-08-05T22:59:55Z",
+  "bundle_hash": "a402d3114edd43cede5580ec37be0825132864b2b6ae3af011199e5a1a3b1a55"
 }

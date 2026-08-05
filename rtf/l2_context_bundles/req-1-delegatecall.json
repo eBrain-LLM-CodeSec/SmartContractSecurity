@@ -1,7 +1,7 @@
 {
   "req_id": "req-1-delegatecall",
   "bundle": {
-    "self": "No delegatecall() Tested Code MUST NOT contain the delegatecall() instruction unless it meets the Set of Overriding Requirements:",
+    "self": "No delegatecall() Tested Code MUST NOT contain the delegatecall() instruction unless it meets the Set of Overriding Requirements: [M] Protect External Calls, and [M] Document Special Code Use,",
     "definitions": [
       {
         "id": "dfn-sets-of-overriding-requirements",
@@ -33,27 +33,18 @@
       }
     ],
     "parent_section_context": null,
-    "referenced_requirements": [],
-    "overriding_requirements": [
+    "referenced_requirements": [
       {
         "req_id": "req-2-external-calls",
         "normative_text": "Protect External Calls For Tested code that makes external calls: all addresses called by the Tested code MUST correspond to the exact code of the Set of Contracts tested, and all contracts called MUST be within the Tested code, and all contracts called MUST be controlled by the same entity, and the protection against Re-entrancy Attacks for the Tested Code MUST be equivalent to what the Checks-Effects-Interactions pattern offers,"
       },
       {
         "req_id": "req-2-documented",
-        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of:"
+        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of: CREATE2, assembly {}, selfdestruct() or its deprecated alias suicide(), external calls, delegatecall(), code that can cause an overflow or underflow, block.number or block.timestamp, or Use of oracles and pseudo-randomness,"
       }
     ],
-    "exceptions": [
-      {
-        "req_id": "req-2-external-calls",
-        "normative_text": "Protect External Calls For Tested code that makes external calls: all addresses called by the Tested code MUST correspond to the exact code of the Set of Contracts tested, and all contracts called MUST be within the Tested code, and all contracts called MUST be controlled by the same entity, and the protection against Re-entrancy Attacks for the Tested Code MUST be equivalent to what the Checks-Effects-Interactions pattern offers,"
-      },
-      {
-        "req_id": "req-2-documented",
-        "normative_text": "Document Special Code Use Tested Code MUST document the need for each instance of:"
-      }
-    ],
+    "overriding_requirements": [],
+    "exceptions": [],
     "external_references": []
   },
   "expansion_log": [
@@ -105,6 +96,6 @@
   ],
   "traversal_depth_reached": 2,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "fbb2d0cb3875b0d78afd5c9df58a86f886b05527c6478316909664f14b838dfd"
+  "assembled_at": "2026-08-05T22:59:55Z",
+  "bundle_hash": "0efb872e0ece39e8df427627f1b698b11980d468feb055cead3ead2faece1426"
 }

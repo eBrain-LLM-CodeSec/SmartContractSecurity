@@ -1,7 +1,7 @@
 {
   "req_id": "req-2-self-destruct",
   "bundle": {
-    "self": "Protect Self-destruction Tested code that contains the selfdestruct() or suicide() instructions MUST",
+    "self": "Protect Self-destruction Tested code that contains the selfdestruct() or suicide() instructions MUST ensure that only authorised parties can call the method, and MUST protect those calls in a way that is fully compatible with the claims of the contract author,",
     "definitions": [
       {
         "id": "dfn-tested-code",
@@ -33,6 +33,6 @@
   ],
   "traversal_depth_reached": 1,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T21:51:59Z",
-  "bundle_hash": "daddfb7c170d6c0d49fe929c6eaeabd150707d5f5af58eb5e43f464fd1d4a1be"
+  "assembled_at": "2026-08-05T22:59:56Z",
+  "bundle_hash": "eb146c75bc7dd0447e45473b3a61f67b9fffe0743b04557f3710fbe8b8405253"
 }
