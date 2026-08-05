@@ -1,0 +1,10 @@
+{
+  "req_id": "req-3-enough-gas",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Documentation (per req-3-documented) describing any growing data structures",
+    "Code review of gas-cost growth patterns for those structures (e.g. unbounded loops over a growing array/mapping)"
+  ],
+  "mechanical_note": null,
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

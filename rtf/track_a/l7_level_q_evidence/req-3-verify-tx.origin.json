@@ -1,0 +1,10 @@
+{
+  "req_id": "req-3-verify-tx.origin",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Each tx.origin usage site (reused trigger)",
+    "Cross-check against req-3-documented/req-3-document-system's stated security objectives -- does this specific usage violate any documented functionality assertion, INCLUDING when another (possibly malicious) contract is involved"
+  ],
+  "mechanical_note": "The trigger is fully reused from S-level work; the evidence-vs-claim cross-check against documentation is the genuine L7-shaped work here.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

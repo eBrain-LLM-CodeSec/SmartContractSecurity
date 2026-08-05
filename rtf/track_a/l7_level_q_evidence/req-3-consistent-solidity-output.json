@@ -1,0 +1,9 @@
+{
+  "req_id": "req-3-consistent-solidity-output",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "The pragma version range declared in each source file"
+  ],
+  "mechanical_note": "MECHANICALLY CHECKABLE and arguably closer to a pure S-level compiler-metadata check than anything else in the Q-level batch: parse the pragma directive's version range and confirm it's narrow enough that every version it permits produces identical bytecode for this specific source (a real, nontrivial cross-version bytecode-equivalence question, but the INPUT -- the declared range -- is trivially extractable, same mechanism Slither's own solc-version detector already partially reads).",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

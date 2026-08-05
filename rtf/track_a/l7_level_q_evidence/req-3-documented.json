@@ -1,0 +1,10 @@
+{
+  "req_id": "req-3-documented",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "A business-logic specification (README, docs/, whitepaper, or comprehensive NatSpec) describing intended contract functionality",
+    "Evidence the documentation is actually available to callers, not merely present in the source repo (see the repo-scope-limit note already logged in req-3-implement-as-documented's rubric)"
+  ],
+  "mechanical_note": null,
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

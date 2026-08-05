@@ -1,0 +1,10 @@
+{
+  "req_id": "req-3-protect-governance",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Governance contract code and design documentation",
+    "Protections against flash-loan voting-power attacks, proposal-execution timelocks, quorum manipulation"
+  ],
+  "mechanical_note": null,
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

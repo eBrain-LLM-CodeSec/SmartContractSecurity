@@ -1,0 +1,9 @@
+{
+  "req_id": "req-3-all-valid-inputs",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Input-validation code review across public/external function parameters"
+  ],
+  "mechanical_note": "A PARTIAL deterministic signal is plausible: presence/absence of require()-style bounds checks on function parameters is syntactically locatable, though 'function correctly whether input is as designed or malformed' as a whole is a broad correctness property no single check covers.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

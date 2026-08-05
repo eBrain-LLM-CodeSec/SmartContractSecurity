@@ -1,0 +1,9 @@
+{
+  "req_id": "req-3-event-on-state-change",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Cross-reference of every state-mutating function against emitted events"
+  ],
+  "mechanical_note": "MECHANICALLY CHECKABLE, not really semantic: for each function that writes to a state variable, does that function's execution path emit at least one event? A genuine trigger+outcome pattern, directly derivable from EthTrust's own text with no ambiguity -- another example (alongside req-3-linted and req-3-annotate) of a Q-level requirement whose real character is closer to S/M. Flagged for L4-style revisiting in a future pass, not built here to keep this batch's pace.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

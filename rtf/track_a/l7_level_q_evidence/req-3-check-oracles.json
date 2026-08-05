@@ -1,0 +1,10 @@
+{
+  "req_id": "req-3-check-oracles",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Oracle integration code and any documented staleness/deviation checks",
+    "Documentation of which oracle(s) are relied upon and their failure modes"
+  ],
+  "mechanical_note": "Oracle CALL SITES are syntactically locatable (a real, buildable trigger, similar in spirit to the S/M-level triggers) -- the adequacy of protection against a specific oracle's failure modes needs semantic review.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

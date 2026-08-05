@@ -1,0 +1,9 @@
+{
+  "req_id": "req-3-linted",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Static lint output for each of the 4 named properties"
+  ],
+  "mechanical_note": "STRUCTURALLY MISPLACED relative to a documentation/business-logic Q-requirement archetype -- every one of these 4 sub-clauses is a classic static-analysis lint rule (unused-variable detection, name-shadowing, dead-code, unreachable-code are all things Slither/Solhint check today). This is the clearest example in the whole Q-level batch of the S/M/Q axis NOT being a verification-method axis: a Level [Q] requirement that is, mechanically, closer to Level [S] in character. A full derivation would revisit this with L4-style analyzer matching rather than an L7 evidence rubric -- not done in this pass to keep the Q-level batch's pace consistent, logged as a flagged inconsistency rather than silently treated as pure semantic review.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

@@ -1,0 +1,10 @@
+{
+  "req_id": "req-3-access-control",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Access-control implementation for privileged functions",
+    "Documentation of intended privilege boundaries (per req-3-documented) to assess whether implemented access control matches the LEAST-privilege claim, not just SOME access control"
+  ],
+  "mechanical_note": "Presence of an access-control modifier (onlyOwner-style, role-based) is checkable; whether it grants the minimum necessary privilege (vs. broader admin rights than needed) requires comparing against the documented intent -- a genuine evidence-vs-claim cross-check, the L7 archetype this layer was designed for.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

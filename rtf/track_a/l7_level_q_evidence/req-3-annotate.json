@@ -1,0 +1,9 @@
+{
+  "req_id": "req-3-annotate",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "NatSpec (@notice/@dev/@param/@return) annotations on every public/external function, event, and their parameters/returns"
+  ],
+  "mechanical_note": "MECHANICALLY CHECKABLE, arguably the cleanest one in this entire Q batch: NatSpec comment presence on public interfaces is a direct syntactic property Slither's own AST already exposes (docstring/NatSpec parsing is a standard Slither feature). Whether the annotation adequately 'explains the intent' is a softer, semantic tail beyond mere presence, but the presence check itself needs no judgment at all.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

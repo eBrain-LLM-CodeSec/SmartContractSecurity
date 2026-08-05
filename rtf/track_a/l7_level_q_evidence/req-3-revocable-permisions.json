@@ -1,0 +1,9 @@
+{
+  "req_id": "req-3-revocable-permisions",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "A revoke/transfer mechanism for granted privileges (e.g. OpenZeppelin AccessControl's revokeRole/grantRole, or a custom equivalent)"
+  ],
+  "mechanical_note": "Partially mechanical: presence of a revoke/transfer FUNCTION is checkable; whether it's reachable/usable in practice (not itself gated behind an unreachable or compromised path) needs review.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

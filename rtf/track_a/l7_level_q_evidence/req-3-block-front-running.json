@@ -1,0 +1,9 @@
+{
+  "req_id": "req-3-block-front-running",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Code review for ordering-sensitive operations (price-dependent trades, first-come-first-served allocations) and any commit-reveal or similar protections"
+  ],
+  "mechanical_note": null,
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}

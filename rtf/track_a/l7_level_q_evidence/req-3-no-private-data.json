@@ -1,0 +1,9 @@
+{
+  "req_id": "req-3-no-private-data",
+  "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
+  "evidence_expected": [
+    "Code/data review for on-chain storage of anything semantically private (unencrypted PII, secrets, credentials) -- distinct from 'private' in the Solidity visibility-keyword sense, which offers no actual on-chain confidentiality"
+  ],
+  "mechanical_note": "Important interpretive note: EthTrust's 'Private Data' here almost certainly means genuinely confidential data, NOT Solidity's `private` visibility modifier (which is a compile-time access restriction, not on-chain confidentiality -- all storage is publicly readable regardless of the keyword). Worth flagging explicitly since the naming collision is a real, plausible source of a wrong instinctive reading.",
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+}
