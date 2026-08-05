@@ -58,6 +58,22 @@ def check_compiler_version_floor(slither: Slither, req_id: str, floor: str) -> l
     return []
 
 
+def check_compiler_version_exact(slither: Slither, req_id: str, exact: str) -> list[dict]:
+    """req-1-compiler-sol-2021-4 (S) conformance component: 'MUST NOT use
+    Solidity compiler version 0.8.8' -- a single named version, not a
+    range (confirmed by re-reading the requirement's own text). Same
+    `compilation_unit.solc_version` field as check_compiler_version_floor,
+    exact-equality instead of a floor comparison -- checks the ACTUAL
+    compiled version, not pragma text, avoiding the pragma-vs-compiled-
+    version scope mismatch this requirement's own L4 record flagged
+    against reusing Slither's solc-version detector as-is.
+    """
+    actual = slither.compilation_units[0].solc_version
+    if actual == exact:
+        return [{"req_id": req_id, "location": "compiler config", "detail": f"solc {actual} == prohibited exact version {exact}"}]
+    return []
+
+
 def find_create2_usage(slither: Slither) -> list[dict]:
     """req-1-no-create2 (S): 'MUST NOT contain a CREATE2 instruction'.
     Two code shapes named in the requirement's own text: high-level
@@ -203,6 +219,65 @@ def find_encode_packed_untainted_collision(slither: Slither, req_id: str = "req-
                         if dyn_count > 1:
                             findings.append({"req_id": req_id, "location": f"{contract.name}.{func.name}", "detail": "abi.encodePacked() with 2+ consecutive dynamic-type args (taint-independent)"})
                             break
+    return findings
+
+
+def find_udvt_narrower_than_32_bytes(slither: Slither, req_id: str = "req-1-compiler-sol-2021-4") -> list[dict]:
+    """req-1-compiler-sol-2021-4 (S) applicability component: 'Tested Code
+    that uses custom value types shorter than 32 bytes'. 'Custom value
+    type' is EthTrust's own reference to Solidity's user-defined value
+    type feature (`type X is Y;`); Slither exposes these directly via
+    `compilation_unit.type_aliases`, each with an `underlying_type.size`
+    in bits -- confirmed by direct inspection of a real compiled example,
+    not guessed. 32 bytes = 256 bits.
+    """
+    findings = []
+    for name, alias in slither.compilation_units[0].type_aliases.items():
+        size_bits = getattr(alias.underlying_type, "size", None)
+        if size_bits is not None and size_bits < 256:
+            findings.append({"req_id": req_id, "location": f"type {name}", "detail": f"underlying type {alias.underlying_type} is {size_bits} bits (<256)"})
+    return findings
+
+
+def find_state_write_without_event(slither: Slither, req_id: str = "req-3-event-on-state-change") -> list[dict]:
+    """req-3-event-on-state-change (Q): 'MUST emit a contract event for
+    all transactions that cause state changes'. Direct trigger/outcome
+    cross-reference: for each function, does it write to any state
+    variable, and does it also contain an EventCall IR anywhere -- both
+    confirmed by direct inspection of real compiled IR, not guessed.
+    """
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_declared:
+            if not func.state_variables_written:
+                continue
+            has_event = any(type(ir).__name__ == "EventCall" for node in func.nodes for ir in node.irs)
+            if not has_event:
+                findings.append({"req_id": req_id, "location": f"{contract.name}.{func.name}", "detail": "writes state but emits no event"})
+    return findings
+
+
+def find_non_exact_pragma(slither: Slither, req_id: str = "req-3-consistent-solidity-output") -> list[dict]:
+    """req-3-consistent-solidity-output (Q): 'MUST specify a range of
+    Solidity versions ... that produce the same Bytecode given the same
+    compilation options'. Text-grounded mechanical proxy: a pragma pinned
+    to a SINGLE exact version (no ^, >, <, ~, or compound range) trivially
+    satisfies this by construction (one version can only ever produce one
+    bytecode for fixed compilation options); a caret/range pragma does
+    NOT guarantee it, since different versions in the range can differ.
+    This does not verify TRUE cross-version bytecode equivalence for
+    ranges that happen to be safe -- it flags every non-exact pragma as a
+    candidate, which is deliberately over-inclusive rather than asserting
+    a range is safe without evidence.
+    """
+    findings = []
+    for cu in slither.compilation_units:
+        for p in cu.pragma_directives:
+            if not p.directive or p.directive[0] != "solidity":
+                continue
+            version_text = p.version.strip()
+            if any(ch in version_text for ch in ("^", ">", "<", "~", " ", "||")):
+                findings.append({"req_id": req_id, "location": str(p), "detail": f"pragma '{version_text}' is a range, not an exact pin"})
     return findings
 
 

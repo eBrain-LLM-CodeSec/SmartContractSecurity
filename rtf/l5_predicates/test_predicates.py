@@ -37,6 +37,15 @@ def test_compiler_version_floor():
     check("compiler_version_floor: does not flag 0.8.20 >= 0.8.0", len(r_new) == 0, r_new)
 
 
+def test_compiler_version_exact():
+    hit = _write_and_compile("pragma solidity 0.8.9;\ncontract C {}", version="0.8.9")
+    miss = _write_and_compile("pragma solidity 0.8.20;\ncontract C {}", version="0.8.20")
+    r_hit = P.check_compiler_version_exact(hit, "req-1-compiler-sol-2021-4", "0.8.9")
+    r_miss = P.check_compiler_version_exact(miss, "req-1-compiler-sol-2021-4", "0.8.9")
+    check("compiler_version_exact: flags the exact prohibited version", len(r_hit) == 1, r_hit)
+    check("compiler_version_exact: does not flag a different version", len(r_miss) == 0, r_miss)
+
+
 def test_create2():
     positive = """
     pragma solidity ^0.8.20;
@@ -207,6 +216,46 @@ def test_unicode_direction_control_chars():
         check("unicode_bdo: does not flag clean source", len(r_neg) == 0, r_neg)
 
 
+def test_udvt_narrower_than_32_bytes():
+    positive = "pragma solidity ^0.8.20;\ntype Foo is uint96;\ncontract C {}"
+    negative = "pragma solidity ^0.8.20;\ntype Foo is uint256;\ncontract C {}"
+    r_pos = P.find_udvt_narrower_than_32_bytes(_write_and_compile(positive))
+    r_neg = P.find_udvt_narrower_than_32_bytes(_write_and_compile(negative))
+    check("udvt: flags a uint96-backed custom value type (<32 bytes)", len(r_pos) == 1, r_pos)
+    check("udvt: does not flag a uint256-backed one (exactly 32 bytes)", len(r_neg) == 0, r_neg)
+
+
+def test_state_write_without_event():
+    positive = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint public x;
+        function setNoEvent(uint v) public { x = v; }
+    }
+    """
+    negative = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint public x;
+        event Changed(uint);
+        function setWithEvent(uint v) public { x = v; emit Changed(v); }
+    }
+    """
+    r_pos = P.find_state_write_without_event(_write_and_compile(positive))
+    r_neg = P.find_state_write_without_event(_write_and_compile(negative))
+    check("event_on_state_change: flags a state write with no event", len(r_pos) == 1, r_pos)
+    check("event_on_state_change: does not flag a state write WITH an event", len(r_neg) == 0, r_neg)
+
+
+def test_non_exact_pragma():
+    positive = "pragma solidity ^0.8.20;\ncontract C {}"
+    negative = "pragma solidity 0.8.20;\ncontract C {}"
+    r_pos = P.find_non_exact_pragma(_write_and_compile(positive))
+    r_neg = P.find_non_exact_pragma(_write_and_compile(negative))
+    check("pragma: flags a caret range pragma", len(r_pos) == 1, r_pos)
+    check("pragma: does not flag an exact single-version pin", len(r_neg) == 0, r_neg)
+
+
 def test_spdx_or_license_file():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -250,6 +299,7 @@ def test_natspec_presence():
 def main() -> int:
     tests = [
         test_compiler_version_floor,
+        test_compiler_version_exact,
         test_create2,
         test_selfdestruct_presence_unconditional_on_protection,
         test_delegatecall_presence_unconditional_on_taint,
@@ -257,6 +307,9 @@ def main() -> int:
         test_exact_native_balance_check,
         test_encode_packed_untainted,
         test_unicode_direction_control_chars,
+        test_udvt_narrower_than_32_bytes,
+        test_state_write_without_event,
+        test_non_exact_pragma,
         test_spdx_or_license_file,
         test_natspec_presence,
     ]

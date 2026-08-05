@@ -19,5 +19,11 @@
   ],
   "aggregation_rule": "applicability_state = APPLICABLE iff applicability-udvt-under-32-bytes fires. conformance_state (when applicable) = FAIL iff compiled solc_version == '0.8.8' exactly; PASS otherwise. Both components are DETERMINISTIC_EVIDENCE_ONLY feeding a simple deterministic AND/equality aggregation -- no semantic judgment is actually needed for this requirement once both components exist, meaning this is closer to FULLY_DETERMINISTIC in character than its S-level compiler-bug siblings that carry an unresolvable override (contrast with req-1-compiler-060 above).",
   "overall_status": "PARTIAL_STRATEGY -- both components well-derived and judged sound, neither implemented yet in this pass. No AMBIGUOUS_TEXT_GAP here, unlike req-1-eip155-chainid -- this is an 'engineering not yet done' gap, not a 'text doesn't support derivation' gap, and the two are logged distinctly rather than conflated.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_udvt_narrower_than_32_bytes() + check_compiler_version_exact()",
+    "test": "rtf/l5_predicates/test_predicates.py -- both components compiled and tested against real fixtures, verified 2026-08-06",
+    "note": "Both applicability (UDVT width) and conformance (exact solc 0.8.8) components now implemented -- this requirement's strategy is complete, matching its own aggregation_rule's note that no semantic judgment is needed once both components exist."
+  }
 }
