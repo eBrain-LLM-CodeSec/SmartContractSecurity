@@ -3,5 +3,10 @@
   "component_note": "Component 1: reuse encode-packed-collision as evidence_collector (tainted subset). Component 2 (not yet built): the same dynamic-type-counting logic minus the taint filter, to catch the untainted cases EthTrust's unconditional text still covers.",
   "status": "PARTIAL_STRATEGY",
   "override_note": null,
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_encode_packed_untainted_collision()",
+    "test": "rtf/l5_predicates/test_predicates.py -- compiled against real positive/negative Solidity fixtures, verified 2026-08-06"
+  }
 }

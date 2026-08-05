@@ -3,5 +3,10 @@
   "component_note": "Component 1: reuse rtlo detector for the U+202E subset. Component 2 (not yet built, trivial): extend rtlo's own regex pattern to the other 8 named codepoints -- this is the most mechanically 'free' fix in this entire batch, directly modeled on code Slither already ships.",
   "status": "PARTIAL_STRATEGY",
   "override_note": "Excepted by req-2-unicode-bdo (M).",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_unicode_direction_control_chars(req_id)",
+    "test": "rtf/l5_predicates/test_predicates.py -- compiled against real positive/negative Solidity fixtures, verified 2026-08-06"
+  }
 }

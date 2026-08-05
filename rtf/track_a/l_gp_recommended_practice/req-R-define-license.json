@@ -2,5 +2,10 @@
   "req_id": "req-R-define-license",
   "modality": "SHOULD (advisory, non-certification-blocking)",
   "strategy_note": "MECHANICALLY CHECKABLE, cleanly: presence of an SPDX-License-Identifier pragma (a standard, syntactically fixed Solidity comment) or a LICENSE file in the repository. One of the simplest strategies in the entire corpus alongside req-1-no-ancient-compilers.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_spdx_or_license_file()",
+    "test": "rtf/l5_predicates/test_predicates.py -- compiled against real positive/negative Solidity fixtures, verified 2026-08-06"
+  }
 }

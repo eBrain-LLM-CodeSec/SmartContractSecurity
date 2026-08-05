@@ -2,5 +2,11 @@
   "req_id": "req-2-compiler-060",
   "classification": "FULLY_DETERMINISTIC (for the version-threshold component; override component blocked)",
   "classification_rationale": "Same 0.8.0 threshold as req-1-compiler-060, same solc-version detector reuse. The override reference is to a SINGLE named V2 requirement this time ('Compiler Bug Check Constructor Payment'), not a list of 9 -- still unresolvable without V2 spec acquisition, same research-gap status as req-1-compiler-060's own override, not re-derived from scratch here.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_OVERRIDE_COMPONENT_STILL_BLOCKED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_floor(req_id, floor='0.8.0')",
+    "test": "rtf/l5_predicates/test_predicates.py",
+    "note": "Only the version-threshold half of this requirement's strategy is implemented. The override-resolution component remains blocked on unacquired EthTrust-SL v2 spec text, as already documented in this record."
+  }
 }

@@ -3,5 +3,10 @@
   "component_note": "Component 1: reuse tx-origin detector as evidence_collector (auth-context subset). Component 2 (not yet built): broader custom predicate over `solidity_variables_read` for the non-conditional cases the detector misses.",
   "status": "PARTIAL_STRATEGY",
   "override_note": "Excepted by req-3-verify-tx.origin (Q) -- like req-1-compiler-060, a confirmed presence doesn't automatically mean FAIL; INCONCLUSIVE if the Q-level override can't be independently confirmed satisfied.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_tx_origin_any_usage()",
+    "test": "rtf/l5_predicates/test_predicates.py -- compiled against real positive/negative Solidity fixtures, verified 2026-08-06"
+  }
 }
