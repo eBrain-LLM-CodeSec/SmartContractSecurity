@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-compiler-SOL-2022-5-assembly",
+  "classification": "FULLY_DETERMINISTIC (compiler-bug pattern, plausible not certain corroboration)",
+  "classification_rationale": "bugs_by_version['0.8.13'] includes 'InlineAssemblyMemorySideEffects' -- plausible ('InlineAssembly', 'MemorySideEffects') but not as strong a name match as this sub-batch's best cases; flagged PLAUSIBLE not certain, consistent with how req-1-compiler-SOL-2022-6/SOL-2021-2 were treated in the S-level batch.",
+  "maturity": "DRAFT_TRANSLATION"
+}

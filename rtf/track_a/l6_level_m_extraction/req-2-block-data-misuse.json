@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-block-data-misuse",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Trigger (block.timestamp/block.number read, especially in a value/timing-sensitive decision) is straightforward to detect via Slither's IR (solidity_variables_read for block.timestamp/block.number). Semantic condition ('does this introduce MEV or similar vulnerability') needs judgment -- e.g. a timestamp used only for a multi-day unlock check is far lower-risk than one used for a same-block price/auction decision.",
+  "maturity": "DRAFT_TRANSLATION"
+}

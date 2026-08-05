@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-self-destruct",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Trigger reuses the custom predicate scoped for req-1-self-destruct (S). Notably, Slither's OWN `suicidal` detector -- explicitly rejected as a match for the S-level mere-presence check -- is actually the RIGHT tool here: its `is_protected()` heuristic is direct evidence for THIS M-level requirement's 'only authorised parties can call' condition. A good example of a detector being the wrong fit at one level and the right fit one level up.",
+  "maturity": "DRAFT_TRANSLATION"
+}

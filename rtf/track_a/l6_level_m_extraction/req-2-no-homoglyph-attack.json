@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-no-homoglyph-attack",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Unlike its sibling above, a partial deterministic trigger IS plausible here: Unicode's own published confusables.txt database (a real, external, standards-maintained resource, not an invented heuristic -- named indirectly by 'homoglyphs' in EthTrust's own text) could flag identifier/string pairs that are visually confusable. Not yet evaluated for integration feasibility. Semantic condition ('if the impact is misleading') still needs judgment even after a confusables hit.",
+  "maturity": "DRAFT_TRANSLATION"
+}

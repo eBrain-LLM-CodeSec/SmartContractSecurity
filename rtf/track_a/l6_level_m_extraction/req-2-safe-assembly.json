@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-safe-assembly",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Two specifically named attack surfaces make this more tractable than most M requirements: storage pointer collisions (checkable -- assembly `sstore`/`sload` with a computed, non-obviously-safe slot) and arbitrary values assigned to `function`-type variables (checkable -- assembly write targeting a variable of Solidity's function-pointer type). The 'unless the code cannot avoid it' exception still needs judgment, but the trigger is more specific than the broader req-1-no-assembly one.",
+  "maturity": "DRAFT_TRANSLATION"
+}

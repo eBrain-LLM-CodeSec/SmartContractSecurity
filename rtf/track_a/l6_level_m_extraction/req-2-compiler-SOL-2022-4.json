@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-compiler-SOL-2022-4",
+  "classification": "FULLY_DETERMINISTIC (compiler-bug pattern, no corroboration found)",
+  "classification_rationale": "No obviously-matching bug name found in a scan of bugs_by_version for yul/optimizer/memory-cross-reference terms in the relevant version neighborhood -- logged honestly as unconfirmed, same treatment as req-1-compiler-SOL-2022-5-push's gap in the S-level batch, not forced into a plausible-sounding but unverified match.",
+  "maturity": "DRAFT_TRANSLATION"
+}

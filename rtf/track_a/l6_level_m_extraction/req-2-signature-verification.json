@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-signature-verification",
+  "classification": "FULL_SEMANTIC_REVIEW",
+  "classification_rationale": "A trigger (ecrecover/signature-verification library usage) is buildable, but 'properly verify signatures to ensure authenticity' is a broad correctness property covering many distinct failure modes (missing signer checks, wrong hash construction, missing zero-address checks on ecrecover failure, etc.) -- no single narrow semantic condition captures it the way req-2-verify-exact-balance-check's 'protect against transfers' does. Closer in character to req-2-check-rounding than to the narrower override-pair requirements.",
+  "maturity": "DRAFT_TRANSLATION"
+}

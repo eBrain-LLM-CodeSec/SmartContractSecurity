@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-avoid-readonly-reentrancy",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Trigger: a view/pure function reading state that a separate, non-view function can mutate mid-reentrancy (the classic read-only-reentrancy shape) -- a real but nontrivial cross-function analysis, not a simple syntactic scan; not yet evaluated against Slither's IR for feasibility (Slither has no dedicated read-only-reentrancy detector, confirmed absent from the earlier full detector-list review). Semantic condition: is the exposed stale-state read actually exploitable/consequential.",
+  "maturity": "DRAFT_TRANSLATION"
+}

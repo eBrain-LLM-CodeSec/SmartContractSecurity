@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-random-enough",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Slither's weak-prng detector (bad_prng.py, read in full) is a real but NARROW match: only flags a MODULO operation whose operand depends on block.timestamp/now/blockhash(). It does NOT check block.difficulty/block.prevrandao at all (arguably the most commonly-cited weak-randomness source in post-merge Solidity) nor non-modulo uses of these values (e.g. as a keccak256 seed, or a direct threshold comparison). A real, substantial scope gap -- logged as PARTIAL_MATCH-equivalent for this trigger component, not full coverage.",
+  "maturity": "DRAFT_TRANSLATION"
+}

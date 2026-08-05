@@ -1,0 +1,13 @@
+{
+  "req_id": "req-2-external-calls",
+  "target_grain": "contract",
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE only to Tested code that makes external calls -- explicit in the conditioned_scope_clause. Multi-clause requirement (4 sub-obligations): exact-code match, within-Tested-Code, same-entity-controlled, CEI-equivalent protection.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Restriction explicit in conditioned_scope_clause.",
+    "derivation_method": "L1 conditioned_scope_clause field + manual re-read against AR-001",
+    "logged_at": "2026-08-06T02:00:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

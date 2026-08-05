@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-compiler-SOL-2022-7",
+  "classification": "FULLY_DETERMINISTIC (compiler-bug pattern)",
+  "classification_rationale": "bugs_by_version['0.8.13'] AND ['0.8.16'] both include 'StorageWriteRemovalBeforeConditionalTermination' -- an almost-verbatim name match, at both ends of the stated 0.8.13-0.8.16 range. The strongest corroboration found in the entire M-level compiler-bug sub-batch.",
+  "maturity": "DRAFT_TRANSLATION"
+}

@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-documented",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "The cleanest DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION case in the whole M-level batch: all 8 named triggers already have predicates scoped or built elsewhere in this project (CREATE2/assembly/selfdestruct/delegatecall from S-level work above; external calls from req-1-use-c-e-i; overflow/underflow from Track A's req-2-overflow-underflow; block.timestamp/randomness from req-2-random-enough/block-data-misuse below). Semantic condition: is there nearby documentation explaining the need AND how misuse/errors are protected against, AND is that documentation available to anyone who can call the Tested Code (a reachability/publication question, not just presence). Also explicitly notes the external-calls trigger applies to ALL external calls, regardless of whether they separately meet CEI.",
+  "maturity": "DRAFT_TRANSLATION"
+}

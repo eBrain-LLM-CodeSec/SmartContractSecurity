@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-protect-create2",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Compound and notable: several sub-clauses (deployed contract MUST NOT use selfdestruct/delegatecall/callcode) can reuse req-1-self-destruct's and req-1-delegatecall's ALREADY-SCOPED predicates, just applied to the CREATE2-deployed target's code rather than the calling contract's own code -- a genuine cross-requirement reuse opportunity found while writing this record. 'Within the Tested Code' (deployment-completeness) and 'compatible with the claims of the contract author' remain semantic/evidence questions.",
+  "maturity": "DRAFT_TRANSLATION"
+}

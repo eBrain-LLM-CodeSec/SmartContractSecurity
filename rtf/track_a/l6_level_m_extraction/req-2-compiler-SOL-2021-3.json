@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-compiler-SOL-2021-3",
+  "classification": "FULLY_DETERMINISTIC (compiler-bug pattern)",
+  "classification_rationale": "bugs_by_version['0.6.5'] AND ['0.8.8'] both include 'SignedImmutables' -- a direct, unambiguous name match ('Signed', 'Immutables') at both ends of the stated 0.6.5-0.8.8 range.",
+  "maturity": "DRAFT_TRANSLATION"
+}

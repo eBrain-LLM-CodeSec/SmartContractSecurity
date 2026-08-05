@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-enforce-eval-order",
+  "classification": "FULL_SEMANTIC_REVIEW",
+  "classification_rationale": "'Statements where variable evaluation order can result in different outcomes' names a real but broad language-semantics property (e.g. function-call-argument evaluation order, or += on a variable read/written in the same expression via a side-effecting call). Solidity's evaluation order IS actually specified, so the real question is whether the CODE relies on it being one way when reasonable readers might assume another -- a judgment call, not a syntactic pattern. No deterministic trigger identified.",
+  "maturity": "DRAFT_TRANSLATION"
+}

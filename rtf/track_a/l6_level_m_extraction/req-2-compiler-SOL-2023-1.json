@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-compiler-SOL-2023-1",
+  "classification": "FULLY_DETERMINISTIC (compiler-bug pattern, same PATTERN_AND_VERSION treatment as S-level siblings)",
+  "classification_rationale": "bugs_by_version['0.6.2'] AND ['0.8.20'] both include 'MissingSideEffectsOnSelectorAccess' -- an exceptionally strong name match ('SideEffects', 'SelectorAccess') to this requirement's exact subject, at BOTH ends of the stated 0.6.2-0.8.20 range. Also notable: this requirement's conformance condition is 'MUST use the viaIR option' (a compiler FLAG, not just a version) -- a two-dimensional check (version range AND viaIR compilation flag), not simple version comparison alone.",
+  "maturity": "DRAFT_TRANSLATION"
+}

@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-unicode-bdo",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Trigger component is IDENTICAL to req-1-unicode-bdo's (already scoped: reuse rtlo for U+202E, extend its regex for the other 8). Semantic condition: 'necessary to render text appropriately, and the resulting text does not mislead readers' -- genuinely needs judgment (is this in a comment/string literal where bidi chars are legitimately needed vs used to visually disguise code).",
+  "maturity": "DRAFT_TRANSLATION"
+}

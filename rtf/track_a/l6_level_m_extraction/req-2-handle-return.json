@@ -1,0 +1,6 @@
+{
+  "req_id": "req-2-handle-return",
+  "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
+  "classification_rationale": "Trigger reuses req-1-check-return's already-scoped components (unchecked-lowlevel + unchecked-send). Semantic condition: 'reasonably handle possible errors' -- vague enough ('reasonably') that it needs judgment beyond just 'is the return value read at all' (e.g. reading it into an unused variable would pass a naive check but may not be 'reasonable handling').",
+  "maturity": "DRAFT_TRANSLATION"
+}
