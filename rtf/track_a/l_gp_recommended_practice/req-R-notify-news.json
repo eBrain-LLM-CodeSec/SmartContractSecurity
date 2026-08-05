@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-notify-news",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "REQUIRES_EXTERNAL_EVIDENCE, entirely: this is about what the audited team DOES after discovering a new vulnerability class (responsible disclosure to the Working Group), which is never derivable from a repository snapshot regardless of how thorough the review is.",
+  "maturity": "DRAFT_TRANSLATION"
+}

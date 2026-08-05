@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-meet-all-possible",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "Mechanically an aggregation (count how many higher-level requirements this Tested Code passes beyond its certified level) rather than its own analysis strategy -- similar in character to req-2-pass-l1/req-3-pass-l2's certification-bookkeeping role, just advisory (SHOULD) rather than a certification gate.",
+  "maturity": "DRAFT_TRANSLATION"
+}

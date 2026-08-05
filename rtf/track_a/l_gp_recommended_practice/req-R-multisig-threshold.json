@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-multisig-threshold",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "Similar to req-3-no-single-admin-eoa: the ACTUAL deployed threshold (M of N) is fundamentally a deployment/configuration fact. Where a deployment script or config in the repository sets the threshold explicitly (e.g. a Gnosis Safe setup script), it's checkable against the 'not 1-of-N, not N-of-N' rule mechanically; where the threshold is only decided at deployment time outside the repository, this is REQUIRES_EXTERNAL_EVIDENCE, the same repository-visible-evidence boundary req-3-no-single-admin-eoa already hit.",
+  "maturity": "DRAFT_TRANSLATION"
+}

@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-check-new-bugs",
+  "modality": "none (see rtf/l1_corpus/PARSING_NOTES.md genuine spec-content gap)",
+  "strategy_note": "No RFC2119 modality exists for this requirement at all (a genuine spec-content gap, already documented in rtf/l1_corpus/PARSING_NOTES.md -- imperative phrasing, not MUST/SHOULD). Inherently about an ONGOING PROCESS (checking for newly-announced bugs after the spec's fixed cutoff date) rather than a static code property -- REQUIRES_EXTERNAL_EVIDENCE (needs to know what bugs have been announced since, and whether the team checked), not assessable from a repository snapshot at all.",
+  "maturity": "DRAFT_TRANSLATION"
+}

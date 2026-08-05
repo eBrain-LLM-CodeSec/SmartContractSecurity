@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-fuzzing-in-testing",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "Presence check is plausible: fuzz-shaped test functions (Foundry convention: test functions taking parameters, run via `forge test` with randomized inputs) or an Echidna/Medusa config file are syntactically/structurally locatable in a repo. Whether the fuzzing actually exercises meaningful invariants (vs. trivial parameterized tests) needs judgment beyond mere presence.",
+  "maturity": "DRAFT_TRANSLATION"
+}

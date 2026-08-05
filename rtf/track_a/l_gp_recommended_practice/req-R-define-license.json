@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-define-license",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "MECHANICALLY CHECKABLE, cleanly: presence of an SPDX-License-Identifier pragma (a standard, syntactically fixed Solidity comment) or a LICENSE file in the repository. One of the simplest strategies in the entire corpus alongside req-1-no-ancient-compilers.",
+  "maturity": "DRAFT_TRANSLATION"
+}

@@ -1,0 +1,13 @@
+{
+  "req_id": "req-R-clean-code",
+  "target_grain": "contract",
+  "applicability_basis": "logical_scope_entailment",
+  "applicability_rule": "APPLICABLE to any Tested Code, unconditionally.",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Unconditioned or process-level; no predicate-embedded restriction found on re-read (checked per AR-001).",
+    "derivation_method": "L1 conditioned_scope_clause field + manual re-read against AR-001",
+    "logged_at": "2026-08-06T03:00:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

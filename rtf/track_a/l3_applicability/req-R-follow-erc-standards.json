@@ -1,0 +1,13 @@
+{
+  "req_id": "req-R-follow-erc-standards",
+  "target_grain": "contract",
+  "applicability_basis": "explicit_spec_language",
+  "applicability_rule": "APPLICABLE only where the Tested Code is 'reasonably capable' of conforming to a finalized ERC for its use-case -- itself a judgment call embedded in the requirement's own text (unlike most conditioned-scope clauses elsewhere in the corpus, THIS one's applicability condition is explicitly qualified by reasonableness, not a crisp construct check).",
+  "derivation_log_entry": {
+    "basis_classification_rationale": "Restriction explicit in conditioned_scope_clause.",
+    "derivation_method": "L1 conditioned_scope_clause field + manual re-read against AR-001",
+    "logged_at": "2026-08-06T03:00:00Z"
+  },
+  "assumptions_register_ref": null,
+  "maturity": "DRAFT_TRANSLATION"
+}

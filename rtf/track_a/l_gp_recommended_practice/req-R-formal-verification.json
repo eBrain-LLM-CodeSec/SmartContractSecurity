@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-formal-verification",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "Presence check plausible: Certora spec files, K-framework specs, or Solidity's own SMTChecker pragma/config would be direct, checkable signals. Depth/coverage of the verification (vs. mere presence of a spec file) needs judgment.",
+  "maturity": "DRAFT_TRANSLATION"
+}

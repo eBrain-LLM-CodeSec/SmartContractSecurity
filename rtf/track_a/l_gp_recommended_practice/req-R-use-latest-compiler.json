@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-use-latest-compiler",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "Trigger (compiled solc_version) is trivially extractable, same as the S-level compiler-bug requirements -- but the comparison target ('the latest available stable Solidity compiler version') is a MOVING, externally-defined reference point, not derivable from the code or even from the frozen EthTrust spec text itself. REQUIRES_EXTERNAL_EVIDENCE in a narrow sense: needs an external, time-anchored reference (e.g. the Solidity release list as of the evaluation date) to be meaningful -- a genuinely different kind of gap than the S/M-level compiler-bug requirements, which compare against FIXED version thresholds.",
+  "maturity": "DRAFT_TRANSLATION"
+}

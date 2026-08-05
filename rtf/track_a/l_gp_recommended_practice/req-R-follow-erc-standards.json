@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-follow-erc-standards",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION-shaped: identifying which ERC (if any) the contract's interface resembles (ERC20/721/1155/4626/etc.) is a checkable function-signature-matching exercise; full conformance to that ERC's spec, and whether pursuing it was 'reasonably' applicable to begin with, needs judgment.",
+  "maturity": "DRAFT_TRANSLATION"
+}

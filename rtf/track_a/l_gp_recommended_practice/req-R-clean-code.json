@@ -1,0 +1,6 @@
+{
+  "req_id": "req-R-clean-code",
+  "modality": "SHOULD (advisory, non-certification-blocking)",
+  "strategy_note": "FULL_SEMANTIC_REVIEW -- 'written for easy understanding' is about as purely subjective as any requirement in the entire 81-requirement corpus. No deterministic trigger identified or plausible.",
+  "maturity": "DRAFT_TRANSLATION"
+}
