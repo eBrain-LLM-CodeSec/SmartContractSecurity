@@ -1,0 +1,204 @@
+{
+  "selection_frozen_at": "2026-08-05T18:46:10Z",
+  "corpus_hash_selection_was_derived_from": "40779352017159c238ec039e5fb7c34773ea815493b999707f1cb629b73aa859",
+  "protocol": "See module docstring in rtf/track_a/select_candidates.py -- category rules are computed from L1 mechanical fields only, before any analyzer-coverage check or EVMbench correspondence lookup.",
+  "categories": {
+    "1_version_only_compiler_S": {
+      "selected_req_id": "req-1-compiler-060",
+      "selection_detail": {
+        "sorted_candidate_pool": [
+          "req-1-compiler-060",
+          "req-1-no-ancient-compilers"
+        ],
+        "seed_material": "40779352017159c238ec039e5fb7c34773ea815493b999707f1cb629b73aa859::1_version_only_compiler_S",
+        "seed_digest": "6bd1088d0446071085ffa181c4454db87cf312014c75308b35c979f3692ed050",
+        "index_formula": "int(sha256(seed_material), 16) % len(sorted_candidate_pool)",
+        "index": 0
+      }
+    },
+    "2_unconditioned_pure_syntactic_S": {
+      "selected_req_id": "req-1-eip155-chainid",
+      "selection_detail": {
+        "sorted_candidate_pool": [
+          "req-1-delegatecall",
+          "req-1-eip155-chainid",
+          "req-1-exact-balance-check",
+          "req-1-no-assembly",
+          "req-1-no-create2",
+          "req-1-no-hashing-consecutive-variable-length-args",
+          "req-1-no-tx.origin",
+          "req-1-self-destruct",
+          "req-1-unicode-bdo"
+        ],
+        "seed_material": "40779352017159c238ec039e5fb7c34773ea815493b999707f1cb629b73aa859::2_unconditioned_pure_syntactic_S",
+        "seed_digest": "b9e786356951b1581b40e7e42adc3ae14faad34787c09c65e42c0f9b82497333",
+        "index_formula": "int(sha256(seed_material), 16) % len(sorted_candidate_pool)",
+        "index": 1
+      }
+    },
+    "3_conditioned_pattern_and_version_S": {
+      "selected_req_id": "req-1-compiler-sol-2021-4",
+      "selection_detail": {
+        "sorted_candidate_pool": [
+          "req-1-compiler-SOL-2021-1",
+          "req-1-compiler-SOL-2021-2",
+          "req-1-compiler-SOL-2022-1",
+          "req-1-compiler-SOL-2022-2",
+          "req-1-compiler-SOL-2022-3",
+          "req-1-compiler-SOL-2022-5-push",
+          "req-1-compiler-SOL-2022-6",
+          "req-1-compiler-SOL-2023-3",
+          "req-1-compiler-sol-2021-4"
+        ],
+        "seed_material": "40779352017159c238ec039e5fb7c34773ea815493b999707f1cb629b73aa859::3_conditioned_pattern_and_version_S",
+        "seed_digest": "ce2c7ad2da72a85ae9f34c7f299aad3cbf81307c42cd388c52e730525aef9a38",
+        "index_formula": "int(sha256(seed_material), 16) % len(sorted_candidate_pool)",
+        "index": 8
+      }
+    },
+    "4_M_deterministic_trigger_candidate": {
+      "selected_req_id": "req-2-verify-exact-balance-check",
+      "selection_detail": {
+        "sorted_candidate_pool": [
+          "req-2-handle-return",
+          "req-2-unicode-bdo",
+          "req-2-verify-exact-balance-check"
+        ],
+        "seed_material": "40779352017159c238ec039e5fb7c34773ea815493b999707f1cb629b73aa859::4_M_deterministic_trigger_candidate",
+        "seed_digest": "39cf382b8cec6cb21dd47b7bb2f583c6b732661e784c15f0d1aed8544766625d",
+        "index_formula": "int(sha256(seed_material), 16) % len(sorted_candidate_pool)",
+        "index": 2
+      }
+    },
+    "5_M_full_semantic_review_candidate": {
+      "selected_req_id": "req-2-overflow-underflow",
+      "selection_detail": {
+        "sorted_candidate_pool": [
+          "req-2-avoid-readonly-reentrancy",
+          "req-2-block-data-misuse",
+          "req-2-check-rounding",
+          "req-2-documented",
+          "req-2-enforce-eval-order",
+          "req-2-external-calls",
+          "req-2-malleable-signatures-for-replay",
+          "req-2-no-homoglyph-attack",
+          "req-2-overflow-underflow",
+          "req-2-pass-l1",
+          "req-2-random-enough",
+          "req-2-signature-verification"
+        ],
+        "seed_material": "40779352017159c238ec039e5fb7c34773ea815493b999707f1cb629b73aa859::5_M_full_semantic_review_candidate",
+        "seed_digest": "884cfa27b93f0a8c53b3f197308b0bc01c62166e526c73f09f0e80b2848c6e7c",
+        "index_formula": "int(sha256(seed_material), 16) % len(sorted_candidate_pool)",
+        "index": 8
+      }
+    },
+    "6_Q_any": {
+      "selected_req_id": "req-3-implement-as-documented",
+      "selection_detail": {
+        "sorted_candidate_pool": [
+          "req-3-access-control",
+          "req-3-all-valid-inputs",
+          "req-3-annotate",
+          "req-3-block-front-running",
+          "req-3-block-mev",
+          "req-3-check-oracles",
+          "req-3-consistent-solidity-output",
+          "req-3-document-system",
+          "req-3-document-threats",
+          "req-3-documented",
+          "req-3-enough-gas",
+          "req-3-event-on-state-change",
+          "req-3-external-calls",
+          "req-3-implement-as-documented",
+          "req-3-intended-replay",
+          "req-3-linted",
+          "req-3-no-private-data",
+          "req-3-no-single-admin-eoa",
+          "req-3-pass-l2",
+          "req-3-protect-gas",
+          "req-3-protect-governance",
+          "req-3-revocable-permisions",
+          "req-3-timelock-for-privileged-actions",
+          "req-3-verify-tx.origin"
+        ],
+        "seed_material": "40779352017159c238ec039e5fb7c34773ea815493b999707f1cb629b73aa859::6_Q_any",
+        "seed_digest": "e42482d613225d8759da2e75e12347deb16512d2b7017276e21a7299e0e84865",
+        "index_formula": "int(sha256(seed_material), 16) % len(sorted_candidate_pool)",
+        "index": 13
+      }
+    }
+  },
+  "selected_req_ids": [
+    "req-1-compiler-060",
+    "req-1-eip155-chainid",
+    "req-1-compiler-sol-2021-4",
+    "req-2-verify-exact-balance-check",
+    "req-2-overflow-underflow",
+    "req-3-implement-as-documented"
+  ],
+  "selected_requirement_summaries": [
+    {
+      "req_id": "req-1-compiler-060",
+      "level": "S",
+      "title": "Use a Modern Compiler",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      }
+    },
+    {
+      "req_id": "req-1-eip155-chainid",
+      "level": "S",
+      "title": "Encode Hashes with chainid",
+      "section": {
+        "level": "3",
+        "secno": "5.1",
+        "title": "Security Level [S]"
+      }
+    },
+    {
+      "req_id": "req-1-compiler-sol-2021-4",
+      "level": "S",
+      "title": "Compiler Bug SOL-2021-4",
+      "section": {
+        "level": "4",
+        "secno": "5.1.3",
+        "title": "Compiler Bugs"
+      }
+    },
+    {
+      "req_id": "req-2-verify-exact-balance-check",
+      "level": "M",
+      "title": "Verify Exact Balance Checks",
+      "section": {
+        "level": "3",
+        "secno": "5.2",
+        "title": "Security Level [M]"
+      }
+    },
+    {
+      "req_id": "req-2-overflow-underflow",
+      "level": "M",
+      "title": "Safe Overflow/Underflow",
+      "section": {
+        "level": "4",
+        "secno": "5.2.3",
+        "title": "Documented Defensive Coding"
+      }
+    },
+    {
+      "req_id": "req-3-implement-as-documented",
+      "level": "Q",
+      "title": "Implement as Documented",
+      "section": {
+        "level": "4",
+        "secno": "5.3.1",
+        "title": "Documentation requirements"
+      }
+    }
+  ],
+  "substitution_log": [],
+  "note": "Substitution is permitted ONLY for genuine miscategorization discovered under full L3/L4 review, never for a requirement turning out to be difficult or lacking analyzer candidates -- see the RTF plan's Rev. 3 finalization patch, item 2."
+}
