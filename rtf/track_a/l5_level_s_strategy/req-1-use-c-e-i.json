@@ -3,5 +3,11 @@
   "status": "PARTIAL_STRATEGY",
   "note": "Slither's reentrancy suite is a strong candidate_generator for the exploitable subset. A broader, more literal CEI-ordering predicate (any state write occurring in a node reachable after an external-call node, within the same function, regardless of exploitability) would need to be built separately from Slither's own heuristic reentrancy detectors, reusing only the underlying external-call/state-write node identification they already do.",
   "override_note": "Excepted by a Set of Overriding Requirements (req-2-external-calls, req-2-documented).",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "CEI_TRIGGER_IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_state_write_after_external_call()",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified via real CFG reachability (node.sons), including a negative case with correct effects-before-interaction ordering",
+    "note": "The broader, ordering-based CEI trigger (real CFG reachability, not Slither's own exploit-focused reentrancy heuristics) is implemented and tested. Remaining sub-clauses specific to this requirement (e.g. req-2-external-calls' 'controlled by the same entity' / req-3-external-calls' 'compatible with the claims of the contract author') still need their own components."
+  }
 }

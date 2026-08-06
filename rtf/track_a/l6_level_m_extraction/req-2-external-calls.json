@@ -2,5 +2,11 @@
   "req_id": "req-2-external-calls",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Compound: the CEI-equivalent-protection sub-clause reuses req-1-use-c-e-i's already-scoped broader CEI-ordering predicate. The 'controlled by the same entity' and 'within the Tested Code' sub-clauses are NOT verifiable from source code analysis alone in general -- they concern deployment/ownership facts. Flagged as REQUIRES_EXTERNAL_EVIDENCE for those two sub-clauses specifically, not forced into a semantic-review guess. Primary classification kept as DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION for the CEI sub-clause; the compound nature (some sub-clauses need different treatment than others) is itself the notable finding here.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "CEI_TRIGGER_IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_state_write_after_external_call()",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified via real CFG reachability (node.sons), including a negative case with correct effects-before-interaction ordering",
+    "note": "The broader, ordering-based CEI trigger (real CFG reachability, not Slither's own exploit-focused reentrancy heuristics) is implemented and tested. Remaining sub-clauses specific to this requirement (e.g. req-2-external-calls' 'controlled by the same entity' / req-3-external-calls' 'compatible with the claims of the contract author') still need their own components."
+  }
 }

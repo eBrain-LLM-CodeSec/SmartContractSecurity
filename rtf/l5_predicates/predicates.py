@@ -332,6 +332,52 @@ def find_block_data_usage(slither: Slither, req_id: str) -> list[dict]:
     return findings
 
 
+def find_state_write_after_external_call(slither: Slither, req_id: str) -> list[dict]:
+    """req-1-use-c-e-i (S) / req-2-external-calls (M)'s CEI sub-clause /
+    req-3-external-calls (Q)'s trigger, all sharing this concept per their
+    respective records. Deliberately BROADER than Slither's own
+    reentrancy-eth/reentrancy-no-eth/reentrancy-benign/reentrancy-events
+    detectors, whose own docstring says they're heuristic-based and check
+    for EXPLOITABLE reentrancy (an attacker-reachable reentrant call path)
+    -- per this requirement's own L4/L6 records, EthTrust's CEI
+    requirement is about the raw ORDERING itself (effects before
+    interaction), regardless of whether a concrete exploit is currently
+    reachable. Real CFG reachability via node.sons (not just node-ID
+    ordering, which doesn't hold across branches/loops): for every node
+    containing an external call, does ANY node reachable via the
+    control-flow graph afterward write to a state variable.
+    """
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                if not (node.high_level_calls or node.low_level_calls):
+                    continue
+                reachable = _reachable_nodes(node)
+                writer = next((n for n in reachable if n.state_variables_written), None)
+                if writer:
+                    findings.append(
+                        {
+                            "req_id": req_id,
+                            "location": f"{contract.name}.{func.name}",
+                            "detail": f"external call at node {node.node_id} followed by state write at node {writer.node_id} (CFG-reachable)",
+                        }
+                    )
+    return findings
+
+
+def _reachable_nodes(start_node) -> set:
+    seen = set()
+    frontier = list(start_node.sons)
+    while frontier:
+        n = frontier.pop()
+        if n in seen:
+            continue
+        seen.add(n)
+        frontier.extend(n.sons)
+    return seen
+
+
 def find_unicode_direction_control_chars(sol_source_paths: list[Path], req_id: str = "req-1-unicode-bdo") -> list[dict]:
     """req-1-unicode-bdo (S): 'MUST NOT contain any of the Unicode
     Direction Control Characters U+2066, U+2067, U+2068, U+2029, U+202A,

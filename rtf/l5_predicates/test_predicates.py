@@ -271,6 +271,46 @@ def test_reused_unchecked_call_detectors_for_check_return():
     check("reused unchecked-lowlevel: does not flag a checked .call() return", len(r_neg) == 0, r_neg)
 
 
+def test_state_write_after_external_call_ordering():
+    positive = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint public x;
+        function bad(address target) public {
+            (bool ok, ) = target.call("");
+            require(ok);
+            x = 1;
+        }
+    }
+    """
+    negative_effects_first = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint public x;
+        function good(address target) public {
+            x = 1;
+            (bool ok, ) = target.call("");
+            require(ok);
+        }
+    }
+    """
+    negative_no_write = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function noop(address target) public {
+            (bool ok, ) = target.call("");
+            require(ok);
+        }
+    }
+    """
+    r_pos = P.find_state_write_after_external_call(_write_and_compile(positive), "req-1-use-c-e-i")
+    r_neg_order = P.find_state_write_after_external_call(_write_and_compile(negative_effects_first), "req-1-use-c-e-i")
+    r_neg_write = P.find_state_write_after_external_call(_write_and_compile(negative_no_write), "req-1-use-c-e-i")
+    check("cei_ordering: flags state write AFTER external call (interaction-before-effects)", len(r_pos) == 1, r_pos)
+    check("cei_ordering: does not flag effects-before-interaction (correct CEI order)", len(r_neg_order) == 0, r_neg_order)
+    check("cei_ordering: does not flag a call with no subsequent state write at all", len(r_neg_write) == 0, r_neg_write)
+
+
 def test_block_data_usage_covers_prevrandao_gap():
     # block.prevrandao is the exact gap found in Slither's own weak-prng
     # detector (bad_prng.py only checks timestamp/now/blockhash) -- the
@@ -394,6 +434,7 @@ def main() -> int:
         test_unicode_direction_control_chars,
         test_reused_assembly_detector_for_no_assembly,
         test_reused_unchecked_call_detectors_for_check_return,
+        test_state_write_after_external_call_ordering,
         test_block_data_usage_covers_prevrandao_gap,
         test_udvt_narrower_than_32_bytes,
         test_state_write_without_event,
