@@ -138,9 +138,29 @@ def judge_result(
             operational_status=OperationalStatus.ENVIRONMENT_FAILURE,
         ), {"error": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc()}
 
-    conformance = _DECISION_TO_CONFORMANCE.get(judgment["decision"])
+    conformance = resolve_conformance_from_judgment(judgment["decision"], raw.get("agree") if use_second_pass else None)
     updated = replace(result, conformance_state=conformance)
     return updated, raw
+
+
+def resolve_conformance_from_judgment(decision: str, second_pass_agree: bool | None) -> ConformanceState | None:
+    """Pure decision logic, extracted so it's unit-testable without a live
+    LLM call. Real gap found by running RTF v2 run 1 live (tempo-mpp-
+    streams' req-2-signature-verification): a PASS/FAIL was previously
+    reported as final EVEN WHEN the second pass disagreed with it --
+    silently ignoring exactly the signal the plan's own mandatory-second-
+    pass rule exists to surface. If `second_pass_agree` is explicitly
+    `False`, the decision is downgraded to `INCONCLUSIVE` (a legitimate,
+    expected outcome per the plan, not a failure) regardless of what the
+    first pass said -- a verdict the model itself couldn't reproduce on a
+    second, independent attempt must not be reported at the same
+    confidence as a stable one. `second_pass_agree=None` (single-pass
+    mode, or second pass genuinely not run) leaves the first pass's own
+    decision untouched -- there is nothing to compare it against.
+    """
+    if second_pass_agree is False:
+        return ConformanceState.INCONCLUSIVE
+    return _DECISION_TO_CONFORMANCE.get(decision)
 
 
 def judge_run(

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 
-from .judge_with_l8 import _DECISION_TO_CONFORMANCE, build_judgment_question
+from .judge_with_l8 import _DECISION_TO_CONFORMANCE, build_judgment_question, resolve_conformance_from_judgment
 from .metrics import ConformanceState, EvidenceItem
 
 PASSES: list[str] = []
@@ -79,6 +79,21 @@ def test_evidence_cap_still_applies_to_structured_evidence():
     check("question: states how many items were omitted", "5 more" in q, q)
 
 
+def test_resolve_conformance_downgrades_on_second_pass_disagreement():
+    """Regression test for a real gap found by RTF v2 run 1
+    (tempo-mpp-streams' req-2-signature-verification): a FAIL the first
+    pass reported must NOT be trusted as final when the second,
+    independent pass disagreed with it.
+    """
+    check("resolve_conformance: a FAIL with second-pass DISAGREEMENT downgrades to INCONCLUSIVE, not trusted as final", resolve_conformance_from_judgment("FAIL", second_pass_agree=False) == ConformanceState.INCONCLUSIVE, "")
+    check("resolve_conformance: a PASS with second-pass DISAGREEMENT also downgrades to INCONCLUSIVE", resolve_conformance_from_judgment("PASS", second_pass_agree=False) == ConformanceState.INCONCLUSIVE, "")
+
+
+def test_resolve_conformance_trusts_agreement_and_single_pass():
+    check("resolve_conformance: a FAIL with second-pass AGREEMENT is trusted as-is", resolve_conformance_from_judgment("FAIL", second_pass_agree=True) == ConformanceState.FAIL, "")
+    check("resolve_conformance: single-pass mode (agree=None) trusts the raw decision, nothing to compare against", resolve_conformance_from_judgment("PASS", second_pass_agree=None) == ConformanceState.PASS, "")
+
+
 def test_decision_to_conformance_covers_all_four_canonical_states():
     expected = {"PASS": ConformanceState.PASS, "FAIL": ConformanceState.FAIL, "INCONCLUSIVE": ConformanceState.INCONCLUSIVE, "INSUFFICIENT_EVIDENCE": ConformanceState.INSUFFICIENT_EVIDENCE}
     check("decision_mapping: all 4 canonical L8 decisions map to the correct ConformanceState", _DECISION_TO_CONFORMANCE == expected, _DECISION_TO_CONFORMANCE)
@@ -90,6 +105,8 @@ def main() -> int:
         test_structured_evidence_renders_all_fields,
         test_structured_evidence_handles_missing_optional_fields_gracefully,
         test_evidence_cap_still_applies_to_structured_evidence,
+        test_resolve_conformance_downgrades_on_second_pass_disagreement,
+        test_resolve_conformance_trusts_agreement_and_single_pass,
         test_decision_to_conformance_covers_all_four_canonical_states,
     ]
     for t in tests:
