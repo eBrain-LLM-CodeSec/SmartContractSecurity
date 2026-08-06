@@ -72,3 +72,66 @@ accurate result, not merely a schema-valid one.
   sample, and both runs happened to land on an "easy" answer (clear
   absence, clear presence) rather than a genuinely borderline case where
   flips are more likely.
+
+## Run 3 (2026-08-06): L8 integrated into L12, tested on clear/borderline/insufficient-evidence cases
+
+Runs 1–2 above tested L8 in isolation, hand-crafted, against one file.
+This run tested the ACTUAL integration point (`rtf/l12_evaluation/
+judge_with_l8.py`, wired to real evidence RTF's own predicates produced
+against the real pooltogether target) on three deliberately different
+signal shapes, per an explicit request to stress-test exactly the
+untested risk both prior runs flagged: "flip risk is higher on
+genuinely borderline cases, not yet tested." Script/raw output:
+`03_clear_borderline_insufficient_evidence.{py,json}`.
+
+**CLEAR case** (`req-3-access-control`, evidence: `Vault.mintYieldFee`
+flagged unprotected — the real EVMbench H-04 vulnerability): expected
+`FAIL`. Got **`INSUFFICIENT_EVIDENCE`, LOW confidence, stable across both
+passes (agree=True)**. Not a bug — a genuine, valuable finding: this
+requirement's actual text ("...MUST implement appropriate access control
+... that provide the LEAST PRIVILEGE NECESSARY ..., based on the
+documentation provided for [Q] Document Contract Logic") is more
+conditional than the case's own "CLEAR" label assumed. The model
+correctly noticed that judging "least privilege necessary" requires a
+documentation cross-reference the bare unprotected-function evidence
+alone doesn't supply, and declined to force a FAIL it couldn't fully
+back per the requirement's own stated condition. This is the L8 layer
+doing exactly what "LLMs are semantic reviewers, not conformance
+authorities... permitted to return INCONCLUSIVE/INSUFFICIENT_EVIDENCE
+instead of a forced binary" was designed for — the test case's own
+premise (that this was obviously "clear") was the thing that turned out
+to be wrong, not the model's judgment.
+
+**BORDERLINE case** (`req-2-avoid-readonly-reentrancy`, evidence:
+`LiquidationPair.maxAmountIn` reads reserve variables written after an
+external call elsewhere in the contract — a structural precondition
+only, per the predicate's own documented scope). First pass: `FAIL`,
+MEDIUM confidence. **Second pass: DISAGREED** (`agree: False`) — the
+single most important result of this run. This is the first real,
+observed instance of exactly the instability Track A's go/no-go review
+flagged as an open risk ("both live runs happened to land on unambiguous
+answers... flip risk is higher on genuinely borderline cases, not yet
+tested") — now it HAS been tested, on a genuinely borderline case, and
+it DID flip. This is direct, concrete validation of why the plan
+mandates a second independent pass before any L6/L7 consumer may trust a
+single PASS/FAIL: relying on the first pass alone here would have
+silently reported a confident-sounding FAIL that the model itself
+couldn't reproduce on a second, independent attempt.
+
+**INSUFFICIENT_EVIDENCE case** (`req-2-block-data-misuse`, evidence:
+bare `ERC20Permit.permit reads block.timestamp`, no context on how it's
+used): expected and got **`INSUFFICIENT_EVIDENCE`, LOW confidence,
+stable across both passes**. Correctly recognized that "reads
+block.timestamp" alone (a textbook-safe deadline-check pattern in most
+`permit()` implementations, but not confirmed as such by this evidence
+line) doesn't distinguish safe use from misuse without more context.
+
+**What this run establishes, beyond runs 1–2:** L8 does not merely
+produce plausible-sounding answers — it (a) correctly refuses to force a
+verdict when the evidence's own conditions aren't met, even on a case
+this project initially misjudged as unambiguous, and (b) its second-pass
+disagreement mechanism catches real instability on a genuinely
+ambiguous case, not just a null result on easy ones. Both are load-
+bearing findings for how much any single L8 verdict should be trusted at
+scale — genuinely borderline cases need the second pass, not just the
+easy ones.
