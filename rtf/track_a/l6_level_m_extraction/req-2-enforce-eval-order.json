@@ -2,5 +2,9 @@
   "req_id": "req-2-enforce-eval-order",
   "classification": "FULL_SEMANTIC_REVIEW",
   "classification_rationale": "'Statements where variable evaluation order can result in different outcomes' names a real but broad language-semantics property (e.g. function-call-argument evaluation order, or += on a variable read/written in the same expression via a side-effecting call). Solidity's evaluation order IS actually specified, so the real question is whether the CODE relies on it being one way when reasonable readers might assume another -- a judgment call, not a syntactic pattern. No deterministic trigger identified.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "NO_PREDICATE_POSSIBLE",
+    "note": "FULL_SEMANTIC_REVIEW by design (per this record's own classification_rationale) -- no deterministic trigger identified or plausible; routes directly to the L8 LLM Judgment Layer with no L5/L6 predicate component. Recorded as a deliberate terminal status."
+  }
 }

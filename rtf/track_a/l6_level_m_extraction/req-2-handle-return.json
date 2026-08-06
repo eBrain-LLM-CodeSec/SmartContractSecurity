@@ -2,5 +2,11 @@
   "req_id": "req-2-handle-return",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Trigger reuses req-1-check-return's already-scoped components (unchecked-lowlevel + unchecked-send). Semantic condition: 'reasonably handle possible errors' -- vague enough ('reasonably') that it needs judgment beyond just 'is the return value read at all' (e.g. reading it into an unused variable would pass a naive check but may not be 'reasonable handling').",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_IMPLEMENTED_AND_TESTED_SEMANTIC_CONDITION_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: run_reused_slither_detector(slither, [UncheckedLowLevel, UncheckedSend], req_id) -- shared verbatim with req-1-check-return's own trigger, per this record's own classification_rationale",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified 2026-08-06",
+    "note": "The trigger component is already implemented via req-1-check-return's sibling work; this record was never back-filled to reflect it. The 'reasonably handle possible errors' semantic condition -- explicitly distinct from mere presence of a check, per this record's own note about the unused-variable loophole -- depends on the not-yet-built L8 LLM Judgment Layer."
+  }
 }

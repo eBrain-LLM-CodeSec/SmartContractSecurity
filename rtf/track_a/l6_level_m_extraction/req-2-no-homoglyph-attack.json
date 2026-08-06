@@ -2,5 +2,9 @@
   "req_id": "req-2-no-homoglyph-attack",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Unlike its sibling above, a partial deterministic trigger IS plausible here: Unicode's own published confusables.txt database (a real, external, standards-maintained resource, not an invented heuristic -- named indirectly by 'homoglyphs' in EthTrust's own text) could flag identifier/string pairs that are visually confusable. Not yet evaluated for integration feasibility. Semantic condition ('if the impact is misleading') still needs judgment even after a confusables hit.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "NOT_IMPLEMENTED_MISSING_DEPENDENCY",
+    "note": "Feasibility investigated: no Unicode confusables-database library (e.g. `confusable_homoglyphs`) is installed in this environment (`import confusable_homoglyphs` fails, no package metadata found). Integrating one is real, legitimate infrastructure work -- a new dependency, not a design decision -- same category of gap already logged for Mythril/Semgrep in this requirement's own L4-equivalent context (analyzer/library evaluation requires actually installing the tool, not assumed available). Left unimplemented, not silently worked around with an ad hoc/invented homoglyph list, which would reintroduce exactly the kind of unaccountable heuristic this framework prohibits."
+  }
 }

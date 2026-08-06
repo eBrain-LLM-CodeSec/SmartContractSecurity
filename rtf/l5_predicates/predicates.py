@@ -1087,3 +1087,55 @@ def find_keccak256_calls_chainid_dependency(slither: Slither, req_id: str = "req
                             ),
                         })
     return findings
+
+
+def find_selfdestruct_protection_status(slither: Slither, req_id: str = "req-2-self-destruct") -> list[dict]:
+    """req-2-self-destruct (M): the Set-of-Overriding-Requirements
+    exception to req-1-self-destruct -- selfdestruct()/suicide() MAY be
+    present provided it 'can only be called by authorised parties'. Per
+    this record's own classification_rationale: Slither's `suicidal`
+    detector was explicitly REJECTED as a match for the S-level
+    mere-presence check (req-1-self-destruct), because it only flags
+    UNPROTECTED calls -- but that same protection heuristic
+    (`Function.is_protected()`, a public method on Slither's own Function
+    class, not merely internal to the suicidal.py detector) is exactly
+    the right evidence for THIS M-level requirement's authorization
+    condition.
+
+    Reuses `Function.is_protected()` directly (checks for `onlyOwner` in
+    modifiers, or `msg.sender` used directly in a require/assert/if
+    condition -- per its own docstring) rather than reimplementing
+    protection detection. Mirrors `suicidal.py`'s own scope choices
+    (skips constructors -- always considered protected; only public/
+    external functions are in scope, since a private/internal function
+    cannot itself be called by an unauthorized external party directly).
+
+    DETERMINISTIC_EVIDENCE_ONLY, not DETERMINISTIC_COMPLETE:
+    `is_protected()`'s own docstring documents a real false-negative
+    case (`address a = msg.sender; require(a == owner);` is NOT detected
+    as protected) -- so an UNPROTECTED result here is evidence, not
+    proof, that the function is genuinely open to anyone.
+    """
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_declared:
+            if func.is_constructor:
+                continue
+            if func.visibility not in ("public", "external"):
+                continue
+            calls = [ir.function.name for ir in func.all_internal_calls() if ir.function]
+            if not ("selfdestruct(address)" in calls or "suicide(address)" in calls):
+                continue
+            protected = func.is_protected()
+            findings.append({
+                "req_id": req_id,
+                "location": f"{contract.name}.{func.name}",
+                "detail": (
+                    f"selfdestruct/suicide-containing function is "
+                    f"{'PROTECTED (access-controlled)' if protected else 'UNPROTECTED -- callable by anyone'} "
+                    f"per Slither's own is_protected() heuristic (evidence, "
+                    f"not proof -- see this function's own documented "
+                    f"false-negative case)"
+                ),
+            })
+    return findings

@@ -2,5 +2,11 @@
   "req_id": "req-2-unicode-bdo",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Trigger component is IDENTICAL to req-1-unicode-bdo's (already scoped: reuse rtlo for U+202E, extend its regex for the other 8). Semantic condition: 'necessary to render text appropriately, and the resulting text does not mislead readers' -- genuinely needs judgment (is this in a comment/string literal where bidi chars are legitimately needed vs used to visually disguise code).",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_IMPLEMENTED_AND_TESTED_SEMANTIC_CONDITION_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: find_unicode_direction_control_chars(req_id) -- shared verbatim with req-1-unicode-bdo's own trigger, per this record's own classification_rationale",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified 2026-08-06",
+    "note": "The trigger component is already implemented via req-1-unicode-bdo's sibling work; this record was never back-filled to reflect it. The 'necessary to render text appropriately, does not mislead readers' semantic condition depends on the not-yet-built L8 LLM Judgment Layer."
+  }
 }

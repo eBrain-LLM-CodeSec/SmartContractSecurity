@@ -863,6 +863,31 @@ def test_keccak256_chainid_dependency():
     check("chainid_dependency: reports 'is NOT read' for the site that omits it", len(without_chainid) == 1 and "is NOT read" in without_chainid[0]["detail"], without_chainid)
 
 
+def test_selfdestruct_protection_status():
+    unprotected = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function kill() public {
+            selfdestruct(payable(msg.sender));
+        }
+    }
+    """
+    protected = """
+    pragma solidity ^0.8.20;
+    contract C {
+        address owner;
+        modifier onlyOwner() { require(msg.sender == owner); _; }
+        function kill() public onlyOwner {
+            selfdestruct(payable(msg.sender));
+        }
+    }
+    """
+    r_unprotected = P.find_selfdestruct_protection_status(_write_and_compile(unprotected))
+    r_protected = P.find_selfdestruct_protection_status(_write_and_compile(protected))
+    check("selfdestruct_protection: flags an unprotected selfdestruct-containing function", len(r_unprotected) == 1 and "UNPROTECTED" in r_unprotected[0]["detail"], r_unprotected)
+    check("selfdestruct_protection: reports a PROTECTED status for an onlyOwner-guarded selfdestruct", len(r_protected) == 1 and "PROTECTED" in r_protected[0]["detail"] and "UNPROTECTED" not in r_protected[0]["detail"], r_protected)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -898,6 +923,7 @@ def main() -> int:
         test_readonly_reentrancy_candidates,
         test_compiler_version_is_latest_stable,
         test_keccak256_chainid_dependency,
+        test_selfdestruct_protection_status,
     ]
     for t in tests:
         try:
