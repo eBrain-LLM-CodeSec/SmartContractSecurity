@@ -1,0 +1,74 @@
+[spend_guard] before openai/gpt-5.1-codex-max::1_unsafe_narrowing_cast: cumulative REAL (uncached) spend across 1 log(s) = $0.000000 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::1_unsafe_narrowing_cast ===
+  decision: INCONCLUSIVE, expected: FAIL
+[spend_guard] after openai/gpt-5.1-codex-max::1_unsafe_narrowing_cast: cumulative REAL (uncached) spend across 1 log(s) = $0.018647 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before openai/gpt-5.1-codex-max::2_safe_narrowing_cast: cumulative REAL (uncached) spend across 1 log(s) = $0.018647 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::2_safe_narrowing_cast ===
+  decision: INSUFFICIENT_EVIDENCE, expected: PASS
+[spend_guard] after openai/gpt-5.1-codex-max::2_safe_narrowing_cast: cumulative REAL (uncached) spend across 1 log(s) = $0.037016 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before openai/gpt-5.1-codex-max::3_unchecked_ecrecover: cumulative REAL (uncached) spend across 1 log(s) = $0.037016 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::3_unchecked_ecrecover ===
+  decision: INSUFFICIENT_EVIDENCE, expected: FAIL
+[spend_guard] after openai/gpt-5.1-codex-max::3_unchecked_ecrecover: cumulative REAL (uncached) spend across 1 log(s) = $0.064434 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before openai/gpt-5.1-codex-max::4_checked_ecrecover: cumulative REAL (uncached) spend across 1 log(s) = $0.064434 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::4_checked_ecrecover ===
+  decision: INSUFFICIENT_EVIDENCE, expected: PASS
+[spend_guard] after openai/gpt-5.1-codex-max::4_checked_ecrecover: cumulative REAL (uncached) spend across 1 log(s) = $0.082690 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before openai/gpt-5.1-codex-max::5_borderline: cumulative REAL (uncached) spend across 1 log(s) = $0.082690 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::5_borderline ===
+  decision: INSUFFICIENT_EVIDENCE, expected: None
+[spend_guard] after openai/gpt-5.1-codex-max::5_borderline: cumulative REAL (uncached) spend across 1 log(s) = $0.099223 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before openai/gpt-5.1-codex-max::6_insufficient_evidence: cumulative REAL (uncached) spend across 1 log(s) = $0.099223 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::6_insufficient_evidence ===
+  decision: INSUFFICIENT_EVIDENCE, expected: INSUFFICIENT_EVIDENCE
+[spend_guard] after openai/gpt-5.1-codex-max::6_insufficient_evidence: cumulative REAL (uncached) spend across 1 log(s) = $0.113904 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before openai/gpt-5.1-codex-max::7_pooltogether_isolation: cumulative REAL (uncached) spend across 1 log(s) = $0.113904 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::7_pooltogether_isolation ===
+  decision: INSUFFICIENT_EVIDENCE, expected: FAIL
+[spend_guard] after openai/gpt-5.1-codex-max::7_pooltogether_isolation: cumulative REAL (uncached) spend across 1 log(s) = $0.132019 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before openai/gpt-5.1-codex-max::8_pooltogether_full_ranked_set: cumulative REAL (uncached) spend across 1 log(s) = $0.132019 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::8_pooltogether_full_ranked_set ===
+  decision: INSUFFICIENT_EVIDENCE, expected: FAIL
+[spend_guard] after openai/gpt-5.1-codex-max::8_pooltogether_full_ranked_set: cumulative REAL (uncached) spend across 1 log(s) = $0.153751 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before openai/gpt-5.1-codex-max::9_tempo: cumulative REAL (uncached) spend across 1 log(s) = $0.153751 (cap $5.0, stop-new-calls threshold $4.0)
+=== openai/gpt-5.1-codex-max::9_tempo ===
+  decision: INSUFFICIENT_EVIDENCE, expected: None
+[spend_guard] after openai/gpt-5.1-codex-max::9_tempo: cumulative REAL (uncached) spend across 1 log(s) = $0.177442 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::1_unsafe_narrowing_cast: cumulative REAL (uncached) spend across 1 log(s) = $0.177442 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::1_unsafe_narrowing_cast ===
+  decision: INCONCLUSIVE, expected: FAIL
+[spend_guard] after z-ai/glm-5.2::1_unsafe_narrowing_cast: cumulative REAL (uncached) spend across 1 log(s) = $0.180563 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::2_safe_narrowing_cast: cumulative REAL (uncached) spend across 1 log(s) = $0.180563 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::2_safe_narrowing_cast ===
+  decision: PASS, expected: PASS
+[spend_guard] after z-ai/glm-5.2::2_safe_narrowing_cast: cumulative REAL (uncached) spend across 1 log(s) = $0.182882 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::3_unchecked_ecrecover: cumulative REAL (uncached) spend across 1 log(s) = $0.182882 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::3_unchecked_ecrecover ===
+  decision: INCONCLUSIVE, expected: FAIL
+[spend_guard] after z-ai/glm-5.2::3_unchecked_ecrecover: cumulative REAL (uncached) spend across 1 log(s) = $0.186187 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::4_checked_ecrecover: cumulative REAL (uncached) spend across 1 log(s) = $0.186187 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::4_checked_ecrecover ===
+  decision: PASS, expected: PASS
+[spend_guard] after z-ai/glm-5.2::4_checked_ecrecover: cumulative REAL (uncached) spend across 1 log(s) = $0.189231 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::5_borderline: cumulative REAL (uncached) spend across 1 log(s) = $0.189231 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::5_borderline ===
+  decision: INSUFFICIENT_EVIDENCE, expected: None
+[spend_guard] after z-ai/glm-5.2::5_borderline: cumulative REAL (uncached) spend across 1 log(s) = $0.190825 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::6_insufficient_evidence: cumulative REAL (uncached) spend across 1 log(s) = $0.190825 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::6_insufficient_evidence ===
+  decision: INSUFFICIENT_EVIDENCE, expected: INSUFFICIENT_EVIDENCE
+[spend_guard] after z-ai/glm-5.2::6_insufficient_evidence: cumulative REAL (uncached) spend across 1 log(s) = $0.193681 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::7_pooltogether_isolation: cumulative REAL (uncached) spend across 1 log(s) = $0.193681 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::7_pooltogether_isolation ===
+  decision: INCONCLUSIVE, expected: FAIL
+[spend_guard] after z-ai/glm-5.2::7_pooltogether_isolation: cumulative REAL (uncached) spend across 1 log(s) = $0.196365 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::8_pooltogether_full_ranked_set: cumulative REAL (uncached) spend across 1 log(s) = $0.196365 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::8_pooltogether_full_ranked_set ===
+  decision: INCONCLUSIVE, expected: FAIL
+[spend_guard] after z-ai/glm-5.2::8_pooltogether_full_ranked_set: cumulative REAL (uncached) spend across 1 log(s) = $0.204262 (cap $5.0, stop-new-calls threshold $4.0)
+[spend_guard] before z-ai/glm-5.2::9_tempo: cumulative REAL (uncached) spend across 1 log(s) = $0.204262 (cap $5.0, stop-new-calls threshold $4.0)
+=== z-ai/glm-5.2::9_tempo ===
+  decision: INCONCLUSIVE, expected: None
+[spend_guard] after z-ai/glm-5.2::9_tempo: cumulative REAL (uncached) spend across 1 log(s) = $0.207636 (cap $5.0, stop-new-calls threshold $4.0)
+
+Done. 18 (case, model) results saved to /scratch/md5344/.claude/jobs/318205ae/tmp/phase_h_stability_results.json

@@ -1,0 +1,26 @@
+{
+  "uncapped_old_behavior": {
+    "max_tokens": null,
+    "decision": "FAIL",
+    "confidence": "MEDIUM",
+    "reasoning_summary": "The requirement mandates input validation to ensure correct functioning even with malformed inputs. In Vault._burn, a uint256 `_shares` value is cast to uint96 without validating it fits within the smaller type. This lack of input validation allows oversized inputs to be truncated silently, failing the requirement to validate and correctly handle malformed inputs.",
+    "completion_tokens": 590,
+    "cost_usd": 0.0066119625
+  },
+  "capped_4096_new_pin": {
+    "max_tokens": 4096,
+    "decision": "FAIL",
+    "confidence": "MEDIUM",
+    "reasoning_summary": "The requirement mandates validating inputs and handling malformed values correctly. The provided evidence shows a narrowing cast from uint256 to uint96 in Vault._burn with no validation, meaning oversized _shares values will be truncated rather than checked, indicating input validation is lacking.",
+    "completion_tokens": 793,
+    "cost_usd": 0.0086216625
+  },
+  "capped_16000": {
+    "max_tokens": 16000,
+    "decision": "FAIL",
+    "confidence": "MEDIUM",
+    "reasoning_summary": "The requirement mandates validating inputs to ensure correct behavior even for malformed values. The tool reports that `_shares` in Vault._burn is narrowed from uint256 to uint96 without a safety check, allowing oversized inputs to be truncated rather than handled safely. This indicates missing input validation for that parameter.",
+    "completion_tokens": 756,
+    "cost_usd": 0.0082553625
+  }
+}

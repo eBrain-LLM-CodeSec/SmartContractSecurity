@@ -1,0 +1,2804 @@
+{
+  "openai/gpt-5.1-codex-max::1_unsafe_narrowing_cast": {
+    "case_name": "1_unsafe_narrowing_cast",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-3-all-valid-inputs",
+    "expected": "FAIL",
+    "final_conformance_state": "FAIL",
+    "raw": {
+      "first_pass": {
+        "decision": "FAIL",
+        "requirement_citations": [
+          "Process All Inputs \u2014 Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "Ledger.record",
+            "location": "Ledger.record",
+            "claim": "The function narrows an `_amount` parameter from `uint256` to `uint96` without checking that `_amount` is within `uint96` range, so oversized inputs would be silently truncated rather than rejected."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that inputs be validated so the code behaves correctly even with malformed values. In the cited function, a `uint256` amount is cast down to `uint96` with no apparent range check, meaning callers could pass a value larger than `uint96` can hold and it would be silently truncated. This lack of validation of an external input risks incorrect behavior for malformed input and does not satisfy the requirement.",
+        "open_questions": [
+          "Is `_amount` constrained or validated elsewhere before being cast in `Ledger.record`?",
+          "Is the `Ledger.record` function exposed to untrusted input or only called with safe values?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "b7f2645a-e45e-4e5f-8bd9-3960ab6ad440",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "ceb0681bf8d1530ad0021231310f47519d905bff2b5784ea46acfaa26b333e71"
+        }
+      },
+      "second_pass": {
+        "decision": "FAIL",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "Ledger.record",
+            "location": "Ledger.record",
+            "claim": "In the Ledger.record function, the uint256 parameter `_amount` is cast to a uint96 without checking that it fits within uint96, so values above uint96.max would be silently truncated rather than rejected or handled, indicating missing input validation for oversized values."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that inputs be validated so the code functions correctly even when malformed. The evidence indicates a narrowing conversion of a uint256 `_amount` to uint96 in Ledger.record without enforcing `_amount` \u2264 uint96.max. This means excessively large inputs are not validated and can be truncated silently, which fails to ensure correct function on malformed input.",
+        "open_questions": [],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "22ed74ae-932d-452d-9ee3-89ce39955858",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "ceb0681bf8d1530ad0021231310f47519d905bff2b5784ea46acfaa26b333e71"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 331,
+        "max_bundles": 30
+      }
+    }
+  },
+  "openai/gpt-5.1-codex-max::2_safe_narrowing_cast": {
+    "case_name": "2_safe_narrowing_cast",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-3-all-valid-inputs",
+    "expected": "PASS",
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [],
+        "evidence": [
+          {
+            "source": "Ledger.record",
+            "location": "Ledger.record",
+            "claim": "The function narrows a uint256 input to uint96 only after validating `_amount` does not exceed the destination type\u2019s maximum with a require check."
+          }
+        ],
+        "reasoning_summary": "The only available evidence shows that one function validates a narrowing conversion by requiring the input not to exceed the smaller type\u2019s maximum, indicating proper input handling in that instance. However, the requirement covers validation of all inputs across the tested code, and there is no broader information about other inputs or functions. Thus, there is not enough information to assess overall conformance.",
+        "open_questions": [
+          "Are other functions and inputs in the codebase similarly validated to ensure correct handling of malformed inputs?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "66ec6698-95fb-491c-af05-94e534409ad3",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "63dcea82be3c3e09f83f852eda452f85717aa62a4bc3b9edb2610ada1f04b689"
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [],
+        "evidence": [
+          {
+            "source": "Ledger.record",
+            "location": "Ledger.record",
+            "claim": "Narrowing conversion from uint256 to uint96 is preceded by require(_amount <= type(uint96).max, \"too large\"), indicating input validation at this point."
+          }
+        ],
+        "reasoning_summary": "The only cited code location shows a narrowing type conversion safeguarded by a require check, which is consistent with validating inputs. However, the requirement covers validation of all inputs and correct behavior for both designed and malformed inputs across the tested codebase. With no broader view of input handling elsewhere, there is insufficient evidence to conclude overall compliance or noncompliance.",
+        "open_questions": [
+          "Are other external inputs validated appropriately throughout the code?",
+          "How does the code handle malformed or out-of-range inputs in other functions?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "f48c6587-9198-447f-b179-74aaabc44f3d",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "63dcea82be3c3e09f83f852eda452f85717aa62a4bc3b9edb2610ada1f04b689"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 336,
+        "max_bundles": 30
+      }
+    }
+  },
+  "openai/gpt-5.1-codex-max::3_unchecked_ecrecover": {
+    "case_name": "3_unchecked_ecrecover",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-2-signature-verification",
+    "expected": "FAIL",
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Proper Signature Verification"
+        ],
+        "evidence": [
+          {
+            "source": "Auth.verify",
+            "location": "Auth.verify",
+            "claim": "Uses ecrecover to recover a signer without an explicit check that the recovered address is not address(0)"
+          }
+        ],
+        "reasoning_summary": "The available evidence indicates an ecrecover-based signature verification in Auth.verify that may lack a check for a zero address result, which could undermine proper signature validation. However, without the actual code context or confirmation that such a check is indeed omitted and would affect authentication logic, it is not possible to conclusively determine nonconformance with the requirement from the provided information alone.",
+        "open_questions": [
+          "Does the Auth.verify implementation include any check that the recovered signer is not address(0)?",
+          "Are authorized signers or comparisons structured in a way that could accept address(0) as valid?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "3acdc227-f298-4828-87d6-17cb19c5098a",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "61196f074983886ede880eade341a56b27a1c35816d8a946abda48fe3e785581"
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Proper Signature Verification"
+        ],
+        "evidence": [
+          {
+            "source": "Auth.verify",
+            "location": "Auth.verify",
+            "claim": "Uses ecrecover without explicit check that the recovered signer address is not address(0), raising the possibility of treating an invalid signature as valid if address(0) is considered authorized."
+          }
+        ],
+        "reasoning_summary": "The only available evidence is a static analysis flag indicating that Auth.verify uses ecrecover and may not check for a zero address. Without the full code context, it's unclear whether address(0) could ever be treated as an authorized signer or whether other checks mitigate this. There is not enough concrete, checkable information to conclude compliance or noncompliance with proper signature verification.",
+        "open_questions": [
+          "Is address(0) ever considered an authorized signer in this contract?",
+          "Are there other checks in Auth.verify or calling code that reject zero-address recoveries?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "dcf053dc-d9bf-4f2e-a55b-5fcde7432432",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "61196f074983886ede880eade341a56b27a1c35816d8a946abda48fe3e785581"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 342,
+        "max_bundles": 30
+      }
+    }
+  },
+  "openai/gpt-5.1-codex-max::4_checked_ecrecover": {
+    "case_name": "4_checked_ecrecover",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-2-signature-verification",
+    "expected": "PASS",
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [],
+        "evidence": [
+          {
+            "source": "Tested Code",
+            "location": "Auth.verify",
+            "claim": "Uses ecrecover to obtain signer and rejects the zero address with require(signer != address(0), \"invalid signature\")."
+          }
+        ],
+        "reasoning_summary": "The provided evidence shows that the code uses ecrecover and rejects a zero-address result, which guards against malformed signatures. However, the requirement is that signatures must be properly verified to ensure authenticity. There is no information about how the recovered address is compared to an expected signer or whether the signed message is correctly constructed. Without further context, it's not possible to determine full compliance.",
+        "open_questions": [
+          "Does the code compare the recovered signer to an expected address for the message?",
+          "Is the message hash constructed correctly and matched to the signature?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "3f8f69b8-dfc1-43e1-8652-c5563d4ea121",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "50d6738cdd21e8ecb8dfa48d2fd097dd0693c53ad72ba12f31816a2d6470dc2b"
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+        ],
+        "evidence": [
+          {
+            "source": "Auth.verify",
+            "location": "symbol:Auth.verify",
+            "claim": "Uses ecrecover and rejects the zero-address result via require(signer != address(0), \"invalid signature\")"
+          }
+        ],
+        "reasoning_summary": "The provided evidence shows a signature recovery that checks for a zero-address result, which is a component of proper signature verification. However, the requirement demands ensuring authenticity of off-chain signed messages, which typically involves validating the recovered signer against an expected address and correct message hashing. The evidence does not indicate whether such comparisons or other necessary checks are performed, so compliance cannot be fully assessed.",
+        "open_questions": [
+          "Is the recovered signer compared against an expected address to ensure authenticity?",
+          "Are the message contents hashed and structured correctly before calling ecrecover?",
+          "Are there other signature verification paths without appropriate checks?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "b4c72f17-6dfa-4d9a-b90c-d22ebfad8274",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "50d6738cdd21e8ecb8dfa48d2fd097dd0693c53ad72ba12f31816a2d6470dc2b"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 311,
+        "max_bundles": 30
+      }
+    }
+  },
+  "openai/gpt-5.1-codex-max::5_borderline": {
+    "case_name": "5_borderline",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-2-avoid-readonly-reentrancy",
+    "expected": null,
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Avoid Read-only Re-entrancy Attacks Tested Code that makes external calls MUST protect itself against Read-only Re-entrancy Attacks"
+        ],
+        "evidence": [
+          {
+            "source": "LiquidationPair.maxAmountIn",
+            "location": "LiquidationPair.maxAmountIn",
+            "claim": "Generic flag about input/construct not validated; no specific operation or protection assessment provided"
+          }
+        ],
+        "reasoning_summary": "The only evidence points to LiquidationPair.maxAmountIn with a generic signal unrelated to read-only re-entrancy and lacks details about external calls or protections. Without concrete information about view functions making external calls or lacking safeguards, no determination of compliance or violation can be made.",
+        "open_questions": [
+          "Does LiquidationPair.maxAmountIn perform any external calls or read mutable state in a context susceptible to read-only re-entrancy?",
+          "Are there view functions in the code that could be affected by read-only re-entrancy and how are they protected?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "304621b3-00ea-4eac-92d1-d1024b33a205",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "2c0e92f3297382165ad79404c6c1c446760f7e134b8994410bc4d406112f2bb5"
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Avoid Read-only Re-entrancy Attacks"
+        ],
+        "evidence": [
+          {
+            "source": "static_analysis",
+            "location": "LiquidationPair.maxAmountIn",
+            "claim": "Generic signal about input/construct validation; no concrete operation or protection status regarding read-only re-entrancy was identified for this function."
+          }
+        ],
+        "reasoning_summary": "The only evidence provided refers to LiquidationPair.maxAmountIn with a generic note about input validation and explicitly states that protection status against read-only re-entrancy was not assessed. There is no concrete indication of external calls in a view function or inconsistent state reads, so no determination of compliance or violation can be made based on this limited information.",
+        "open_questions": [
+          "Does LiquidationPair.maxAmountIn perform any external calls or expose state via a view function in a way that could be vulnerable to read-only re-entrancy?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "7f156760-9cab-49b3-9f11-e1f56a49c7c1",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "2c0e92f3297382165ad79404c6c1c446760f7e134b8994410bc4d406112f2bb5"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 291,
+        "max_bundles": 30
+      }
+    }
+  },
+  "openai/gpt-5.1-codex-max::6_insufficient_evidence": {
+    "case_name": "6_insufficient_evidence",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-2-block-data-misuse",
+    "expected": "INSUFFICIENT_EVIDENCE",
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Don't Misuse Block Data"
+        ],
+        "evidence": [
+          {
+            "source": "ERC20Permit.permit",
+            "location": "ERC20Permit.permit",
+            "claim": "Only a generic 'input/construct not validated' signal is reported; no concrete use of block numbers or timestamps is indicated."
+          }
+        ],
+        "reasoning_summary": "The requirement concerns misuse of block numbers or timestamps that could enable MEV vulnerabilities. The only provided evidence is a generic input validation signal in ERC20Permit.permit with no mention of block data usage. Without specific evidence of block.number or block.timestamp use, compliance cannot be determined.",
+        "open_questions": [
+          "Does any part of the ERC20Permit.permit implementation rely on block.timestamp or block.number, e.g., for deadline checks?",
+          "Are there other parts of the tested code that reference block data that were not captured in the evidence?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "5d132c91-01f6-43fd-848e-2751a7830501",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "ea76efdbbc758dd6ea1fb72863c6c08fe85a41b1e701ebff8031fa4e107b5c29"
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Don't Misuse Block Data Block numbers and timestamps used in Tested Code MUST NOT introduce vulnerabilities to MEV or similar attacks."
+        ],
+        "evidence": [
+          {
+            "source": "ERC20Permit.permit",
+            "location": "symbol:ERC20Permit.permit",
+            "claim": "Only a generic input/construct validation signal is reported; there is no indication of block number or timestamp usage at this location."
+          }
+        ],
+        "reasoning_summary": "The requirement concerns misuse of block numbers or timestamps leading to MEV vulnerabilities. The only available evidence points to a generic input validation signal in ERC20Permit.permit and does not mention any block data usage. Without concrete evidence of block number or timestamp misuse, no confident pass or fail determination can be made.",
+        "open_questions": [
+          "Does the code use block numbers or timestamps in any way that could influence transaction ordering or introduce MEV risk?",
+          "Is there any usage of block.timestamp or block.number in the Tested Code not covered by the provided evidence?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "2b7559bf-8672-47e4-9b7f-21bf52ee4a67",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "ea76efdbbc758dd6ea1fb72863c6c08fe85a41b1e701ebff8031fa4e107b5c29"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 282,
+        "max_bundles": 30
+      }
+    }
+  },
+  "openai/gpt-5.1-codex-max::7_pooltogether_isolation": {
+    "case_name": "7_pooltogether_isolation",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-3-all-valid-inputs",
+    "expected": "FAIL",
+    "final_conformance_state": "FAIL",
+    "raw": {
+      "first_pass": {
+        "decision": "FAIL",
+        "requirement_citations": [
+          "Process All Inputs: Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "Vault._burn",
+            "location": "Vault._burn",
+            "claim": "Per static analysis, _burn performs a narrowing conversion from uint256 to uint96 on _shares without enforcing _shares <= type(uint96).max, so excessively large inputs would be silently truncated rather than validated or rejected."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates input validation and correct handling of malformed inputs. In the identified Vault._burn function, the uint256 _shares parameter is cast down to uint96 without an explicit bounds check. This allows values above uint96's maximum to be silently truncated, which bypasses validation of malformed or out-of-range input and can lead to incorrect behavior, contravening the requirement.",
+        "open_questions": [
+          "Is _shares ever validated for range prior to being passed into Vault._burn?",
+          "Is the _shares parameter user-controlled or constrained elsewhere in the system?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "2c645cdd-8bff-4d93-886f-f353339f4690",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "55613db98789d83adcacc69548a2bf4595b45a38d654992d21f049b252990362"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 1,
+          "total": 1,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "Vault._burn",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._burn"
+            }
+          ]
+        }
+      },
+      "second_pass": {
+        "decision": "FAIL",
+        "requirement_citations": [],
+        "evidence": [
+          {
+            "source": "Vault._burn",
+            "location": "Vault._burn",
+            "claim": "In the _burn function, a uint256 input `_shares` is narrowed to uint96 without enforcing `_shares <= type(uint96).max`, so values above the uint96 maximum would be silently truncated rather than validated."
+          }
+        ],
+        "reasoning_summary": "The requirement calls for inputs to be validated so the code behaves correctly on both expected and malformed inputs. In the `_burn` function, a uint256 parameter is cast down to uint96 without any check that it fits within the smaller type. This means an oversized input could be silently truncated instead of rejected, indicating a lack of proper input validation and incorrect handling of malformed input.",
+        "open_questions": [
+          "Is there any upstream validation ensuring `_shares` never exceeds `uint96` before being cast in `_burn`?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "22be08e7-48e3-4daa-bf71-edb647824395",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "55613db98789d83adcacc69548a2bf4595b45a38d654992d21f049b252990362"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 1,
+          "total": 1,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "Vault._burn",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._burn"
+            }
+          ]
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 2,
+        "deduped_evidence_count": 2,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 361,
+        "max_bundles": 30
+      }
+    }
+  },
+  "openai/gpt-5.1-codex-max::8_pooltogether_full_ranked_set": {
+    "case_name": "8_pooltogether_full_ranked_set",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-3-all-valid-inputs",
+    "expected": "FAIL",
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [],
+        "evidence": [
+          {
+            "source": "Vault._mint",
+            "location": "symbol:Vault._mint",
+            "claim": "Static analysis flags a cast from uint256 to uint96 for _shares without clear bounds checking (_shares <= type(uint96).max), but the actual validation logic is not shown."
+          },
+          {
+            "source": "Vault._burn",
+            "location": "symbol:Vault._burn",
+            "claim": "Static analysis flags a cast from uint256 to uint96 for _shares without clear bounds checking, but code context is not provided."
+          },
+          {
+            "source": "DrawAccumulatorLib.add",
+            "location": "symbol:DrawAccumulatorLib.add",
+            "claim": "Narrowing casts from uint256 to uint96 and uint16 are flagged as possibly unvalidated, but evidence does not confirm absence of checks."
+          },
+          {
+            "source": "LiquidatorLib.swapExactAmountIn",
+            "location": "symbol:LiquidatorLib.swapExactAmountIn",
+            "claim": "Narrowing casts from uint256 to uint128 flagged as potentially unvalidated; no code shown to confirm."
+          }
+        ],
+        "reasoning_summary": "The static-analysis output lists several functions where narrowing type conversions could truncate inputs if values exceed the target type's range, suggesting potential lack of input validation. However, the evidence is phrased as missing/uncertain protections and does not include code context or confirmation that bounds checks are absent. Without specific source lines demonstrating unvalidated casts or malformed input handling, it is not possible to conclusively determine compliance with the input validation requirement.",
+        "open_questions": [
+          "Are there explicit range checks ensuring values fit into the narrower types before casting in these functions?",
+          "Do upstream callers or contract logic constrain these inputs to safe ranges?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "5f5cb60c-752f-4f2f-b2a2-ffbf5c7b5e2a",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "bd8e5130b6462aeef7fdf3d0369e87a02cbd60a2fd2a847cfe86619b2c3fee5d"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 4,
+          "total": 4,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "symbol:Vault._mint",
+              "ok": false,
+              "reason": "unparseable location format"
+            },
+            {
+              "index": 1,
+              "location": "symbol:Vault._burn",
+              "ok": false,
+              "reason": "unparseable location format"
+            },
+            {
+              "index": 2,
+              "location": "symbol:DrawAccumulatorLib.add",
+              "ok": false,
+              "reason": "unparseable location format"
+            },
+            {
+              "index": 3,
+              "location": "symbol:LiquidatorLib.swapExactAmountIn",
+              "ok": false,
+              "reason": "unparseable location format"
+            }
+          ]
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [],
+        "evidence": [],
+        "reasoning_summary": "The requirement mandates that all inputs be validated and that the code behave correctly even when malformed inputs are presented. While the static-analysis output lists numerous potential narrowing type conversions that might truncate large values, no specific source file paths or line numbers are available, nor is there confirmation that the affected values are user-controlled and unvalidated. Without concrete code references or clear evidence of unhandled malformed inputs, it is not possible to confidently assess conformance.",
+        "open_questions": [
+          "Are the highlighted narrowing conversions operating on user-supplied inputs without bounds checks?",
+          "Do the implementations of functions like Vault._mint and PrizePool.claimPrize include explicit validation of input ranges before casting?",
+          "What are the exact source locations and contexts of the flagged casts?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "350ea9d5-f7a9-4b6c-86d0-ee054f8735df",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "bd8e5130b6462aeef7fdf3d0369e87a02cbd60a2fd2a847cfe86619b2c3fee5d"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 739,
+        "deduped_evidence_count": 399,
+        "bundle_count": 324,
+        "bundles_included": 30,
+        "bundles_excluded": 294,
+        "excluded_locations": [
+          "TwabController._delegate",
+          "TwabLib._getNextObservationIndex",
+          "TwabLib._getNextOrNewestObservation",
+          "TwabLib._getPreviousOrAtObservation",
+          "TwabLib.decreaseBalances",
+          "TwabLib.getNewestObservation",
+          "TwabLib.increaseBalances",
+          "IVaultHooks.afterClaimPrize",
+          "IVaultHooks.beforeClaimPrize",
+          "Vault._availableYieldFeeBalance",
+          "Vault._beforeMint",
+          "Vault._claimPrize",
+          "Vault._convertToAssets",
+          "Vault._convertToShares",
+          "Vault._deposit",
+          "Vault._increaseYieldFeeBalance",
+          "Vault._liquidatableBalanceOf",
+          "Vault._permit",
+          "Vault._setClaimer",
+          "Vault._setYieldFeePercentage",
+          "Vault._setYieldFeeRecipient",
+          "Vault._sponsor",
+          "Vault._withdraw",
+          "Vault.balanceOf",
+          "Vault.claimPrizes",
+          "Vault.deposit",
+          "Vault.depositWithPermit",
+          "Vault.getHooks",
+          "Vault.liquidatableBalanceOf",
+          "Vault.liquidate",
+          "Vault.maxDeposit",
+          "Vault.maxMint",
+          "Vault.mint",
+          "Vault.mintWithPermit",
+          "Vault.mintYieldFee",
+          "Vault.redeem",
+          "Vault.setClaimer",
+          "Vault.setHooks",
+          "Vault.setLiquidationPair",
+          "Vault.setYieldFeePercentage",
+          "Vault.setYieldFeeRecipient",
+          "Vault.sponsor",
+          "Vault.sponsorWithPermit",
+          "Vault.targetOf",
+          "Vault.withdraw",
+          "ECDSA.recover",
+          "Address._revert",
+          "Address.functionCall",
+          "Address.functionCallWithValue",
+          "Address.functionDelegateCall",
+          "Address.functionStaticCall",
+          "Address.isContract",
+          "Address.verifyCallResult",
+          "Counters.current",
+          "Counters.decrement",
+          "Counters.increment",
+          "Counters.reset",
+          "DrawAccumulatorLib._computeTail",
+          "DrawAccumulatorLib.computeC",
+          "DrawAccumulatorLib.getTotalRemaining",
+          "DrawAccumulatorLib.integrate",
+          "DrawAccumulatorLib.integrateInf",
+          "DrawAccumulatorLib.newestDrawId",
+          "DrawAccumulatorLib.newestObservation",
+          "DrawAccumulatorLib.readDrawIds",
+          "ECDSA._throwError",
+          "ECDSA.toDataWithIntendedValidatorHash",
+          "ECDSA.toEthSignedMessageHash",
+          "ECDSA.toTypedDataHash",
+          "EIP712._hashTypedDataV4",
+          "ERC20._afterTokenTransfer",
+          "ERC20._beforeTokenTransfer",
+          "ERC20.allowance",
+          "ERC20.approve",
+          "ERC20.balanceOf",
+          "ERC20.increaseAllowance",
+          "ERC20.transfer",
+          "ERC20.transferFrom",
+          "ERC20Permit._useNonce",
+          "ERC20Permit.nonces",
+          "ERC4626._convertToAssets",
+          "ERC4626._convertToShares",
+          "ERC4626._deposit",
+          "ERC4626._tryGetAssetDecimals",
+          "ERC4626._withdraw",
+          "ERC4626.convertToAssets",
+          "ERC4626.convertToShares",
+          "ERC4626.maxDeposit",
+          "ERC4626.maxMint",
+          "ERC4626.maxRedeem",
+          "ERC4626.maxWithdraw",
+          "ERC4626.previewDeposit",
+          "ERC4626.previewMint",
+          "ERC4626.previewRedeem",
+          "ERC4626.previewWithdraw",
+          "IERC20.allowance",
+          "IERC20.approve",
+          "IERC20.balanceOf",
+          "IERC20.transfer",
+          "IERC20.transferFrom",
+          "IERC20Permit.nonces",
+          "IERC20Permit.permit",
+          "IERC4626.convertToAssets",
+          "IERC4626.convertToShares",
+          "IERC4626.deposit",
+          "IERC4626.maxDeposit",
+          "IERC4626.maxMint",
+          "IERC4626.maxRedeem",
+          "IERC4626.maxWithdraw",
+          "IERC4626.mint",
+          "IERC4626.previewDeposit",
+          "IERC4626.previewMint",
+          "IERC4626.previewRedeem",
+          "IERC4626.previewWithdraw",
+          "IERC4626.redeem",
+          "IERC4626.withdraw",
+          "ILiquidationSource.liquidatableBalanceOf",
+          "ILiquidationSource.liquidate",
+          "ILiquidationSource.targetOf",
+          "LiquidationPair._swap",
+          "LiquidationPair.computeExactAmountIn",
+          "LiquidationPair.computeExactAmountOut",
+          "Math.average",
+          "Math.ceilDiv",
+          "Math.log10",
+          "Math.log2",
+          "Math.log256",
+          "Math.max",
+          "Math.min",
+          "Math.mulDiv",
+          "Math.sqrt",
+          "OverflowSafeComparatorLib.lt",
+          "OverflowSafeComparatorLib.lte",
+          "Ownable._setOwner",
+          "PrizePool._checkValidTier",
+          "PrizePool._computeNextNumberOfTiers",
+          "PrizePool._contributionsForDraw",
+          "PrizePool._getVaultPortion",
+          "PrizePool._transfer",
+          "PrizePool.balanceOfClaimRewards",
+          "PrizePool.calculateTierTwabTimestamps",
+          "PrizePool.contributePrizeTokens",
+          "PrizePool.getContributedBetween",
+          "PrizePool.getTotalContributedBetween",
+          "PrizePool.getVaultPortion",
+          "PrizePool.getVaultUserBalanceAndTotalSupplyTwab",
+          "PrizePool.increaseReserve",
+          "PrizePool.isWinner",
+          "PrizePool.setDrawManager",
+          "PrizePool.wasClaimed",
+          "PrizePool.withdrawClaimRewards",
+          "PrizePool.withdrawReserve",
+          "RingBufferLib.newestIndex",
+          "RingBufferLib.nextIndex",
+          "RingBufferLib.offset",
+          "RingBufferLib.oldestIndex",
+          "RingBufferLib.prevIndex",
+          "RingBufferLib.wrap",
+          "SafeERC20._callOptionalReturn",
+          "SafeERC20._callOptionalReturnBool",
+          "SafeERC20.forceApprove",
+          "SafeERC20.safeIncreaseAllowance",
+          "SafeERC20.safePermit",
+          "SafeERC20.safeTransfer",
+          "SafeERC20.safeTransferFrom",
+          "ShortStrings.byteLength",
+          "ShortStrings.byteLengthWithFallback",
+          "ShortStrings.toShortString",
+          "ShortStrings.toShortStringWithFallback",
+          "ShortStrings.toString",
+          "ShortStrings.toStringWithFallback",
+          "SignedMath.abs",
+          "SignedMath.average",
+          "SignedMath.max",
+          "SignedMath.min",
+          "StorageSlot.getAddressSlot",
+          "StorageSlot.getBooleanSlot",
+          "StorageSlot.getBytes32Slot",
+          "StorageSlot.getBytesSlot",
+          "StorageSlot.getStringSlot",
+          "StorageSlot.getUint256Slot",
+          "Strings.equal",
+          "Strings.toHexString",
+          "Strings.toString",
+          "TierCalculationLib.calculatePseudoRandomNumber",
+          "TierCalculationLib.calculateWinningZone",
+          "TierCalculationLib.canaryPrizeCount",
+          "TierCalculationLib.estimatePrizeFrequencyInDraws",
+          "TierCalculationLib.getTierOdds",
+          "TierCalculationLib.isWinner",
+          "TierCalculationLib.prizeCount",
+          "TieredLiquidityDistributor._canaryPrizeCountFractional",
+          "TieredLiquidityDistributor._computePrizeSize",
+          "TieredLiquidityDistributor._computeShares",
+          "TieredLiquidityDistributor._estimatedPrizeCount",
+          "TieredLiquidityDistributor._getTierLiquidityToReclaim",
+          "TieredLiquidityDistributor._getTierRemainingLiquidity",
+          "TieredLiquidityDistributor._getTotalShares",
+          "TieredLiquidityDistributor._isCanaryTier",
+          "TieredLiquidityDistributor._tierOdds",
+          "TieredLiquidityDistributor.canaryPrizeCount",
+          "TieredLiquidityDistributor.canaryPrizeCountFractional",
+          "TieredLiquidityDistributor.estimatedPrizeCount",
+          "TieredLiquidityDistributor.getTierOdds",
+          "TieredLiquidityDistributor.getTierPrizeCount",
+          "TieredLiquidityDistributor.getTierPrizeSize",
+          "TieredLiquidityDistributor.getTierRemainingLiquidity",
+          "TwabController._decreaseBalances",
+          "TwabController._decreaseTotalSupplyBalances",
+          "TwabController._delegateOf",
+          "TwabController._increaseBalances",
+          "TwabController._increaseTotalSupplyBalances",
+          "TwabController._transferBalance",
+          "TwabController._transferDelegateBalance",
+          "TwabController.balanceOf",
+          "TwabController.burn",
+          "TwabController.delegate",
+          "TwabController.delegateBalanceOf",
+          "TwabController.delegateOf",
+          "TwabController.getAccount",
+          "TwabController.getBalanceAt",
+          "TwabController.getNewestObservation",
+          "TwabController.getNewestTotalSupplyObservation",
+          "TwabController.getOldestObservation",
+          "TwabController.getOldestTotalSupplyObservation",
+          "TwabController.getTimestampPeriod",
+          "TwabController.getTotalSupplyAccount",
+          "TwabController.getTotalSupplyAt",
+          "TwabController.getTotalSupplyTwabBetween",
+          "TwabController.getTwabBetween",
+          "TwabController.isTimeRangeSafe",
+          "TwabController.isTimeSafe",
+          "TwabController.isTotalSupplyTimeRangeSafe",
+          "TwabController.isTotalSupplyTimeSafe",
+          "TwabController.mint",
+          "TwabController.sponsor",
+          "TwabController.totalSupply",
+          "TwabController.totalSupplyDelegateBalance",
+          "TwabController.transfer",
+          "TwabLib._calculateTemporaryObservation",
+          "TwabLib._extrapolateFromBalance",
+          "TwabLib._getSurroundingOrAtObservations",
+          "TwabLib._getTimestampPeriod",
+          "TwabLib._isTimeSafe",
+          "TwabLib.getBalanceAt",
+          "TwabLib.getNextOrNewestObservation",
+          "TwabLib.getOldestObservation",
+          "TwabLib.getPreviousOrAtObservation",
+          "TwabLib.getTimestampPeriod",
+          "TwabLib.getTwabBetween",
+          "TwabLib.isTimeRangeSafe",
+          "TwabLib.isTimeSafe",
+          "console2._castLogPayloadViewToPure",
+          "console2._sendLogPayload",
+          "console2._sendLogPayloadView",
+          "console2.log",
+          "console2.logAddress",
+          "console2.logBool",
+          "console2.logBytes",
+          "console2.logBytes1",
+          "console2.logBytes10",
+          "console2.logBytes11",
+          "console2.logBytes12",
+          "console2.logBytes13",
+          "console2.logBytes14",
+          "console2.logBytes15",
+          "console2.logBytes16",
+          "console2.logBytes17",
+          "console2.logBytes18",
+          "console2.logBytes19",
+          "console2.logBytes2",
+          "console2.logBytes20",
+          "console2.logBytes21",
+          "console2.logBytes22",
+          "console2.logBytes23",
+          "console2.logBytes24",
+          "console2.logBytes25",
+          "console2.logBytes26",
+          "console2.logBytes27",
+          "console2.logBytes28",
+          "console2.logBytes29",
+          "console2.logBytes3",
+          "console2.logBytes30",
+          "console2.logBytes31",
+          "console2.logBytes32",
+          "console2.logBytes4",
+          "console2.logBytes5",
+          "console2.logBytes6",
+          "console2.logBytes7",
+          "console2.logBytes8",
+          "console2.logBytes9",
+          "console2.logInt",
+          "console2.logString",
+          "console2.logUint"
+        ],
+        "prompt_char_estimate": 14590,
+        "max_bundles": 30
+      }
+    }
+  },
+  "openai/gpt-5.1-codex-max::9_tempo": {
+    "case_name": "9_tempo",
+    "model": "openai/gpt-5.1-codex-max",
+    "req_id": "req-2-signature-verification",
+    "expected": null,
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [],
+        "evidence": [
+          {
+            "source": "TempoStreamChannel.close",
+            "location": "TempoStreamChannel.close",
+            "claim": "Uses ecrecover via _recoverSigner to verify a signer and payerSigner; tool notes potential missing check that recovered signer is not address(0)"
+          },
+          {
+            "source": "TempoStreamChannel.settle",
+            "location": "TempoStreamChannel.settle",
+            "claim": "Uses ecrecover via _recoverSigner to verify a signer; tool notes potential missing check that recovered signer is not address(0)"
+          },
+          {
+            "source": "TempoStreamChannel._recoverSigner",
+            "location": "TempoStreamChannel._recoverSigner",
+            "claim": "Wrapper around ecrecover; existing protections against address(0) recovery are unknown from the evidence"
+          }
+        ],
+        "reasoning_summary": "The requirement is to properly verify off-chain signatures. The evidence flags use of ecrecover in TempoStreamChannel functions and suggests a potential missing check that a recovered signer is not the zero address. However, without seeing how the recovered address is compared to expected signers or whether zero addresses are ever accepted, there is no concrete indication that signature verification is improperly implemented. The available information does not suffice to determine conformance or a violation.",
+        "open_questions": [
+          "Does the contract ensure recovered addresses are compared against non-zero expected signers, and are there checks rejecting address(0) results?",
+          "Are any signer or payerSigner state variables allowed to be the zero address, making address(0) an authorized value?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "0c124af4-0a61-4a84-9a82-b4dbbbc9d149",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "cbebcc7ea7f93d05945210f60ce2c33460c8a1ecf15f78f5ffbb8ea197c894ca"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 3,
+          "total": 3,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "TempoStreamChannel.close",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.close"
+            },
+            {
+              "index": 1,
+              "location": "TempoStreamChannel.settle",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.settle"
+            },
+            {
+              "index": 2,
+              "location": "TempoStreamChannel._recoverSigner",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel._recoverSigner"
+            }
+          ]
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Proper signature verification of off-chain signed messages"
+        ],
+        "evidence": [
+          {
+            "source": "analysis",
+            "location": "TempoStreamChannel.close",
+            "claim": "close() uses ecrecover via _recoverSigner to recover a signer and payerSigner address, but the evidence does not show any explicit check that a recovered address is non-zero."
+          },
+          {
+            "source": "analysis",
+            "location": "TempoStreamChannel.settle",
+            "claim": "settle() also recovers a signer address via _recoverSigner; the evidence flags missing/uncertain protection against accepting address(0)."
+          },
+          {
+            "source": "analysis",
+            "location": "TempoStreamChannel._recoverSigner",
+            "claim": "_recoverSigner wraps ecrecover, but protections such as zero-address rejection are unknown from the evidence."
+          }
+        ],
+        "reasoning_summary": "The requirement is that off-chain signatures are properly verified. The flagged functions use ecrecover, and the tool suggests potential missing checks for a zero address. However, without code showing how recovered addresses are compared or whether address(0) could ever be treated as authorized, there is not enough concrete evidence to conclude non-conformance or conformance.",
+        "open_questions": [
+          "Is the recovered address explicitly checked against an expected non-zero signer or payerSigner?",
+          "Could address(0) ever be treated as an authorized signer in these functions?"
+        ],
+        "confidence": "LOW",
+        "second_pass_agreement": "AGREE",
+        "model_version": "openai/gpt-5.1-codex-max",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "e522ac84-895f-499c-b2fa-a24a7b8cab86",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "openai/gpt-5.1-codex-max",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "cbebcc7ea7f93d05945210f60ce2c33460c8a1ecf15f78f5ffbb8ea197c894ca"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 3,
+          "total": 3,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "TempoStreamChannel.close",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.close"
+            },
+            {
+              "index": 1,
+              "location": "TempoStreamChannel.settle",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.settle"
+            },
+            {
+              "index": 2,
+              "location": "TempoStreamChannel._recoverSigner",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel._recoverSigner"
+            }
+          ]
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 5,
+        "deduped_evidence_count": 5,
+        "bundle_count": 3,
+        "bundles_included": 3,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 1218,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::1_unsafe_narrowing_cast": {
+    "case_name": "1_unsafe_narrowing_cast",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-3-all-valid-inputs",
+    "expected": "FAIL",
+    "final_conformance_state": "INCONCLUSIVE",
+    "raw": {
+      "first_pass": {
+        "decision": "FAIL",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis evidence bundle",
+            "location": "Ledger.record",
+            "claim": "A narrowing type conversion from uint256 to uint96 is performed on _amount without a confirmed check that _amount <= type(uint96).max. Values exceeding uint96's maximum would be silently truncated rather than rejected, meaning malformed inputs are not validated and do not cause the function to behave correctly."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that Tested Code validate inputs and function correctly for both designed and malformed inputs. The evidence identifies a narrowing cast from uint256 to uint96 in Ledger.record with missing/uncertain bounds protection. If _amount exceeds type(uint96).max, the cast silently truncates the value instead of rejecting the malformed input, which is a direct failure to validate inputs and handle malformed data correctly. The evidence describes the protection as 'missing/uncertain,' meaning no upstream validation was confirmed by the tool; based solely on the evidence provided, this constitutes a genuine violation of the input-validation requirement.",
+        "open_questions": [
+          "Is there upstream validation in callers of Ledger.record that constrains _amount to <= type(uint96).max before the cast occurs?",
+          "Does the documentation for Ledger.record specify the valid input range for _amount, and if so, is it enforced programmatically?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "DISAGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "43d99cd5-8cb4-4247-af1d-b7bf15171662",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "fde0cee1d16086f528d96fc4eece3540784fbe6bcd8e909a839cf7e00fba1128"
+        }
+      },
+      "second_pass": {
+        "decision": "INCONCLUSIVE",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis bundle",
+            "location": "Ledger.record",
+            "claim": "A narrowing type conversion uint256 -> uint96 is performed on input _amount, with missing/uncertain protections that _amount <= type(uint96).max, creating a possible silent-truncation failure mode for malformed inputs."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that inputs be validated and that the code function correctly for malformed inputs. The evidence identifies a candidate location where a uint256 input is narrowed to uint96 without confirmed validation, which could silently truncate out-of-range values rather than rejecting them. However, the evidence is explicitly uncertain ('Missing/uncertain protections') and does not confirm that no validation exists elsewhere or before the cast. Therefore, a confident PASS or FAIL cannot be issued based solely on this evidence.",
+        "open_questions": [
+          "Is there a require/check that _amount <= type(uint96).max before or around the cast in Ledger.record?",
+          "Is _amount an externally controllable input or an internally trusted value?",
+          "Does the function revert or otherwise handle truncation for out-of-range values?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "DISAGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "800c3fd4-3e9a-4564-82f8-a4db227d1768",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "fde0cee1d16086f528d96fc4eece3540784fbe6bcd8e909a839cf7e00fba1128"
+        }
+      },
+      "agree": false,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 331,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::2_safe_narrowing_cast": {
+    "case_name": "2_safe_narrowing_cast",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-3-all-valid-inputs",
+    "expected": "PASS",
+    "final_conformance_state": "PASS",
+    "raw": {
+      "first_pass": {
+        "decision": "PASS",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis evidence bundle",
+            "location": "Ledger.record",
+            "claim": "A narrowing uint256 -> uint96 conversion is guarded by require(_amount <= type(uint96).max, \"too large\") immediately before the cast, and no failure mechanism was identified."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that inputs be validated and that the code function correctly for both well-formed and malformed inputs. The only evidence bundle concerns a narrowing type conversion at Ledger.record. Rather than being a violation, the evidence shows an explicit input-validation guard (require that _amount does not exceed type(uint96).max) placed immediately before the cast. The static-analysis tool itself identified no failure mechanism. Therefore this specific location is not a genuine violation of the requirement; it is an example of input validation being performed correctly.",
+        "open_questions": [
+          "Whether other input paths in the Tested Code are similarly validated cannot be determined from this single evidence bundle alone."
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "bb893a81-46e8-4fd4-b039-218636342a8e",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "ac3fe511f266cb116fca72959874a6ae3178c9660890368091abc8229723203a"
+        }
+      },
+      "second_pass": {
+        "decision": "PASS",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis evidence bundle",
+            "location": "Ledger.record",
+            "claim": "A narrowing type conversion uint256 -> uint96 on input _amount is immediately preceded by require(_amount <= type(uint96).max, \"too large\"), enforcing the destination type's maximum value before the cast."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that Tested Code validate inputs and function correctly for both designed and malformed inputs. The only evidence bundle concerns a narrowing uint256 -> uint96 cast at Ledger.record. That cast is guarded by an explicit require that bounds _amount to type(uint96).max before the conversion occurs, so malformed/out-of-range inputs are rejected rather than silently truncated or mis-converted. No failure mechanism was identified. Therefore this specific location is not a genuine violation; it demonstrates input validation consistent with the requirement.",
+        "open_questions": [
+          "Whether other input paths in the Tested Code (not covered by this evidence bundle) also validate inputs is outside the scope of the provided evidence."
+        ],
+        "confidence": "HIGH",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "2abdb3b7-0bcb-49ee-a1a2-985be0de9553",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "ac3fe511f266cb116fca72959874a6ae3178c9660890368091abc8229723203a"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 336,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::3_unchecked_ecrecover": {
+    "case_name": "3_unchecked_ecrecover",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-2-signature-verification",
+    "expected": "FAIL",
+    "final_conformance_state": "INCONCLUSIVE",
+    "raw": {
+      "first_pass": {
+        "decision": "INCONCLUSIVE",
+        "requirement_citations": [
+          "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis bundle",
+            "location": "Auth.verify",
+            "claim": "ecrecover(...) is used; the tool reports 'Missing/uncertain protections: signer != address(0)' and a 'Possible failure mechanism' where a malformed signature returning address(0) could be treated as valid."
+          }
+        ],
+        "reasoning_summary": "The requirement demands that signatures be properly verified. The evidence flags a well-known vulnerability pattern (missing zero-address check on ecrecover's return value), but the evidence itself is explicitly uncertain: it labels the protection as 'Missing/uncertain' and the failure mechanism as 'Possible.' Without the actual source code at Auth.verify to confirm (a) whether the zero-address check is truly absent and (b) whether the comparison logic would actually accept address(0) as a valid authorized signer, we cannot definitively conclude a violation. The evidence is a candidate flag, not a confirmed defect, and the requirement's text does not provide a checklist that this single flag definitively violates without confirming the code context.",
+        "open_questions": [
+          "Does Auth.verify actually omit a `signer != address(0)` check, or is the tool uncertain because it could not resolve the check?",
+          "Could an authorized signer ever be address(0), or is that value precluded by other logic (e.g., constructor checks)?",
+          "How does the comparison between the recovered signer and the authorized signer handle the address(0) case?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "f15d0ec1-d080-46a5-a4c6-4719afabba24",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "a29e853e99dd11428a07283a68e357334d45986c10c1c075f680e8082cc0b793"
+        }
+      },
+      "second_pass": {
+        "decision": "INCONCLUSIVE",
+        "requirement_citations": [
+          "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis ranked evidence bundle",
+            "location": "Auth.verify (ecrecover)",
+            "claim": "Auth.verify calls ecrecover and the analysis reports a missing/uncertain protection that signer != address(0); a malformed/invalid signature could cause ecrecover to return address(0), which may be treated as a valid signer or compared equal to an authorizedSigner of address(0)."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates proper signature verification. The evidence identifies a well-known ecrecover failure mode (returning address(0) for malformed signatures) and flags a missing/uncertain zero-address check in Auth.verify. However, the evidence is explicitly candidate-level and uncertain: it does not confirm that the Tested Code actually lacks a zero-address check, nor that an authorized signer could be address(0), nor that an invalid signature would be accepted as authentic. Without the actual source/bytecode confirming the absence of the check and an exploitable acceptance path, a confident FAIL is not justified; a PASS is also not justified because the flagged issue directly concerns proper signature verification. Therefore the result is INCONCLUSIVE.",
+        "open_questions": [
+          "Does Auth.verify actually omit a check that the ecrecover result is not address(0)?",
+          "Can an authorized signer ever be address(0), or is there an initialization/allowlist constraint preventing that?",
+          "Is there any other validation (e.g., signature length, s/v range, replay protection) that would prevent acceptance of an invalid signature even without the zero-address check?",
+          "What is the actual control flow after ecrecover returns, and does it treat address(0) as authorized?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "38a639a7-b65a-47a4-931e-988b93ac30a8",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "a29e853e99dd11428a07283a68e357334d45986c10c1c075f680e8082cc0b793"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 342,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::4_checked_ecrecover": {
+    "case_name": "4_checked_ecrecover",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-2-signature-verification",
+    "expected": "PASS",
+    "final_conformance_state": "PASS",
+    "raw": {
+      "first_pass": {
+        "decision": "PASS",
+        "requirement_citations": [
+          "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis bundle: Auth.verify",
+            "location": "Auth.verify (ecrecover call site)",
+            "claim": "The Tested Code calls ecrecover to recover a signer from an off-chain signature and immediately guards the result with require(signer != address(0), \"invalid signature\") before the recovered address is used, explicitly rejecting the malformed-signature / zero-address failure mode."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that signatures be properly verified to ensure authenticity of off-chain-signed messages. The evidence shows the Tested Code uses ecrecover for signature recovery and includes an immediate zero-address check on the returned signer, which is the primary known failure mechanism for ecrecover (malformed signatures return address(0)). No failure mechanism was identified by the analysis. Given only this evidence, there is no genuine violation of the requirement's text.",
+        "open_questions": [
+          "Does the verification also include replay protection (e.g., nonce, chain-id, domain separator) that the requirement might implicitly expect under 'properly verify'?",
+          "Is the signed message constructed in a way that prevents signature malleability beyond the zero-address check (e.g., rejecting s values > secp256k1n/2)?",
+          "Are there other signature-verification locations in the Tested Code not covered by this evidence bundle?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "ee22530d-5eea-4618-aed8-6324e2462e0d",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "b17a64b18f0c449736c2f2b279e1950e1219755f87ba92c197a522f8c858f759"
+        }
+      },
+      "second_pass": {
+        "decision": "PASS",
+        "requirement_citations": [
+          "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis bundle",
+            "location": "Auth.verify (ecrecover call)",
+            "claim": "The Auth.verify function calls ecrecover to recover a signer from an off-chain signature and immediately follows with require(signer != address(0), \"invalid signature\"), explicitly rejecting the malformed-signature / zero-address return value before the result is used."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "Auth.verify (failure mechanism analysis)",
+            "claim": "No failure mechanism was identified; the zero-address case is explicitly rejected before the result is used."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that Tested Code properly verify signatures for off-chain-signed messages. The evidence shows that Auth.verify uses ecrecover\u2014the standard Solidity mechanism for ECDSA signature recovery\u2014and guards its primary known failure mode (returning address(0) for malformed signatures) with an immediate require check before the recovered signer is used. No additional failure mechanism was identified in the bundle. Given only the provided evidence, the signature verification appears proper.",
+        "open_questions": [
+          "Does Auth.verify also compare the recovered signer against an expected/trusted address (not shown in the evidence)?",
+          "Is there replay protection (e.g., nonce or chainId) for the signed message (not shown in the evidence)?",
+          "Are there other signature-verification paths in the Tested Code beyond Auth.verify?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "aa5356b8-fee2-4a3d-95d2-a402b3fe2ee6",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "b17a64b18f0c449736c2f2b279e1950e1219755f87ba92c197a522f8c858f759"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 311,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::5_borderline": {
+    "case_name": "5_borderline",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-2-avoid-readonly-reentrancy",
+    "expected": null,
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "dfn-read-only-re-entrancy-attack",
+          "dfn-tested-code"
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis bundle",
+            "location": "LiquidationPair.maxAmountIn",
+            "claim": "Only a generic 'input/construct not validated' signal is present; no concrete operation was named and protection status was not explicitly assessed by any contributing predicate."
+          }
+        ],
+        "reasoning_summary": "The requirement targets Read-only Re-entrancy Attacks, which specifically require (a) a view function that reads state, (b) that state being subsequently changed, and (c) the tested code making external calls without safeguards. The sole evidence bundle for LiquidationPair.maxAmountIn provides only a generic 'input/construct not validated' signal with no named concrete operation and explicitly states that protection status was not assessed. There is no evidence establishing that maxAmountIn is a view function, that it performs external calls, that it reads state which is later mutated, or that any re-entrancy vector exists. Because the evidence is over-inclusive by design and lacks any specifics tying it to the actual attack pattern defined, it cannot support a confident PASS or FAIL determination.",
+        "open_questions": [
+          "Is LiquidationPair.maxAmountIn a view/pure function that reads mutable state?",
+          "Does LiquidationPair.maxAmountIn make any external calls (CALL, STATICCALL, DELEGATECALL) during execution?",
+          "Is the state read by maxAmountIn subsequently modified by a non-view function in a way that could be re-entered?",
+          "What concrete operation, if any, underlies the 'input/construct not validated' signal?"
+        ],
+        "confidence": "HIGH",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "a4525b5c-dc97-40ea-9b81-f0bac8bf194f",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "18faca81f6b62af32f56da65aae7826aab38fcbc439f79e676672d0b895c5e27"
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "dfn-read-only-re-entrancy-attack",
+          "dfn-tested-code"
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis ranked evidence bundle",
+            "location": "LiquidationPair.maxAmountIn",
+            "claim": "A generic 'input/construct not validated' signal was raised for this location; no predicate named a concrete operation, and protection status was not explicitly assessed by any contributing predicate."
+          }
+        ],
+        "reasoning_summary": "The requirement targets Read-only Re-entrancy Attacks, which specifically involve view functions that read state later modified, where inconsistent values could mislead other protocols. The only evidence provided for LiquidationPair.maxAmountIn is a generic 'input/construct not validated' signal with explicitly stated limitations: no concrete operation was named, and re-entrancy protection status was not assessed by any predicate. The evidence does not establish (1) whether maxAmountIn is a view function, (2) whether it makes external calls, (3) whether it reads state that is subsequently changed, or (4) whether any safeguards are present or absent. Because none of the elements of a read-only re-entrancy attack are substantiated, and the evidence's own limitations disclaim any concrete operation finding, there is insufficient basis to conclude either conformance or a genuine violation.",
+        "open_questions": [
+          "Is LiquidationPair.maxAmountIn a view function that reads mutable state?",
+          "Does maxAmountIn make any external calls or depend on state that is modified by non-view functions during the same transaction?",
+          "What, if any, re-entrancy or consistency safeguards are present at this location?",
+          "Does the generic 'input/construct not validated' signal correspond to any concrete operation relevant to read-only re-entrancy, or is it unrelated noise?"
+        ],
+        "confidence": "HIGH",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "822481e7-55c8-4815-bc5e-ae20514e31d2",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "18faca81f6b62af32f56da65aae7826aab38fcbc439f79e676672d0b895c5e27"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 291,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::6_insufficient_evidence": {
+    "case_name": "6_insufficient_evidence",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-2-block-data-misuse",
+    "expected": "INSUFFICIENT_EVIDENCE",
+    "final_conformance_state": "INSUFFICIENT_EVIDENCE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Don't Misuse Block Data Block numbers and timestamps used in Tested Code MUST NOT introduce vulnerabilities to MEV or similar attacks."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis tool",
+            "location": "ERC20Permit.permit",
+            "claim": "Generic 'input/construct not validated' signal; no predicate for a concrete operation; protection status not explicitly assessed."
+          }
+        ],
+        "reasoning_summary": "The requirement specifically concerns misuse of block numbers and timestamps that could introduce MEV vulnerabilities. The only evidence provided is a generic, unspecified 'input/construct not validated' signal at ERC20Permit.permit, with no concrete operation identified and no link to block.number or block.timestamp usage. There is no evidence that block data is being used in a way that creates MEV exposure, nor is there evidence confirming it is safe. The evidence is too vague and non-specific to the requirement to support a PASS or FAIL determination.",
+        "open_questions": [
+          "Does ERC20Permit.permit use block.number or block.timestamp at all?",
+          "If block data is used, is it in a manner (e.g., deadline checks) that could be manipulated for MEV?",
+          "What specific input validation gap was the tool flagging, and is it related to block data?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "84c368b8-dc2c-486f-9f49-cd2c02afc437",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "d82de0d2a19dc2c0dd412816a6bccb1ff98820c8ee1add26b2409d0e3c140642"
+        }
+      },
+      "second_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Don't Misuse Block Data Block numbers and timestamps used in Tested Code MUST NOT introduce vulnerabilities to MEV or similar attacks."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis tool evidence bundle",
+            "location": "ERC20Permit.permit",
+            "claim": "Generic 'input/construct not validated' signal; no predicate for a concrete operation; protection status not explicitly assessed."
+          }
+        ],
+        "reasoning_summary": "The requirement specifically concerns misuse of block numbers and timestamps that could introduce MEV/ordering-attack vulnerabilities. The provided evidence bundle for ERC20Permit.permit contains only a generic input-validation signal with no mention of block.number, block.timestamp, or any block-data usage. The bundle itself explicitly states there is no predicate for a concrete operation and that protection status was not assessed. Therefore, there is no evidence linking this location to the specific requirement, and neither a PASS nor a FAIL can be justified.",
+        "open_questions": [
+          "Does ERC20Permit.permit or surrounding code use block.number or block.timestamp in any way?",
+          "Are there any other locations in the Tested Code that reference block data?",
+          "Could the generic input-validation signal on permit relate to deadline/replay protection that indirectly involves block timestamps?"
+        ],
+        "confidence": "HIGH",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "2038f481-a803-4dc6-86d4-1de7a97fddcd",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "d82de0d2a19dc2c0dd412816a6bccb1ff98820c8ee1add26b2409d0e3c140642"
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 1,
+        "deduped_evidence_count": 1,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 282,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::7_pooltogether_isolation": {
+    "case_name": "7_pooltogether_isolation",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-3-all-valid-inputs",
+    "expected": "FAIL",
+    "final_conformance_state": "INCONCLUSIVE",
+    "raw": {
+      "first_pass": {
+        "decision": "INCONCLUSIVE",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis evidence bundle",
+            "location": "Vault._burn",
+            "claim": "A narrowing type conversion uint256 -> uint96 is performed on _shares (uint256) with missing/uncertain protections ensuring _shares <= type(uint96).max; values exceeding uint96's maximum would be silently truncated rather than rejected."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that all inputs be validated and that the code function correctly for both designed and malformed inputs. The evidence identifies a genuine failure mechanism \u2014 silent truncation of an oversized uint256 value during a narrowing cast to uint96 \u2014 which, if unguarded, would constitute a violation because malformed inputs would not be rejected but silently corrupted. However, the evidence explicitly labels the missing protection as 'uncertain,' and we have no visibility into whether _burn is an external entry point (where validation must be present) or an internal helper whose callers may already validate _shares before invocation. Without confirming that no upstream validation exists, we cannot definitively classify this as a genuine violation.",
+        "open_questions": [
+          "Is Vault._burn an external/public function or an internal function called only after input validation?",
+          "Is there any check elsewhere in the call chain (e.g., in the external function that calls _burn) ensuring _shares <= type(uint96).max before the cast?",
+          "Can _shares realistically exceed type(uint96).max given the contract's token supply or accounting constraints?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "ee486e95-0b0d-4a3d-aec5-ac6874f9d3d6",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "892bb1fd15f770813da1f3e3bd6f81a696e6cc313d55423aaaa41a2a85393110"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 1,
+          "total": 1,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "Vault._burn",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._burn"
+            }
+          ]
+        }
+      },
+      "second_pass": {
+        "decision": "INCONCLUSIVE",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis evidence bundle",
+            "location": "Vault._burn",
+            "claim": "A narrowing type conversion uint256 -> uint96 is performed on _shares: uint256. The tool reports 'Missing/uncertain protections: _shares <= type(uint96).max', indicating it could not confirm whether a bounds check exists before the cast. If no check exists and _shares can exceed type(uint96).max, the value would be silently truncated rather than rejected."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that inputs be validated and that the code function correctly for both well-formed and malformed inputs. The evidence flags a narrowing cast from uint256 to uint96 in Vault._burn with 'Missing/uncertain protections,' meaning the static-analysis tool itself could not confirm whether a bounds check is absent. To determine a genuine violation, one would need to confirm two things: (1) that _shares can actually reach this code path with a value exceeding type(uint96).max (i.e., it is externally controllable or not constrained upstream), and (2) that no validation or guard exists at or before the cast. The evidence does not establish either point with certainty \u2014 it explicitly labels the missing protection as 'uncertain.' Therefore, while this is a plausible violation if the protections are truly absent and the input is attacker-controllable, the evidence as presented does not conclusively demonstrate a genuine violation of the requirement.",
+        "open_questions": [
+          "Is _shares externally controllable or constrained by upstream logic (e.g., total supply limits, deposit caps) such that it can never exceed type(uint96).max?",
+          "Does Vault._burn or any caller perform an explicit bounds check on _shares before the uint96 cast?",
+          "Is the uint96 cast on a value derived from internal accounting that is already guaranteed to fit within uint96 by protocol invariants?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "a6c2488c-0ffa-4bd6-9aa5-8541934f1688",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "892bb1fd15f770813da1f3e3bd6f81a696e6cc313d55423aaaa41a2a85393110"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 1,
+          "total": 1,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "Vault._burn",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._burn"
+            }
+          ]
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 2,
+        "deduped_evidence_count": 2,
+        "bundle_count": 1,
+        "bundles_included": 1,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 361,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::8_pooltogether_full_ranked_set": {
+    "case_name": "8_pooltogether_full_ranked_set",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-3-all-valid-inputs",
+    "expected": "FAIL",
+    "final_conformance_state": "INCONCLUSIVE",
+    "raw": {
+      "first_pass": {
+        "decision": "INCONCLUSIVE",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis bundle",
+            "location": "Vault._burn (ranking_score=0.9833)",
+            "claim": "Narrowing uint256->uint96 cast on _shares with missing/uncertain bounds check; values above uint96.max would be silently truncated rather than rejected."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "Vault._mint (ranking_score=0.9833)",
+            "claim": "Narrowing uint256->uint96 cast on _shares with missing/uncertain bounds check; values above uint96.max would be silently truncated rather than rejected."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "Vault._transfer (ranking_score=0.9833)",
+            "claim": "Narrowing uint256->uint96 cast on _shares with missing/uncertain bounds check; values above uint96.max would be silently truncated rather than rejected."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "PrizePool.claimPrize (ranking_score=0.6333)",
+            "claim": "Narrowing uint256->uint152 cast on amount with missing/uncertain bounds check; values above uint152.max would be silently truncated."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "PrizePool.closeDraw (ranking_score=0.6333)",
+            "claim": "Narrowing uint256->uint64 and uint256->uint96 casts on block.timestamp and TMP_2244 with missing/uncertain bounds checks."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that Tested Code validate inputs and function correctly for both well-formed and malformed inputs. The static-analysis evidence identifies numerous narrowing type conversions (uint256 to smaller types) across both high-ranked project code (Vault._burn/_mint/_transfer) and lower-ranked library/protocol code. These casts could silently truncate out-of-range values rather than rejecting them, which would constitute a failure to validate malformed inputs. However, the evidence explicitly labels protections as 'missing/uncertain' \u2014 the tool is flagging candidate locations, not confirmed violations. Without access to the actual source code, it is impossible to determine whether: (1) the inputs in question are user-controllable vs. internally constrained by callers or state; (2) bounds checks exist at calling sites or via other mechanisms not visible to the static analyzer; (3) the values are architecturally bounded (e.g., total supply caps, protocol-level limits). The high-ranking Vault functions are the most concerning since they likely handle user-facing share amounts, but even there, upstream constraints (e.g., deposit limits) could prevent overflow. A manual audit at Security Level [Q] would be needed to confirm or refute these candidate findings.",
+        "open_questions": [
+          "Are the _shares inputs in Vault._burn/_mint/_transfer directly user-controllable, or are they constrained by upstream deposit/withdraw limits?",
+          "Do calling sites of internal/library functions (e.g., LiquidatorLib, DrawAccumulatorLib) enforce bounds before passing values to functions with narrowing casts?",
+          "Are there protocol-level invariants (e.g., total supply caps, tier count limits) that make the flagged truncation scenarios unreachable?",
+          "For PrizePool.claimPrize, is the 'amount' parameter user-supplied and unconstrained, or derived from internal prize calculation logic?",
+          "Does the project documentation (required at Security Level [Q]) describe input validation assumptions for these functions?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "a7aeeddb-4c13-4938-8d8b-1faa7e5986a0",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "9ee1051f1b9fc46f870f5b5135353ca4aebd46d1907fd96459d15a0aeadcee1c"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 5,
+          "total": 5,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "Vault._burn (ranking_score=0.9833)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._burn (ranking_score=0.9833)"
+            },
+            {
+              "index": 1,
+              "location": "Vault._mint (ranking_score=0.9833)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._mint (ranking_score=0.9833)"
+            },
+            {
+              "index": 2,
+              "location": "Vault._transfer (ranking_score=0.9833)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._transfer (ranking_score=0.9833)"
+            },
+            {
+              "index": 3,
+              "location": "PrizePool.claimPrize (ranking_score=0.6333)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/PrizePool.claimPrize (ranking_score=0.6333)"
+            },
+            {
+              "index": 4,
+              "location": "PrizePool.closeDraw (ranking_score=0.6333)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/PrizePool.closeDraw (ranking_score=0.6333)"
+            }
+          ]
+        }
+      },
+      "second_pass": {
+        "decision": "INCONCLUSIVE",
+        "requirement_citations": [
+          "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+        ],
+        "evidence": [
+          {
+            "source": "static-analysis bundle",
+            "location": "Vault._burn (ranking_score=0.9833)",
+            "claim": "Narrowing cast uint256 -> uint96 on _shares with missing/uncertain protection that _shares <= type(uint96).max; values above the limit would be silently truncated rather than rejected."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "Vault._mint (ranking_score=0.9833)",
+            "claim": "Narrowing cast uint256 -> uint96 on _shares with missing/uncertain protection that _shares <= type(uint96).max; values above the limit would be silently truncated rather than rejected."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "Vault._transfer (ranking_score=0.9833)",
+            "claim": "Narrowing cast uint256 -> uint96 on _shares with missing/uncertain protection that _shares <= type(uint96).max; values above the limit would be silently truncated rather than rejected."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "PrizePool.claimPrize (ranking_score=0.6333)",
+            "claim": "Narrowing cast uint256 -> uint152 on amount with missing/uncertain protection; values above uint152 max would be silently truncated."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "PrizePool.closeDraw (ranking_score=0.6333)",
+            "claim": "Narrowing casts uint256 -> uint64 on block.timestamp and uint256 -> uint96 on TMP_2244 with missing/uncertain protections."
+          },
+          {
+            "source": "static-analysis bundle",
+            "location": "LiquidatorLib.swapExactAmountIn (ranking_score=0.6333)",
+            "claim": "Narrowing casts uint256 -> uint128 on _amountIn0 and amountOut1 with missing/uncertain protections."
+          }
+        ],
+        "reasoning_summary": "The requirement mandates that Tested Code validate inputs and function correctly for both designed and malformed inputs. The static-analysis evidence identifies numerous narrowing type conversions (uint256 to smaller types) across both project-specific code (Vault._burn/_mint/_transfer at high ranking) and library/internal functions. These casts could silently truncate out-of-range values rather than rejecting them, which would constitute a violation IF reachable with unvalidated inputs. However, the evidence explicitly labels protections as 'missing/uncertain' rather than confirmed missing, and many locations are internal functions (prefixed with _) that may receive only pre-validated values from public entry points. Without access to the actual source code to trace whether upstream validation exists at public function boundaries, it is impossible to confirm whether any of these candidate locations represent genuine violations where malformed input reaches the narrowing cast unchecked. The evidence is deliberately over-inclusive and does not by itself establish non-conformance.",
+        "open_questions": [
+          "Do public entry points that call Vault._burn/_mint/_transfer validate that share amounts cannot exceed type(uint96).max before reaching these internal functions?",
+          "Are the PrizePool and LiquidatorLib narrowing casts reachable with user-controlled values exceeding the target type maximums, or are the inputs bounded by protocol-level invariants (e.g., total supply limits, reserve caps)?",
+          "For the lower-ranked library functions (ECDSA.tryRecover, OverflowSafeComparatorLib, ObservationLib, DrawAccumulatorLib), are these vendored dependencies or project-owned code, and do their callers validate inputs beforehand?",
+          "Does the project documentation (required at Security Level Q) describe the intended input ranges and validation strategy for these functions?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "AGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "3d9ed09c-7f12-4b06-9b2f-77bcac3507fb",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "9ee1051f1b9fc46f870f5b5135353ca4aebd46d1907fd96459d15a0aeadcee1c"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 6,
+          "total": 6,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "Vault._burn (ranking_score=0.9833)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._burn (ranking_score=0.9833)"
+            },
+            {
+              "index": 1,
+              "location": "Vault._mint (ranking_score=0.9833)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._mint (ranking_score=0.9833)"
+            },
+            {
+              "index": 2,
+              "location": "Vault._transfer (ranking_score=0.9833)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/Vault._transfer (ranking_score=0.9833)"
+            },
+            {
+              "index": 3,
+              "location": "PrizePool.claimPrize (ranking_score=0.6333)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/PrizePool.claimPrize (ranking_score=0.6333)"
+            },
+            {
+              "index": 4,
+              "location": "PrizePool.closeDraw (ranking_score=0.6333)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/PrizePool.closeDraw (ranking_score=0.6333)"
+            },
+            {
+              "index": 5,
+              "location": "LiquidatorLib.swapExactAmountIn (ranking_score=0.6333)",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/evmbench/agent4vul/out/2023-07-pooltogether/checkout/vault/LiquidatorLib.swapExactAmountIn (ranking_score=0.6333)"
+            }
+          ]
+        }
+      },
+      "agree": true,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 739,
+        "deduped_evidence_count": 399,
+        "bundle_count": 324,
+        "bundles_included": 30,
+        "bundles_excluded": 294,
+        "excluded_locations": [
+          "TwabController._delegate",
+          "TwabLib._getNextObservationIndex",
+          "TwabLib._getNextOrNewestObservation",
+          "TwabLib._getPreviousOrAtObservation",
+          "TwabLib.decreaseBalances",
+          "TwabLib.getNewestObservation",
+          "TwabLib.increaseBalances",
+          "IVaultHooks.afterClaimPrize",
+          "IVaultHooks.beforeClaimPrize",
+          "Vault._availableYieldFeeBalance",
+          "Vault._beforeMint",
+          "Vault._claimPrize",
+          "Vault._convertToAssets",
+          "Vault._convertToShares",
+          "Vault._deposit",
+          "Vault._increaseYieldFeeBalance",
+          "Vault._liquidatableBalanceOf",
+          "Vault._permit",
+          "Vault._setClaimer",
+          "Vault._setYieldFeePercentage",
+          "Vault._setYieldFeeRecipient",
+          "Vault._sponsor",
+          "Vault._withdraw",
+          "Vault.balanceOf",
+          "Vault.claimPrizes",
+          "Vault.deposit",
+          "Vault.depositWithPermit",
+          "Vault.getHooks",
+          "Vault.liquidatableBalanceOf",
+          "Vault.liquidate",
+          "Vault.maxDeposit",
+          "Vault.maxMint",
+          "Vault.mint",
+          "Vault.mintWithPermit",
+          "Vault.mintYieldFee",
+          "Vault.redeem",
+          "Vault.setClaimer",
+          "Vault.setHooks",
+          "Vault.setLiquidationPair",
+          "Vault.setYieldFeePercentage",
+          "Vault.setYieldFeeRecipient",
+          "Vault.sponsor",
+          "Vault.sponsorWithPermit",
+          "Vault.targetOf",
+          "Vault.withdraw",
+          "ECDSA.recover",
+          "Address._revert",
+          "Address.functionCall",
+          "Address.functionCallWithValue",
+          "Address.functionDelegateCall",
+          "Address.functionStaticCall",
+          "Address.isContract",
+          "Address.verifyCallResult",
+          "Counters.current",
+          "Counters.decrement",
+          "Counters.increment",
+          "Counters.reset",
+          "DrawAccumulatorLib._computeTail",
+          "DrawAccumulatorLib.computeC",
+          "DrawAccumulatorLib.getTotalRemaining",
+          "DrawAccumulatorLib.integrate",
+          "DrawAccumulatorLib.integrateInf",
+          "DrawAccumulatorLib.newestDrawId",
+          "DrawAccumulatorLib.newestObservation",
+          "DrawAccumulatorLib.readDrawIds",
+          "ECDSA._throwError",
+          "ECDSA.toDataWithIntendedValidatorHash",
+          "ECDSA.toEthSignedMessageHash",
+          "ECDSA.toTypedDataHash",
+          "EIP712._hashTypedDataV4",
+          "ERC20._afterTokenTransfer",
+          "ERC20._beforeTokenTransfer",
+          "ERC20.allowance",
+          "ERC20.approve",
+          "ERC20.balanceOf",
+          "ERC20.increaseAllowance",
+          "ERC20.transfer",
+          "ERC20.transferFrom",
+          "ERC20Permit._useNonce",
+          "ERC20Permit.nonces",
+          "ERC4626._convertToAssets",
+          "ERC4626._convertToShares",
+          "ERC4626._deposit",
+          "ERC4626._tryGetAssetDecimals",
+          "ERC4626._withdraw",
+          "ERC4626.convertToAssets",
+          "ERC4626.convertToShares",
+          "ERC4626.maxDeposit",
+          "ERC4626.maxMint",
+          "ERC4626.maxRedeem",
+          "ERC4626.maxWithdraw",
+          "ERC4626.previewDeposit",
+          "ERC4626.previewMint",
+          "ERC4626.previewRedeem",
+          "ERC4626.previewWithdraw",
+          "IERC20.allowance",
+          "IERC20.approve",
+          "IERC20.balanceOf",
+          "IERC20.transfer",
+          "IERC20.transferFrom",
+          "IERC20Permit.nonces",
+          "IERC20Permit.permit",
+          "IERC4626.convertToAssets",
+          "IERC4626.convertToShares",
+          "IERC4626.deposit",
+          "IERC4626.maxDeposit",
+          "IERC4626.maxMint",
+          "IERC4626.maxRedeem",
+          "IERC4626.maxWithdraw",
+          "IERC4626.mint",
+          "IERC4626.previewDeposit",
+          "IERC4626.previewMint",
+          "IERC4626.previewRedeem",
+          "IERC4626.previewWithdraw",
+          "IERC4626.redeem",
+          "IERC4626.withdraw",
+          "ILiquidationSource.liquidatableBalanceOf",
+          "ILiquidationSource.liquidate",
+          "ILiquidationSource.targetOf",
+          "LiquidationPair._swap",
+          "LiquidationPair.computeExactAmountIn",
+          "LiquidationPair.computeExactAmountOut",
+          "Math.average",
+          "Math.ceilDiv",
+          "Math.log10",
+          "Math.log2",
+          "Math.log256",
+          "Math.max",
+          "Math.min",
+          "Math.mulDiv",
+          "Math.sqrt",
+          "OverflowSafeComparatorLib.lt",
+          "OverflowSafeComparatorLib.lte",
+          "Ownable._setOwner",
+          "PrizePool._checkValidTier",
+          "PrizePool._computeNextNumberOfTiers",
+          "PrizePool._contributionsForDraw",
+          "PrizePool._getVaultPortion",
+          "PrizePool._transfer",
+          "PrizePool.balanceOfClaimRewards",
+          "PrizePool.calculateTierTwabTimestamps",
+          "PrizePool.contributePrizeTokens",
+          "PrizePool.getContributedBetween",
+          "PrizePool.getTotalContributedBetween",
+          "PrizePool.getVaultPortion",
+          "PrizePool.getVaultUserBalanceAndTotalSupplyTwab",
+          "PrizePool.increaseReserve",
+          "PrizePool.isWinner",
+          "PrizePool.setDrawManager",
+          "PrizePool.wasClaimed",
+          "PrizePool.withdrawClaimRewards",
+          "PrizePool.withdrawReserve",
+          "RingBufferLib.newestIndex",
+          "RingBufferLib.nextIndex",
+          "RingBufferLib.offset",
+          "RingBufferLib.oldestIndex",
+          "RingBufferLib.prevIndex",
+          "RingBufferLib.wrap",
+          "SafeERC20._callOptionalReturn",
+          "SafeERC20._callOptionalReturnBool",
+          "SafeERC20.forceApprove",
+          "SafeERC20.safeIncreaseAllowance",
+          "SafeERC20.safePermit",
+          "SafeERC20.safeTransfer",
+          "SafeERC20.safeTransferFrom",
+          "ShortStrings.byteLength",
+          "ShortStrings.byteLengthWithFallback",
+          "ShortStrings.toShortString",
+          "ShortStrings.toShortStringWithFallback",
+          "ShortStrings.toString",
+          "ShortStrings.toStringWithFallback",
+          "SignedMath.abs",
+          "SignedMath.average",
+          "SignedMath.max",
+          "SignedMath.min",
+          "StorageSlot.getAddressSlot",
+          "StorageSlot.getBooleanSlot",
+          "StorageSlot.getBytes32Slot",
+          "StorageSlot.getBytesSlot",
+          "StorageSlot.getStringSlot",
+          "StorageSlot.getUint256Slot",
+          "Strings.equal",
+          "Strings.toHexString",
+          "Strings.toString",
+          "TierCalculationLib.calculatePseudoRandomNumber",
+          "TierCalculationLib.calculateWinningZone",
+          "TierCalculationLib.canaryPrizeCount",
+          "TierCalculationLib.estimatePrizeFrequencyInDraws",
+          "TierCalculationLib.getTierOdds",
+          "TierCalculationLib.isWinner",
+          "TierCalculationLib.prizeCount",
+          "TieredLiquidityDistributor._canaryPrizeCountFractional",
+          "TieredLiquidityDistributor._computePrizeSize",
+          "TieredLiquidityDistributor._computeShares",
+          "TieredLiquidityDistributor._estimatedPrizeCount",
+          "TieredLiquidityDistributor._getTierLiquidityToReclaim",
+          "TieredLiquidityDistributor._getTierRemainingLiquidity",
+          "TieredLiquidityDistributor._getTotalShares",
+          "TieredLiquidityDistributor._isCanaryTier",
+          "TieredLiquidityDistributor._tierOdds",
+          "TieredLiquidityDistributor.canaryPrizeCount",
+          "TieredLiquidityDistributor.canaryPrizeCountFractional",
+          "TieredLiquidityDistributor.estimatedPrizeCount",
+          "TieredLiquidityDistributor.getTierOdds",
+          "TieredLiquidityDistributor.getTierPrizeCount",
+          "TieredLiquidityDistributor.getTierPrizeSize",
+          "TieredLiquidityDistributor.getTierRemainingLiquidity",
+          "TwabController._decreaseBalances",
+          "TwabController._decreaseTotalSupplyBalances",
+          "TwabController._delegateOf",
+          "TwabController._increaseBalances",
+          "TwabController._increaseTotalSupplyBalances",
+          "TwabController._transferBalance",
+          "TwabController._transferDelegateBalance",
+          "TwabController.balanceOf",
+          "TwabController.burn",
+          "TwabController.delegate",
+          "TwabController.delegateBalanceOf",
+          "TwabController.delegateOf",
+          "TwabController.getAccount",
+          "TwabController.getBalanceAt",
+          "TwabController.getNewestObservation",
+          "TwabController.getNewestTotalSupplyObservation",
+          "TwabController.getOldestObservation",
+          "TwabController.getOldestTotalSupplyObservation",
+          "TwabController.getTimestampPeriod",
+          "TwabController.getTotalSupplyAccount",
+          "TwabController.getTotalSupplyAt",
+          "TwabController.getTotalSupplyTwabBetween",
+          "TwabController.getTwabBetween",
+          "TwabController.isTimeRangeSafe",
+          "TwabController.isTimeSafe",
+          "TwabController.isTotalSupplyTimeRangeSafe",
+          "TwabController.isTotalSupplyTimeSafe",
+          "TwabController.mint",
+          "TwabController.sponsor",
+          "TwabController.totalSupply",
+          "TwabController.totalSupplyDelegateBalance",
+          "TwabController.transfer",
+          "TwabLib._calculateTemporaryObservation",
+          "TwabLib._extrapolateFromBalance",
+          "TwabLib._getSurroundingOrAtObservations",
+          "TwabLib._getTimestampPeriod",
+          "TwabLib._isTimeSafe",
+          "TwabLib.getBalanceAt",
+          "TwabLib.getNextOrNewestObservation",
+          "TwabLib.getOldestObservation",
+          "TwabLib.getPreviousOrAtObservation",
+          "TwabLib.getTimestampPeriod",
+          "TwabLib.getTwabBetween",
+          "TwabLib.isTimeRangeSafe",
+          "TwabLib.isTimeSafe",
+          "console2._castLogPayloadViewToPure",
+          "console2._sendLogPayload",
+          "console2._sendLogPayloadView",
+          "console2.log",
+          "console2.logAddress",
+          "console2.logBool",
+          "console2.logBytes",
+          "console2.logBytes1",
+          "console2.logBytes10",
+          "console2.logBytes11",
+          "console2.logBytes12",
+          "console2.logBytes13",
+          "console2.logBytes14",
+          "console2.logBytes15",
+          "console2.logBytes16",
+          "console2.logBytes17",
+          "console2.logBytes18",
+          "console2.logBytes19",
+          "console2.logBytes2",
+          "console2.logBytes20",
+          "console2.logBytes21",
+          "console2.logBytes22",
+          "console2.logBytes23",
+          "console2.logBytes24",
+          "console2.logBytes25",
+          "console2.logBytes26",
+          "console2.logBytes27",
+          "console2.logBytes28",
+          "console2.logBytes29",
+          "console2.logBytes3",
+          "console2.logBytes30",
+          "console2.logBytes31",
+          "console2.logBytes32",
+          "console2.logBytes4",
+          "console2.logBytes5",
+          "console2.logBytes6",
+          "console2.logBytes7",
+          "console2.logBytes8",
+          "console2.logBytes9",
+          "console2.logInt",
+          "console2.logString",
+          "console2.logUint"
+        ],
+        "prompt_char_estimate": 14590,
+        "max_bundles": 30
+      }
+    }
+  },
+  "z-ai/glm-5.2::9_tempo": {
+    "case_name": "9_tempo",
+    "model": "z-ai/glm-5.2",
+    "req_id": "req-2-signature-verification",
+    "expected": null,
+    "final_conformance_state": "INCONCLUSIVE",
+    "raw": {
+      "first_pass": {
+        "decision": "INSUFFICIENT_EVIDENCE",
+        "requirement_citations": [
+          "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+        ],
+        "evidence": [
+          {
+            "source": "TempoStreamChannel.close",
+            "location": "TempoStreamChannel.close",
+            "claim": "Uses ecrecover via _recoverSigner for signer and payerSigner; missing/uncertain protections include signer != address(0) and payerSigner != address(0), but the failure mechanism is conditional on address(0) being treated as authorized, which is not confirmed."
+          },
+          {
+            "source": "TempoStreamChannel.settle",
+            "location": "TempoStreamChannel.settle",
+            "claim": "Uses ecrecover via _recoverSigner for signer; missing/uncertain protection includes signer != address(0), but the failure mechanism is conditional and unconfirmed."
+          },
+          {
+            "source": "TempoStreamChannel._recoverSigner",
+            "location": "TempoStreamChannel._recoverSigner",
+            "claim": "Existing protections are UNKNOWN -- result not assigned to a traceable named variable; the predicate explicitly states it cannot be determined and requires manual/semantic review."
+          }
+        ],
+        "reasoning_summary": "The evidence flags candidate concerns about ecrecover usage (missing address(0) checks) but explicitly labels protections as 'Missing/uncertain' or 'UNKNOWN' and describes failure mechanisms as conditional ('if address(0) is ever treated as authorized'). There is no confirmed evidence that address(0) is treated as an authorized signer, nor that the recovered address is not compared against an expected signer. The _recoverSigner wrapper's protections are explicitly unknown. Without confirming either that the verification is proper or that it is genuinely flawed, we cannot make a PASS or FAIL determination.",
+        "open_questions": [
+          "Is the result of ecrecover in _recoverSigner compared against a stored/expected signer address, and does that comparison reject address(0)?",
+          "Could address(0) ever match an authorized signer field in close() or settle()?",
+          "Does _recoverSigner or its callers perform any additional validation (e.g., requiring non-zero recovered address) not captured by the static analysis?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "DISAGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "e99bd4e2-a7ab-47e0-a076-41275c8c7409",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "1dc7b3386d97e41076465f114b6037d69d095d9e29cd183b48a13a519da206ea"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 3,
+          "total": 3,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "TempoStreamChannel.close",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.close"
+            },
+            {
+              "index": 1,
+              "location": "TempoStreamChannel.settle",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.settle"
+            },
+            {
+              "index": 2,
+              "location": "TempoStreamChannel._recoverSigner",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel._recoverSigner"
+            }
+          ]
+        }
+      },
+      "second_pass": {
+        "decision": "INCONCLUSIVE",
+        "requirement_citations": [
+          "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+        ],
+        "evidence": [
+          {
+            "source": "TempoStreamChannel.close",
+            "location": "TempoStreamChannel.close",
+            "claim": "Uses ecrecover via _recoverSigner for signer and payerSigner; missing/uncertain protections include signer != address(0) and payerSigner != address(0). Possible failure mechanism is conditional on address(0) being treated as authorized."
+          },
+          {
+            "source": "TempoStreamChannel.settle",
+            "location": "TempoStreamChannel.settle",
+            "claim": "Uses ecrecover via _recoverSigner for signer; missing/uncertain protection includes signer != address(0). Failure mechanism is conditional on address(0) being treated as authorized."
+          },
+          {
+            "source": "TempoStreamChannel._recoverSigner",
+            "location": "TempoStreamChannel._recoverSigner",
+            "claim": "Wraps ecrecover but existing protections are UNKNOWN \u2014 result not assigned to a traceable named variable; cannot determine adequacy from this predicate alone."
+          }
+        ],
+        "reasoning_summary": "The evidence confirms that ecrecover is used in the Tested Code for off-chain signature verification (close, settle, _recoverSigner), which is relevant to the requirement. However, the flagged missing protections (address(0) checks) are described as 'missing/uncertain' and the failure mechanisms are explicitly conditional ('if address(0) is ever treated as authorized'). For _recoverSigner, protections are marked UNKNOWN. There is no confirmed evidence that address(0) is actually treated as an authorized signer, nor is there confirmed evidence that the recovered signer is compared against an expected address. Therefore, the evidence is insufficient to determine whether the signature verification is genuinely improper (FAIL) or adequate (PASS).",
+        "open_questions": [
+          "Is the result of ecrecover in _recoverSigner compared against a stored/expected signer address, and is address(0) explicitly rejected?",
+          "Are signer and payerSigner fields initialized to non-zero values, and could address(0) ever match an authorized signer?",
+          "Does the close function validate both signer and payerSigner against expected values after recovery?"
+        ],
+        "confidence": "MEDIUM",
+        "second_pass_agreement": "DISAGREE",
+        "model_version": "z-ai/glm-5.2",
+        "prompt_version": "rtf-l8-v1",
+        "run_id": "f9fe5e4e-81fd-478d-9903-9d724be52639",
+        "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+        "judgment_config": {
+          "provider": "openrouter",
+          "model_id": "z-ai/glm-5.2",
+          "api_base_url": "https://openrouter.ai/api/v1",
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 4096,
+          "timeout_seconds": 120.0,
+          "retry_max_attempts": 5,
+          "retry_wait_multiplier": 1,
+          "retry_wait_min": 2,
+          "retry_wait_max": 30,
+          "prompt_version": "rtf-l8-v1",
+          "schema_version": "l8-judgment-schema-v2-with-config-metadata",
+          "cache_key": "1dc7b3386d97e41076465f114b6037d69d095d9e29cd183b48a13a519da206ea"
+        },
+        "citation_check": {
+          "valid": 0,
+          "invalid": 3,
+          "total": 3,
+          "validity_fraction": 0.0,
+          "details": [
+            {
+              "index": 0,
+              "location": "TempoStreamChannel.close",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.close"
+            },
+            {
+              "index": 1,
+              "location": "TempoStreamChannel.settle",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.settle"
+            },
+            {
+              "index": 2,
+              "location": "TempoStreamChannel._recoverSigner",
+              "ok": false,
+              "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel._recoverSigner"
+            }
+          ]
+        }
+      },
+      "agree": false,
+      "same_model": true,
+      "evidence_truncation": {
+        "ranking_enabled": true,
+        "raw_evidence_count": 5,
+        "deduped_evidence_count": 5,
+        "bundle_count": 3,
+        "bundles_included": 3,
+        "bundles_excluded": 0,
+        "excluded_locations": [],
+        "prompt_char_estimate": 1218,
+        "max_bundles": 30
+      }
+    }
+  }
+}

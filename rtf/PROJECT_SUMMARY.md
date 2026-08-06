@@ -383,12 +383,36 @@ the ranked-vs-flat comparison item 5 still requires can be run later.
 A real relative-vs-absolute-path bug was caught and fixed by this
 module's own real-data test before being trusted — see AR-015.
 
-**Still open (requires live LLM calls, not yet spent):** the actual
-ranked-vs-flat-list-vs-no-ranking comparison experiment against live L8
-judgments (rest of item 5); the 11-case LLM stability experiment (item
-6); the pre-registered model comparison (item 7); the second-pass
-design comparison (item 8); RTF version 3 freeze (item 10); and the
-ordered Tempo-then-PoolTogether rerun + final report (items 11-12).
+**Work items 6-7 (live stability experiment + model comparison,
+executed under a user-imposed $5 self-enforced spend cap — see
+`a4v/llm.py`'s new `cost_usd` tracking, total real spend $0.47):**
+pre-registered 9 cases x 2 models (`RTF_PHASE_H_LIVE_STABILITY_AND_
+MODEL_COMPARISON.md`). The first live run surfaced a second real bug —
+`build_evidence_bundles()` was burying a predicate's own concrete risk
+text under a hedged `limitations` field instead of the
+`possible_failure_mechanism` field meant for it, measurably making L8
+MORE uncertain on identical real evidence (confirmed via a live A/B
+re-test: `INSUFFICIENT_EVIDENCE`/LOW → `FAIL`/MEDIUM after the fix) —
+logged as AR-016 and fixed before the reported results. Also surfaced
+AR-017: citation validity is currently unmeasurable as designed
+(RTF's `Contract.function` location convention doesn't match
+`verify_evidence_citations()`'s file-path expectation — a pre-existing
+gap, not a model quality issue). Per the pre-registered decision rule,
+GLM does not win 3 of 4 criteria against GPT (tied 3/7 on raw case
+match, GPT wins agreement rate 9/9 vs 7/9, citation validity void) —
+**RTF's default L8 model stays `openai/gpt-5.1-codex-max`.** Confirmed
+live: the ranking fix solves evidence EXCLUSION (case 7, isolated
+`Vault._burn` evidence, now gets a live `FAIL`), but a real, narrower
+post-ranking DILUTION effect persists once the same evidence is
+surrounded by 29 other bundles (case 8 → `INSUFFICIENT_EVIDENCE`) —
+the originally-planned top-1/top-3/top-5-bundle-size comparison (item
+5) is the natural next experiment to isolate this.
+
+**Still open:** the top-1/top-3/top-5 bundle-size comparison (item 5,
+now motivated concretely by case 8's live result); the second-pass
+verifier-vs-independent design comparison (item 8); RTF version 3
+freeze (item 10); and the ordered Tempo-then-PoolTogether rerun + final
+report (items 11-12).
 
 ---
 
