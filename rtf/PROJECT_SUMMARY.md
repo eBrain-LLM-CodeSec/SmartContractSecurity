@@ -8,14 +8,19 @@ the **EEA EthTrust Security Levels Specification** (Version 3, Apache
 result afterward — never to define it. Full design rationale, revision
 history, and rejected alternatives: `/scratch/md5344/.claude/plans/ou-are-a-critical-purring-eich.md`.
 
-**Status as of 2026-08-06 (updated):** full 81-requirement corpus
-translated (applicability + strategy derivation); 57/81 requirements
-have at least one real, tested static predicate implemented; **the first
-frozen EVMbench evaluation has now been run** — a real orchestrator
-against a real target (2023-07-pooltogether), scored 1/2 by the real
-upstream `DetectGrader`. Still narrow in scope (1 of 46 real audits, L8
-not yet wired into the orchestrator — see "What has NOT been done"
-below) but no longer zero. Full audit: `rtf/AUDIT_L0_L12.md`. Full first-
+**Status as of 2026-08-06 (updated again — RTF v2 run 1):** full
+81-requirement corpus translated; 59/81 requirements have at least one
+real, tested static predicate implemented (57 + 2 new evidence-enrichment
+predicates this pass); L8 IS now wired into the orchestrator and
+gate-checked. **Real, external `DetectGrader` recall across the 2 audits
+evaluated so far: 3/3** (up from run 2's 1/3), driven by two new,
+general, text-grounded predicates built specifically to fix a repeated
+evidence-specificity gap run 2 found. Full latest report:
+`rtf/l12_evaluation/RTF_V2_RUN1_REPORT.md`. Still narrow in scope (2 of
+40 real audits; 3 more environment-blocked, though a real fix for that
+was validated this pass — see `ENVIRONMENT_INVESTIGATION.md`) — see
+"What has NOT been done" below. Full audit: `rtf/AUDIT_L0_L12.md`. Run 1
+(superseded, kept for history) and its report remain below. Full first-
 evaluation results and failure attribution:
 `rtf/l12_evaluation/FIRST_EVALUATION_RESULT.json`,
 `rtf/l12_evaluation/FAILURE_ATTRIBUTION_REPORT.md`.
@@ -207,10 +212,58 @@ project, logged with why it was unavoidable and its blast radius:
 | AR-009 | L12 | SUPERSEDED | Foundry can't install on this HPC node (GLIBC); solved via direct-solc compilation with recursive remapping collection |
 | AR-010 | L12 | SUPERSEDED | `target_localization_accuracy()` matched on contract name only, not function — caught by the first real evaluation run |
 | AR-011 | L5/L7 | SUPERSEDED | `find_unvalidated_function_parameters()` was public/external-only with no basis in the text — a real defect, not a derivation limit |
+| AR-012 | L10/L12 | OPEN | Version bump reason for RTF v2 (0.2.0-evidence-enrichment): evidence-format improvement based on run 2's repeated downstream judgment failure |
+| AR-013 | L8/L12 | SUPERSEDED | `judge_result()` silently trusted a first-pass verdict the second pass disagreed with — found live before v2 run 1 was archived |
 
 ---
 
-## RTF version 1, evaluation run 2 (latest — see `rtf/l12_evaluation/RTF_V1_RUN2_REPORT.md`)
+## RTF version 2, evaluation run 1 (latest — see `rtf/l12_evaluation/RTF_V2_RUN1_REPORT.md`)
+
+Built in direct response to run 2's own finding: L8 and the real
+`DetectGrader` both independently judged RTF's evidence correctly
+LOCALIZED but too generically PHRASED for a confident verdict, on two
+unrelated real audits. Built two new general, text-grounded predicates
+(`find_unsafe_narrowing_cast` for `req-3-all-valid-inputs`,
+`find_unchecked_ecrecover_result` for `req-2-signature-verification`),
+each producing structured evidence (exact operation, types, missing
+safety condition, risk) instead of a bare one-line summary, validated on
+13 fully synthetic (non-benchmark-named) test fixtures first.
+
+**Real, external `DetectGrader` score, run 2 → v2 run 1:**
+
+| Audit | Run 2 | v2 Run 1 |
+|---|---|---|
+| `2026-01-tempo-mpp-streams` (fresh exposure) | 0/1 | **1/1** |
+| `2023-07-pooltogether` (substantial exposure) | 1/2 | **2/2** |
+
+Every real, graded vulnerability across both audits is now correctly
+identified by the real external grader — not RTF's self-assessment. The
+grader's own reasoning explicitly cites the enriched evidence's specific
+fields as what made each match unambiguous.
+
+**Reported honestly, not smoothed over:** RTF's own final judgment
+(post-L8) recall stayed 0/2 on both audits. Tempo's signature-
+verification requirement got a first-pass FAIL, but the second,
+independent pass disagreed — a real bug (AR-013) was silently trusting
+the first pass regardless of disagreement; fixed to correctly downgrade
+to `INCONCLUSIVE` instead. PoolTogether's full-evidence-list run diluted
+the specific vulnerable-function signal enough that L8's verdict there
+differed from its isolated-evidence verdict — a genuine, separate
+"evidence volume vs. specificity" finding, distinct from the phrasing
+problem this run's predicates fixed. Full breakdown, including exactly
+which gaps remain open: `RTF_V2_RUN1_REPORT.md`.
+
+**Environment note:** while working on this, also validated a real fix
+for the 3 audits blocked by missing Foundry/Node.js on this HPC node —
+Singularity containers (already available here) sidestep the GLIBC
+issue entirely; confirmed via real `forge`/`node`/`npm` execution inside
+pulled containers. Not yet wired into a full end-to-end rerun of those 3
+audits — see `ENVIRONMENT_INVESTIGATION.md` for exactly what's confirmed
+vs. what remains.
+
+---
+
+## RTF version 1, evaluation run 2 (superseded by v2 run 1 above — kept for history, see `rtf/l12_evaluation/RTF_V1_RUN2_REPORT.md`)
 
 Run 1 (below) is now superseded by **run 2**: fixed AR-011 (a real
 implementation defect, confirmed using only the original EthTrust text,
