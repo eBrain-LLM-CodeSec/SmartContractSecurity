@@ -271,6 +271,36 @@ def test_reused_unchecked_call_detectors_for_check_return():
     check("reused unchecked-lowlevel: does not flag a checked .call() return", len(r_neg) == 0, r_neg)
 
 
+def test_block_data_usage_covers_prevrandao_gap():
+    # block.prevrandao is the exact gap found in Slither's own weak-prng
+    # detector (bad_prng.py only checks timestamp/now/blockhash) -- the
+    # case this predicate exists specifically to cover.
+    positive_prevrandao = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f() public view returns (uint) { return block.prevrandao; }
+    }
+    """
+    positive_timestamp_no_modulo = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f() public view returns (bool) { return block.timestamp > 1000; }
+    }
+    """
+    negative = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f(uint x) public pure returns (uint) { return x + 1; }
+    }
+    """
+    r_prevrandao = P.find_block_data_usage(_write_and_compile(positive_prevrandao), "req-2-random-enough")
+    r_ts_no_mod = P.find_block_data_usage(_write_and_compile(positive_timestamp_no_modulo), "req-2-random-enough")
+    r_neg = P.find_block_data_usage(_write_and_compile(negative), "req-2-random-enough")
+    check("block_data: flags block.prevrandao (Slither's own weak-prng detector misses this entirely)", len(r_prevrandao) == 1, r_prevrandao)
+    check("block_data: flags block.timestamp even WITHOUT a modulo op (weak-prng only checks modulo usage)", len(r_ts_no_mod) == 1, r_ts_no_mod)
+    check("block_data: does not flag code with no block-data reads", len(r_neg) == 0, r_neg)
+
+
 def test_udvt_narrower_than_32_bytes():
     positive = "pragma solidity ^0.8.20;\ntype Foo is uint96;\ncontract C {}"
     negative = "pragma solidity ^0.8.20;\ntype Foo is uint256;\ncontract C {}"
@@ -364,6 +394,7 @@ def main() -> int:
         test_unicode_direction_control_chars,
         test_reused_assembly_detector_for_no_assembly,
         test_reused_unchecked_call_detectors_for_check_return,
+        test_block_data_usage_covers_prevrandao_gap,
         test_udvt_narrower_than_32_bytes,
         test_state_write_without_event,
         test_non_exact_pragma,

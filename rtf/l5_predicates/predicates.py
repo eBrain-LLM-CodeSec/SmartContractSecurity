@@ -303,6 +303,35 @@ def find_non_exact_pragma(slither: Slither, req_id: str = "req-3-consistent-soli
     return findings
 
 
+BLOCK_DATA_SOLIDITY_VAR_NAMES = {"block.timestamp", "now", "block.number", "block.prevrandao", "block.difficulty"}
+
+
+def find_block_data_usage(slither: Slither, req_id: str) -> list[dict]:
+    """req-2-random-enough (M) and req-2-block-data-misuse (M) share this
+    trigger per their L6 records. Deliberately broader than Slither's own
+    `weak-prng` detector, which -- per direct inspection of bad_prng.py --
+    only fires on a MODULO operation whose operand depends on
+    block.timestamp/now/blockhash(), and never checks block.difficulty/
+    block.prevrandao at all (arguably THE most-cited post-merge weak-
+    randomness source, per that requirement's own L6 record) nor any
+    non-modulo usage. This predicate flags ANY read of block.timestamp,
+    now, block.number, block.prevrandao, or block.difficulty, regardless
+    of how the value is subsequently used -- a text-grounded, deliberately
+    over-inclusive trigger (both requirements' own applicability_rule
+    notes these values are only a CONCERN, not automatically a violation
+    -- the semantic condition, not built here, is where that judgment
+    belongs).
+    """
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                for v in node.solidity_variables_read:
+                    if v.name in BLOCK_DATA_SOLIDITY_VAR_NAMES:
+                        findings.append({"req_id": req_id, "location": f"{contract.name}.{func.name}", "detail": f"reads {v.name}"})
+    return findings
+
+
 def find_unicode_direction_control_chars(sol_source_paths: list[Path], req_id: str = "req-1-unicode-bdo") -> list[dict]:
     """req-1-unicode-bdo (S): 'MUST NOT contain any of the Unicode
     Direction Control Characters U+2066, U+2067, U+2068, U+2029, U+202A,

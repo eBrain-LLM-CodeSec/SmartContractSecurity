@@ -2,5 +2,11 @@
   "req_id": "req-2-random-enough",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Slither's weak-prng detector (bad_prng.py, read in full) is a real but NARROW match: only flags a MODULO operation whose operand depends on block.timestamp/now/blockhash(). It does NOT check block.difficulty/block.prevrandao at all (arguably the most commonly-cited weak-randomness source in post-merge Solidity) nor non-modulo uses of these values (e.g. as a keccak256 seed, or a direct threshold comparison). A real, substantial scope gap -- logged as PARTIAL_MATCH-equivalent for this trigger component, not full coverage.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_COMPONENT_IMPLEMENTED_AND_TESTED_SEMANTIC_CONDITION_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: find_block_data_usage()",
+    "test": "rtf/l5_predicates/test_predicates.py -- specifically verified it catches block.prevrandao (the exact gap found in Slither's own weak-prng detector) and non-modulo timestamp usage",
+    "note": "Only the deterministic trigger (any read of block.timestamp/now/block.number/block.prevrandao/block.difficulty) is implemented -- the semantic condition ('is this sufficiently resistant to prediction' / 'does this introduce MEV risk') requires L8 LLM Judgment Layer execution against real code, not yet run."
+  }
 }
