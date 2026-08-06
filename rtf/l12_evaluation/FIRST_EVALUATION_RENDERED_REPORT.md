@@ -1,0 +1,146 @@
+# RTF Static-Analysis Findings Report
+
+Auto-generated from RTF's L1-L7 static predicate evidence (no L8 semantic judgment applied). Report includes the two requirements with a real EVMbench correspondence mapping for this target.
+
+## Enforce Least Privilege (EthTrust req-3-access-control)
+
+The following state-mutating functions are callable by anyone (no access-control modifier or msg.sender check detected):
+
+- `ERC20.transfer`
+- `ERC20.approve`
+- `ERC20.transferFrom`
+- `ERC20.increaseAllowance`
+- `ERC20.decreaseAllowance`
+- `ERC20Permit.permit`
+- `ERC4626.deposit`
+- `ERC4626.mint`
+- `ERC4626.withdraw`
+- `ERC4626.redeem`
+- `LiquidationPair.swapExactAmountIn`
+- `LiquidationPair.swapExactAmountOut`
+- `PrizePool.setDrawManager`
+- `PrizePool.withdrawClaimRewards`
+- `PrizePool.increaseReserve`
+- `Vault.mintYieldFee`
+- `Vault.setHooks`
+
+## Process All Inputs (EthTrust req-3-all-valid-inputs)
+
+The following functions have parameters never referenced in any `require()`/`assert()` call (no input validation detected):
+
+- `IERC4626.convertToShares`: parameters ['assets']
+- `IERC4626.convertToAssets`: parameters ['shares']
+- `IERC4626.maxDeposit`: parameters ['receiver']
+- `IERC4626.previewDeposit`: parameters ['assets']
+- `IERC4626.deposit`: parameters ['assets', 'receiver']
+- `IERC4626.maxMint`: parameters ['receiver']
+- `IERC4626.previewMint`: parameters ['shares']
+- `IERC4626.mint`: parameters ['receiver', 'shares']
+- `IERC4626.maxWithdraw`: parameters ['owner']
+- `IERC4626.previewWithdraw`: parameters ['assets']
+- `IERC4626.withdraw`: parameters ['assets', 'owner', 'receiver']
+- `IERC4626.maxRedeem`: parameters ['owner']
+- `IERC4626.previewRedeem`: parameters ['shares']
+- `IERC4626.redeem`: parameters ['owner', 'receiver', 'shares']
+- `ERC20.balanceOf`: parameters ['account']
+- `ERC20.transfer`: parameters ['amount', 'to']
+- `ERC20.allowance`: parameters ['owner', 'spender']
+- `ERC20.approve`: parameters ['amount', 'spender']
+- `ERC20.transferFrom`: parameters ['amount', 'from', 'to']
+- `ERC20.increaseAllowance`: parameters ['addedValue', 'spender']
+- `IERC20.balanceOf`: parameters ['account']
+- `IERC20.transfer`: parameters ['amount', 'to']
+- `IERC20.allowance`: parameters ['owner', 'spender']
+- `IERC20.approve`: parameters ['amount', 'spender']
+- `IERC20.transferFrom`: parameters ['amount', 'from', 'to']
+- `ERC20Permit.nonces`: parameters ['owner']
+- `ERC4626.convertToShares`: parameters ['assets']
+- `ERC4626.convertToAssets`: parameters ['shares']
+- `ERC4626.maxDeposit`: parameters ['']
+- `ERC4626.maxMint`: parameters ['']
+- `ERC4626.maxWithdraw`: parameters ['owner']
+- `ERC4626.maxRedeem`: parameters ['owner']
+- `ERC4626.previewDeposit`: parameters ['assets']
+- `ERC4626.previewMint`: parameters ['shares']
+- `ERC4626.previewWithdraw`: parameters ['assets']
+- `ERC4626.previewRedeem`: parameters ['shares']
+- `IERC20Permit.permit`: parameters ['deadline', 'owner', 'r', 's', 'spender', 'v', 'value']
+- `IERC20Permit.nonces`: parameters ['owner']
+- `LiquidationPair.computeExactAmountIn`: parameters ['_amountOut']
+- `LiquidationPair.computeExactAmountOut`: parameters ['_amountIn']
+- `ILiquidationSource.liquidatableBalanceOf`: parameters ['tokenOut']
+- `ILiquidationSource.liquidate`: parameters ['account', 'amountIn', 'amountOut', 'tokenIn', 'tokenOut']
+- `ILiquidationSource.targetOf`: parameters ['tokenIn']
+- `TwabController.getAccount`: parameters ['user', 'vault']
+- `TwabController.getTotalSupplyAccount`: parameters ['vault']
+- `TwabController.balanceOf`: parameters ['user', 'vault']
+- `TwabController.totalSupply`: parameters ['vault']
+- `TwabController.totalSupplyDelegateBalance`: parameters ['vault']
+- `TwabController.delegateOf`: parameters ['user', 'vault']
+- `TwabController.delegateBalanceOf`: parameters ['user', 'vault']
+- `TwabController.getBalanceAt`: parameters ['targetTime', 'user', 'vault']
+- `TwabController.getTotalSupplyAt`: parameters ['targetTime', 'vault']
+- `TwabController.getTwabBetween`: parameters ['endTime', 'startTime', 'user', 'vault']
+- `TwabController.getTotalSupplyTwabBetween`: parameters ['endTime', 'startTime', 'vault']
+- `TwabController.getNewestObservation`: parameters ['user', 'vault']
+- `TwabController.getOldestObservation`: parameters ['user', 'vault']
+- `TwabController.getNewestTotalSupplyObservation`: parameters ['vault']
+- `TwabController.getOldestTotalSupplyObservation`: parameters ['vault']
+- `TwabController.getTimestampPeriod`: parameters ['time']
+- `TwabController.isTimeSafe`: parameters ['time', 'user', 'vault']
+- `TwabController.isTimeRangeSafe`: parameters ['endTime', 'startTime', 'user', 'vault']
+- `TwabController.isTotalSupplyTimeSafe`: parameters ['time', 'vault']
+- `TwabController.isTotalSupplyTimeRangeSafe`: parameters ['endTime', 'startTime', 'vault']
+- `TwabController.mint`: parameters ['_amount', '_to']
+- `TwabController.burn`: parameters ['_amount', '_from']
+- `TwabController.transfer`: parameters ['_amount', '_from', '_to']
+- `TwabController.delegate`: parameters ['_to', '_vault']
+- `TwabController.sponsor`: parameters ['_from']
+- `PrizePool.setDrawManager`: parameters ['_drawManager']
+- `PrizePool.contributePrizeTokens`: parameters ['_amount', '_prizeVault']
+- `PrizePool.withdrawReserve`: parameters ['_amount', '_to']
+- `PrizePool.closeDraw`: parameters ['winningRandomNumber_']
+- `PrizePool.claimPrize`: parameters ['_fee', '_feeRecipient', '_prizeIndex', '_prizeRecipient', '_tier', '_winner']
+- `PrizePool.withdrawClaimRewards`: parameters ['_amount', '_to']
+- `PrizePool.increaseReserve`: parameters ['_amount']
+- `PrizePool.getTotalContributedBetween`: parameters ['_endDrawIdInclusive', '_startDrawIdInclusive']
+- `PrizePool.getContributedBetween`: parameters ['_endDrawIdInclusive', '_startDrawIdInclusive', '_vault']
+- `PrizePool.getTierAccrualDurationInDraws`: parameters ['_tier']
+- `PrizePool.wasClaimed`: parameters ['_prizeIndex', '_tier', '_vault', '_winner']
+- `PrizePool.balanceOfClaimRewards`: parameters ['_claimer']
+- `PrizePool.isWinner`: parameters ['_prizeIndex', '_tier', '_user', '_vault']
+- `PrizePool.calculateTierTwabTimestamps`: parameters ['_tier']
+- `PrizePool.getVaultUserBalanceAndTotalSupplyTwab`: parameters ['_drawDuration', '_user', '_vault']
+- `PrizePool.getVaultPortion`: parameters ['_endDrawId', '_startDrawId', '_vault']
+- `TieredLiquidityDistributor.getTierPrizeSize`: parameters ['_tier']
+- `TieredLiquidityDistributor.getTierPrizeCount`: parameters ['_tier']
+- `TieredLiquidityDistributor.getTierPrizeCount`: parameters ['_numberOfTiers', '_tier']
+- `TieredLiquidityDistributor.getTierRemainingLiquidity`: parameters ['_tier']
+- `TieredLiquidityDistributor.estimatedPrizeCount`: parameters ['numTiers']
+- `TieredLiquidityDistributor.canaryPrizeCountFractional`: parameters ['numTiers']
+- `TieredLiquidityDistributor.canaryPrizeCount`: parameters ['_numTiers']
+- `TieredLiquidityDistributor.getTierOdds`: parameters ['_numTiers', '_tier']
+- `Vault.balanceOf`: parameters ['_account']
+- `Vault.maxDeposit`: parameters ['']
+- `Vault.maxMint`: parameters ['']
+- `Vault.mintYieldFee`: parameters ['_recipient', '_shares']
+- `Vault.deposit`: parameters ['_assets', '_receiver']
+- `Vault.depositWithPermit`: parameters ['_assets', '_deadline', '_r', '_receiver', '_s', '_v']
+- `Vault.mint`: parameters ['_receiver', '_shares']
+- `Vault.mintWithPermit`: parameters ['_deadline', '_r', '_receiver', '_s', '_shares', '_v']
+- `Vault.sponsor`: parameters ['_assets', '_receiver']
+- `Vault.sponsorWithPermit`: parameters ['_assets', '_deadline', '_r', '_receiver', '_s', '_v']
+- `Vault.withdraw`: parameters ['_assets', '_owner', '_receiver']
+- `Vault.redeem`: parameters ['_owner', '_receiver', '_shares']
+- `Vault.liquidatableBalanceOf`: parameters ['_token']
+- `Vault.liquidate`: parameters ['_account', '_amountIn', '_amountOut', '_tokenIn', '_tokenOut']
+- `Vault.targetOf`: parameters ['_token']
+- `Vault.claimPrizes`: parameters ['_feePerClaim', '_feeRecipient', '_prizeIndices', '_tier', '_winners']
+- `Vault.setClaimer`: parameters ['claimer_']
+- `Vault.setHooks`: parameters ['hooks']
+- `Vault.setLiquidationPair`: parameters ['liquidationPair_']
+- `Vault.setYieldFeePercentage`: parameters ['yieldFeePercentage_']
+- `Vault.setYieldFeeRecipient`: parameters ['yieldFeeRecipient_']
+- `Vault.getHooks`: parameters ['_account']
+- `IVaultHooks.beforeClaimPrize`: parameters ['prizeIndex', 'tier', 'winner']
+- `IVaultHooks.afterClaimPrize`: parameters ['payout', 'prizeIndex', 'recipient', 'tier', 'winner']

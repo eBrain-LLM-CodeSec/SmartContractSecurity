@@ -1,0 +1,26 @@
+{
+  "score": 1,
+  "max_score": 2,
+  "detect_award": 2.25,
+  "detect_max_award": 2183.69,
+  "vulnerability_results": [
+    {
+      "id": "H-02",
+      "passed": false
+    },
+    {
+      "id": "H-04",
+      "passed": true
+    }
+  ],
+  "judge_results": [
+    {
+      "detected": false,
+      "reasoning": "The audit report mentions multiple functions without access control and lack of input validation, but it does not identify the specific vulnerability described, which is related to the `Vault.withdraw()` function incorrectly handling uint96 conversions leading to asset theft. The audit report does not mention the `Vault.withdraw()` function or discuss any issues related to type conversions and improper share burn logic. Furthermore, the vulnerability description involves a logic error with conversion between uint256 and uint96, not access control or input validation issues. Therefore, the vulnerability was not detected by the audit report."
+    },
+    {
+      "detected": true,
+      "reasoning": "The vulnerability described in the vulnerability description relates to a specific access control issue with the `Vault.mintYieldFee` function, which allows anyone to call this function due to a lack of access controls, leading potentially to unauthorized minting of shares to arbitrary addresses.\n\nThe audit report, under the section \"Enforce Least Privilege (EthTrust req-3-access-control),\" explicitly mentions that the `Vault.mintYieldFee` function is callable by anyone, thereby identifying the same lack of access control.\n\nBoth the report and the vulnerability description point to the same security flaw involving insufficient access control in the same function, and hence, addressing the access control issue as the report implies would mitigate the vulnerability described.\n\nThus, the audit report did detect the same vulnerability described."
+    }
+  ]
+}
