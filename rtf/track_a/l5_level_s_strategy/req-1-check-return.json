@@ -3,5 +3,11 @@
   "status": "PARTIAL_STRATEGY",
   "note": "Two-component reuse (unchecked-lowlevel + unchecked-send) covers the bulk of cases; the state-variable-storage loophole is a known, documented gap requiring a stricter custom predicate if full precision is needed later.",
   "override_note": "Excepted by req-2-handle-return (M).",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_COMPONENT_IMPLEMENTED_AND_TESTED_STATE_VAR_LOOPHOLE_UNCLOSED",
+    "code": "rtf/l5_predicates/predicates.py :: run_reused_slither_detector(slither, [UncheckedLowLevel, UncheckedSend], req_id)",
+    "test": "rtf/l5_predicates/test_predicates.py",
+    "note": "Both reused detectors (covering call/delegatecall/staticcall via UncheckedLowLevel, send via UncheckedSend) are implemented and tested. The documented state-variable-storage loophole (a return value stored but never branched on is treated as 'checked' by Slither's own heuristic) remains open -- a stricter custom predicate to close it is not yet built."
+  }
 }

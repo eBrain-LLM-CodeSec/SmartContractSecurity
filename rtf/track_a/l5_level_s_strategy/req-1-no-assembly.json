@@ -3,5 +3,11 @@
   "component_note": "Component 1 (reusable, high confidence): assembly detector as evidence_collector for presence. Component 2 (not yet built, and substantial): resolving whether ANY of the 6 overriding requirements + 1 external predecessor is satisfied -- this Set is the largest of any requirement in the corpus so far, and req-1-no-assembly's real conformance determination will require composing evidence from all of them, a genuinely bigger undertaking than most S requirements.",
   "status": "PARTIAL_STRATEGY",
   "override_note": null,
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_COMPONENT_IMPLEMENTED_AND_TESTED_OVERRIDE_SET_STILL_UNRESOLVED",
+    "code": "rtf/l5_predicates/predicates.py :: run_reused_slither_detector(slither, [Assembly], req_id)",
+    "test": "rtf/l5_predicates/test_predicates.py",
+    "note": "The presence trigger (Slither's own `assembly` detector, reused directly as this record's own analysis already established) is implemented and tested. The larger unresolved piece -- resolving whether ANY of this requirement's 6 named overriding requirements + 1 external predecessor reference applies -- remains unbuilt, as already documented in this record's component notes."
+  }
 }

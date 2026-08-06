@@ -216,6 +216,61 @@ def test_unicode_direction_control_chars():
         check("unicode_bdo: does not flag clean source", len(r_neg) == 0, r_neg)
 
 
+def test_reused_assembly_detector_for_no_assembly():
+    from slither.detectors.statements.assembly import Assembly
+
+    positive = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f() public pure returns (uint x) {
+            assembly { x := 1 }
+        }
+    }
+    """
+    negative = "pragma solidity ^0.8.20;\ncontract C { function f() public pure returns (uint) { return 1; } }"
+    r_pos = P.run_reused_slither_detector(_write_and_compile(positive), [Assembly], "req-1-no-assembly")
+    r_neg = P.run_reused_slither_detector(_write_and_compile(negative), [Assembly], "req-1-no-assembly")
+    check("reused assembly detector: flags inline assembly (mere presence)", len(r_pos) == 1, r_pos)
+    check("reused assembly detector: does not flag assembly-free code", len(r_neg) == 0, r_neg)
+
+
+def test_reused_unchecked_call_detectors_for_check_return():
+    from slither.detectors.operations.unchecked_low_level_return_values import UncheckedLowLevel
+    from slither.detectors.operations.unchecked_send_return_value import UncheckedSend
+
+    positive_call = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f(address target) public {
+            target.call("");
+        }
+    }
+    """
+    positive_send = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f(address payable target) public {
+            target.send(1 ether);
+        }
+    }
+    """
+    negative = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f(address target) public {
+            (bool ok, ) = target.call("");
+            require(ok);
+        }
+    }
+    """
+    r_call = P.run_reused_slither_detector(_write_and_compile(positive_call), [UncheckedLowLevel], "req-1-check-return")
+    r_send = P.run_reused_slither_detector(_write_and_compile(positive_send), [UncheckedSend], "req-1-check-return")
+    r_neg = P.run_reused_slither_detector(_write_and_compile(negative), [UncheckedLowLevel], "req-1-check-return")
+    check("reused unchecked-lowlevel: flags an unchecked .call() return", len(r_call) == 1, r_call)
+    check("reused unchecked-send: flags an unchecked .send() return", len(r_send) == 1, r_send)
+    check("reused unchecked-lowlevel: does not flag a checked .call() return", len(r_neg) == 0, r_neg)
+
+
 def test_udvt_narrower_than_32_bytes():
     positive = "pragma solidity ^0.8.20;\ntype Foo is uint96;\ncontract C {}"
     negative = "pragma solidity ^0.8.20;\ntype Foo is uint256;\ncontract C {}"
@@ -307,6 +362,8 @@ def main() -> int:
         test_exact_native_balance_check,
         test_encode_packed_untainted,
         test_unicode_direction_control_chars,
+        test_reused_assembly_detector_for_no_assembly,
+        test_reused_unchecked_call_detectors_for_check_return,
         test_udvt_narrower_than_32_bytes,
         test_state_write_without_event,
         test_non_exact_pragma,

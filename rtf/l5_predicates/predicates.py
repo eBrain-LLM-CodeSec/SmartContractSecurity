@@ -58,6 +58,28 @@ def check_compiler_version_floor(slither: Slither, req_id: str, floor: str) -> l
     return []
 
 
+def run_reused_slither_detector(slither: Slither, detector_classes: list, req_id: str) -> list[dict]:
+    """Generic wrapper for the EXACT_MATCH/PARTIAL_MATCH-as-evidence-
+    collector components that reuse an existing Slither detector directly
+    (per that requirement's own L4 record), rather than deriving a custom
+    predicate -- e.g. req-1-no-assembly reuses Slither's own `assembly`
+    detector as-is (a genuine mere-presence check, per that record's own
+    analysis), and req-1-check-return reuses `unchecked-lowlevel` +
+    `unchecked-send` together. Registers the given detector class(es) on
+    a FRESH copy of the compiled target and runs them via Slither's own
+    public API (register_detector/run_detectors), not by reimplementing
+    their logic.
+    """
+    for cls in detector_classes:
+        slither.register_detector(cls)
+    raw_results = slither.run_detectors()
+    findings = []
+    for detector_results in raw_results:
+        for r in detector_results:
+            findings.append({"req_id": req_id, "location": r.get("check", "?"), "detail": r.get("description", "").strip()})
+    return findings
+
+
 def check_compiler_version_exact(slither: Slither, req_id: str, exact: str) -> list[dict]:
     """req-1-compiler-sol-2021-4 (S) conformance component: 'MUST NOT use
     Solidity compiler version 0.8.8' -- a single named version, not a
