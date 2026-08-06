@@ -115,8 +115,16 @@ def test_target_localization_accuracy():
     run_no_evidence = TargetRunResult(audit_id="a", routed={
         "req-A": _result("req-A", ApplicabilityState.APPLICABLE, evidence=[]),
     })
+    # Regression case for a REAL bug this project's own first evaluation run
+    # caught: evidence in the SAME contract but a DIFFERENT function must be
+    # a MISS, not a hit -- an earlier version of this metric compared only
+    # the contract-name prefix and would have wrongly scored this as a match.
+    run_same_contract_wrong_function = TargetRunResult(audit_id="a", routed={
+        "req-A": _result("req-A", ApplicabilityState.APPLICABLE, evidence=[EvidenceItem("pred", "Vault.withdraw")]),
+    })
     check("localization: matching contract/function location counts as a hit", target_localization_accuracy(run_correct, findings) == (1, 1), target_localization_accuracy(run_correct, findings))
     check("localization: non-matching location counts as a miss", target_localization_accuracy(run_wrong, findings) == (0, 1), target_localization_accuracy(run_wrong, findings))
+    check("localization: SAME contract but a DIFFERENT function is a miss, not a hit", target_localization_accuracy(run_same_contract_wrong_function, findings) == (0, 1), target_localization_accuracy(run_same_contract_wrong_function, findings))
     check("localization: no evidence at all is EXCLUDED from the denominator, not a miss", target_localization_accuracy(run_no_evidence, findings) == (0, 0), target_localization_accuracy(run_no_evidence, findings))
 
 

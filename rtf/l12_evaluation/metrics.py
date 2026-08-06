@@ -145,6 +145,18 @@ def target_localization_accuracy(run: TargetRunResult, findings: list[GroundTrut
     excluded from this metric's denominator, not counted as a
     localization miss -- conflating the two would blame localization for
     an evidence-collection failure.
+
+    Matches on the FULL location string ("Contract.function"), not just
+    the contract name -- a real bug caught by this project's own first
+    real evaluation run: an earlier version of this function compared
+    only the substring before the first '.', which trivially "matched"
+    any evidence anywhere in the same contract file as the ground truth,
+    regardless of which function it was actually in. For a real target
+    where every candidate location lives in one file (e.g. a single
+    `Vault.sol`), that earlier version silently reported 100% accuracy
+    even when the evidence pointed at a completely different function
+    than the real bug -- exactly the false-confidence failure mode this
+    metric exists to catch, not produce.
     """
     hit = 0
     total = 0
@@ -157,9 +169,9 @@ def target_localization_accuracy(run: TargetRunResult, findings: list[GroundTrut
             if r is None or not r.evidence:
                 continue  # no evidence collected -- excluded, not a localization miss
             total += 1
-            gt_tokens = {loc.split(".")[0].lower() for loc in f.ground_truth_locations}
-            ev_tokens = {e.location.split(".")[0].lower() for e in r.evidence}
-            if gt_tokens & ev_tokens:
+            gt_locations = {loc.lower() for loc in f.ground_truth_locations}
+            ev_locations = {e.location.lower() for e in r.evidence}
+            if gt_locations & ev_locations:
                 hit += 1
     return (hit, total)
 
