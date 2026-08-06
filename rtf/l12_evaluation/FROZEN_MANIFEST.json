@@ -1,7 +1,7 @@
 {
-  "framework_version": "0.1.0-track-a",
-  "git_commit": "95c4f880cb5dc43565271a472bdb69f77af4ec5f",
-  "timestamp": "2026-08-06T15:36:35Z",
+  "framework_version": "0.2.0-evidence-enrichment",
+  "git_commit": "8f7f54272ec76c6cd92e6c90290cac765a66d976",
+  "timestamp": "2026-08-06T18:52:55Z",
   "freeze_items": {
     "1_spec_snapshot": {
       "path": "standards/ethtrust/ethtrust-sl.raw.html",
@@ -33,7 +33,7 @@
     },
     "7_custom_predicates": {
       "path": "rtf/l5_predicates/predicates.py",
-      "sha256": "46b87bf5c94b5fb1e4198b7f4edfe94a1e837f1cc7bac44e1d13d52cd64e8ee0"
+      "sha256": "fbe8f0a970da6777506b02a7334f31c59e87c58cd53ef608df44980c8dd6cb4f"
     },
     "8_llm_prompt_schema_model": {
       "path": "rtf/l8_llm_judgment_layer",
@@ -47,17 +47,17 @@
     },
     "10_q_level_review_schema": {
       "path": "rtf/track_a/l7_level_q_evidence",
-      "sha256": "78934a707d443943c6305c1404ee4ff103794afbce572047ff8da6a05725db8c",
+      "sha256": "897da2104e4d033c49be5a8c5b434007e30637e0f101b8b993f08a3db9c77234",
       "file_count": 24,
       "schema_sha256": "7d1f444c164d527fe3fadddeeccd63dbfabfa8c0d1d05b26697a0d647cd14ca7"
     },
     "11_evmbench_correspondence": {
       "path": "rtf/l11_correspondence/correspondence_mapping.json",
-      "sha256": "7f1591e898c8f137dbee4b4f0b6819be2641bc29775c2ef1bba9c1580ba6d3e4"
+      "sha256": "a87f5b9435bd4aa0e5ff8f82c86ab01e7d32b6bd66c17ea89b36289eb636147b"
     },
     "12_evaluation_metric_definitions": {
       "path": "rtf/l12_evaluation/metrics.py",
-      "sha256": "eae9b4d54441bb7965753f092efc9928147d48641681257e032b5073e628246b"
+      "sha256": "d504b9f0af26413ea9f63622002217dee2ab1d6b4adadb2fb83b3833e5fb5abe"
     }
   }
 }
