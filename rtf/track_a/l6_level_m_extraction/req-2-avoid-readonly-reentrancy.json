@@ -2,5 +2,11 @@
   "req_id": "req-2-avoid-readonly-reentrancy",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Trigger: a view/pure function reading state that a separate, non-view function can mutate mid-reentrancy (the classic read-only-reentrancy shape) -- a real but nontrivial cross-function analysis, not a simple syntactic scan; not yet evaluated against Slither's IR for feasibility (Slither has no dedicated read-only-reentrancy detector, confirmed absent from the earlier full detector-list review). Semantic condition: is the exposed stale-state read actually exploitable/consequential.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_IMPLEMENTED_AND_TESTED_SEMANTIC_CONDITION_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: find_readonly_reentrancy_candidates()",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_readonly_reentrancy_candidates() -- stale-view-reads-stale-var, correct-CEI-order (not flagged), and view-reads-unrelated-var (not flagged) fixtures, verified 2026-08-06",
+    "note": "Confirms this cross-function correlation IS mechanically tractable against Slither's real IR, resolving the classification_rationale's open feasibility question. Reuses find_state_write_after_external_call()'s own CFG-reachability technique (node.sons via _reachable_nodes) to identify which state variables a function writes AFTER an external call, then correlates against every externally-reachable view/pure function's state_variables_read (via Function.all_state_variables_read()) in the same contract. Deliberately structural/evidence-only: flags the PRECONDITION (a stale-readable view function exists), not whether any real external protocol actually depends on that view function's return value in a way that would be deceived -- that consequentiality judgment is this requirement's own semantic condition, not attempted here."
+  }
 }

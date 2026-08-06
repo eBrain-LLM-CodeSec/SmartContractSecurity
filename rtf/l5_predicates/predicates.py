@@ -909,3 +909,67 @@ def find_unsafe_assembly_variable_write(slither: Slither, req_id: str = "req-2-s
                         "detail": f"sstore() with computed/non-.slot storage slot expression '{slot_expr}' -- ambiguous: matches both the collision-risk pattern and the well-known safe unstructured-storage constant pattern, evidence only",
                     })
     return findings
+
+
+def find_readonly_reentrancy_candidates(slither: Slither, req_id: str = "req-2-avoid-readonly-reentrancy") -> list[dict]:
+    """req-2-avoid-readonly-reentrancy (M): 'Tested Code that makes
+    external calls MUST protect itself against Read-only Re-entrancy
+    Attacks' -- defined in this requirement's own context bundle: 'arises
+    when a view function reads a state that will subsequently be
+    changed'. Per this requirement's own L6 record, the trigger is a
+    genuinely cross-function correlation (not a single-function scan):
+    (1) some function writes a state variable AFTER an external call
+    (the classic CEI-ordering shape, reusing the exact same CFG-
+    reachability technique as `find_state_write_after_external_call` --
+    that predicate's own req-1-use-c-e-i/req-2-external-calls records),
+    AND (2) a SEPARATE externally-reachable `view`/`pure` function in the
+    SAME contract reads that same state variable. During the reentrant
+    window opened by (1)'s external call -- before its post-call write
+    executes -- a caller of (2) observes a stale value, exactly the
+    attack the definition names.
+
+    DETERMINISTIC_EVIDENCE_ONLY: this predicate identifies the STRUCTURAL
+    precondition (a stale-readable view function exists) -- it does not
+    determine whether the stale read is actually consequential (e.g.
+    whether any real external protocol integrates with this specific view
+    function in a way that would be deceived), which is this
+    requirement's own semantic condition per its L6 classification.
+    """
+    findings = []
+    for contract in slither.contracts:
+        stale_write_targets: dict[str, set] = {}
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                if not (node.high_level_calls or node.low_level_calls):
+                    continue
+                for n in _reachable_nodes(node):
+                    for v in n.state_variables_written:
+                        stale_write_targets.setdefault(func.name, set()).add(v)
+
+        if not stale_write_targets:
+            continue
+
+        all_stale_vars = set()
+        for vs in stale_write_targets.values():
+            all_stale_vars |= vs
+
+        for func in contract.functions_declared:
+            if func.visibility not in ("public", "external"):
+                continue
+            if not (func.view or func.pure):
+                continue
+            stale_reads = set(func.all_state_variables_read()) & all_stale_vars
+            if stale_reads:
+                findings.append({
+                    "req_id": req_id,
+                    "location": f"{contract.name}.{func.name}",
+                    "detail": (
+                        f"view/pure function reads state variable(s) "
+                        f"{sorted(v.name for v in stale_reads)}, which can be "
+                        f"written AFTER an external call elsewhere in this "
+                        f"contract (functions with the post-call write: "
+                        f"{sorted(stale_write_targets.keys())}) -- candidate "
+                        f"read-only reentrancy, structural precondition only"
+                    ),
+                })
+    return findings

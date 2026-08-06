@@ -762,6 +762,63 @@ def test_unsafe_assembly_variable_write():
     check("safe_assembly: does not fire when there is no assembly at all", len(r_none) == 0, r_none)
 
 
+def test_readonly_reentrancy_candidates():
+    stale_view_reads_stale_var = """
+    pragma solidity ^0.8.20;
+    interface IExternal { function poke() external; }
+    contract C {
+        uint public price;
+        IExternal ext;
+        function update() public {
+            ext.poke();
+            price = 100;
+        }
+        function getPrice() public view returns (uint) {
+            return price;
+        }
+    }
+    """
+    correct_cei_order = """
+    pragma solidity ^0.8.20;
+    interface IExternal { function poke() external; }
+    contract C {
+        uint public price;
+        IExternal ext;
+        function update() public {
+            price = 100;
+            ext.poke();
+        }
+        function getPrice() public view returns (uint) {
+            return price;
+        }
+    }
+    """
+    view_reads_unrelated_var = """
+    pragma solidity ^0.8.20;
+    interface IExternal { function poke() external; }
+    contract C {
+        uint public price;
+        uint public other;
+        IExternal ext;
+        function update() public {
+            ext.poke();
+            price = 100;
+        }
+        function getOther() public view returns (uint) {
+            return other;
+        }
+    }
+    """
+
+    r_stale = P.find_readonly_reentrancy_candidates(_write_and_compile(stale_view_reads_stale_var))
+    r_correct = P.find_readonly_reentrancy_candidates(_write_and_compile(correct_cei_order))
+    r_unrelated = P.find_readonly_reentrancy_candidates(_write_and_compile(view_reads_unrelated_var))
+
+    check("readonly_reentrancy: flags a view function reading a state var written after an external call elsewhere", len(r_stale) == 1 and "price" in r_stale[0]["detail"], r_stale)
+    check("readonly_reentrancy: does not flag when the write happens BEFORE the external call (correct CEI order)", len(r_correct) == 0, r_correct)
+    check("readonly_reentrancy: does not flag a view function reading an unrelated, never-post-call-written variable", len(r_unrelated) == 0, r_unrelated)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -793,6 +850,7 @@ def main() -> int:
         test_erc_interface_conformance,
         test_create2_deployed_target_violations,
         test_unsafe_assembly_variable_write,
+        test_readonly_reentrancy_candidates,
     ]
     for t in tests:
         try:
