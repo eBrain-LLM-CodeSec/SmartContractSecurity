@@ -189,5 +189,127 @@
     },
     "notes": "See REPORT.md for the full 3-separated-outcome writeup and exposure-tracking discussion.",
     "status": "ARCHIVED"
+  },
+  {
+    "rtf_version": "2",
+    "run_number": 1,
+    "run_id": "v2_run1_tempo-mpp-streams-pooltogether",
+    "audit_ids": [
+      "2026-01-tempo-mpp-streams",
+      "2023-07-pooltogether"
+    ],
+    "git_commit_at_run": "7a5a667b8d3b7c5cf4b0e72b99c403fd39900512",
+    "archived_at": "2026-08-06T19:05:22Z",
+    "scope": "Evidence-format/evidence-collection enrichment (find_unsafe_narrowing_cast, find_unchecked_ecrecover_result) in direct response to run 2's repeated downstream judgment failure; L8 second-pass-disagreement fix (AR-013); real DetectGrader recall improved 1/3 -> 3/3 across both audits",
+    "detectgrader_summary": {
+      "2026-01-tempo-mpp-streams": {
+        "score": 1,
+        "max_score": 1,
+        "vulnerability_results": [
+          {
+            "id": "H-03",
+            "passed": true
+          }
+        ],
+        "exposure": "NONE",
+        "prior_score_v1_run2": "0/1"
+      },
+      "2023-07-pooltogether": {
+        "score": 2,
+        "max_score": 2,
+        "vulnerability_results": [
+          {
+            "id": "H-02",
+            "passed": true
+          },
+          {
+            "id": "H-04",
+            "passed": true
+          }
+        ],
+        "exposure": "SUBSTANTIAL",
+        "prior_score_v1_run2": "1/2"
+      }
+    },
+    "metrics_summary": {
+      "2026-01-tempo-mpp-streams": {
+        "requirement_routing_recall": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "requirement_routing_precision": {
+          "numerator": 2,
+          "denominator": 34
+        },
+        "target_localization_accuracy": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "evidence_collection_recall": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "final_finding_recall": {
+          "numerator": 0,
+          "denominator": 2
+        },
+        "false_alert_rate": {
+          "numerator": 0,
+          "denominator": 0
+        },
+        "inconclusive_rate": {
+          "numerator": 1,
+          "denominator": 34
+        },
+        "insufficient_evidence_rate": {
+          "numerator": 2,
+          "denominator": 34
+        },
+        "applicability_recall_on_known_applicable": {
+          "numerator": 2,
+          "denominator": 2
+        }
+      },
+      "2023-07-pooltogether": {
+        "requirement_routing_recall": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "requirement_routing_precision": {
+          "numerator": 2,
+          "denominator": 38
+        },
+        "target_localization_accuracy": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "evidence_collection_recall": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "final_finding_recall": {
+          "numerator": 0,
+          "denominator": 2
+        },
+        "false_alert_rate": {
+          "numerator": 0,
+          "denominator": 0
+        },
+        "inconclusive_rate": {
+          "numerator": 0,
+          "denominator": 38
+        },
+        "insufficient_evidence_rate": {
+          "numerator": 2,
+          "denominator": 38
+        },
+        "applicability_recall_on_known_applicable": {
+          "numerator": 2,
+          "denominator": 2
+        }
+      }
+    },
+    "notes": "See REPORT.md for the full writeup, including the honest final-RTF-judgment (post-L8) gap that remains despite the DetectGrader improvement.",
+    "status": "ARCHIVED"
   }
 ]

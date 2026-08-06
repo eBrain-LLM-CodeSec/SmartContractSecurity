@@ -1,0 +1,312 @@
+{
+  "req-2-signature-verification": {
+    "first_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [
+        "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+      ],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel.settle",
+          "location": "TempoStreamChannel.settle",
+          "claim": "Signature recovered via _recoverSigner without checking for address(0) result; potential risk if address(0) could be treated as authorized."
+        },
+        {
+          "source": "TempoStreamChannel.close",
+          "location": "TempoStreamChannel.close",
+          "claim": "Signature recovered via _recoverSigner without validation against address(0) for both signer and payerSigner; potential risk if address(0) is considered authorized."
+        },
+        {
+          "source": "TempoStreamChannel._recoverSigner",
+          "location": "TempoStreamChannel._recoverSigner",
+          "claim": "Uses ecrecover directly; behavior on invalid signatures (returning address(0)) not accounted for in visible checks."
+        }
+      ],
+      "reasoning_summary": "The available evidence indicates that ecrecover is used to recover signers in several functions, and no explicit checks for a zero address result are noted. However, without visibility into how the recovered address is compared to expected signers or whether zero addresses are ever treated as authorized, it is not possible to determine definitively whether signature verification is improper. The static analysis flags potential missing safety conditions but also notes the need for manual review. Therefore, there is insufficient evidence to conclude non-conformance with the requirement.",
+      "open_questions": [
+        "Are the recovered signer addresses compared against non-zero expected signer addresses in these functions?",
+        "Can any expected signer fields be left at the zero address, allowing address(0) to be treated as authorized?",
+        "Are there other checks in the code that ensure invalid signatures are rejected?"
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "DISAGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "8c70ebf8-9115-4a35-bc27-12c5e92d84fd",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 3,
+        "total": 3,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "TempoStreamChannel.settle",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.settle"
+          },
+          {
+            "index": 1,
+            "location": "TempoStreamChannel.close",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.close"
+          },
+          {
+            "index": 2,
+            "location": "TempoStreamChannel._recoverSigner",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel._recoverSigner"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain."
+      ],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel.settle",
+          "location": "TempoStreamChannel.settle",
+          "claim": "Signature recovery via _recoverSigner/ecrecover is used without an explicit check that the recovered signer is not the zero address."
+        },
+        {
+          "source": "TempoStreamChannel.close",
+          "location": "TempoStreamChannel.close",
+          "claim": "Signature recovery via _recoverSigner/ecrecover is used without an explicit check that the recovered signer is not the zero address."
+        },
+        {
+          "source": "TempoStreamChannel._recoverSigner",
+          "location": "TempoStreamChannel._recoverSigner",
+          "claim": "Uses ecrecover directly; invalid/malformed signatures can yield address(0), but no validation of the recovered address is evident."
+        }
+      ],
+      "reasoning_summary": "The requirement demands proper verification of off-chain signatures. The available evidence indicates that ecrecover is used in _recoverSigner, and the caller functions settle and close do not appear to check whether the recovered address is nonzero. An invalid signature can produce address(0), which could be problematic if address(0) is ever treated as an authorized signer. However, without further context on how recovered addresses are compared or whether zero addresses are possible signers, it is unclear whether this results in acceptance of unauthentic messages.",
+      "open_questions": [
+        "Are recovered signer addresses compared against expected nonzero addresses in settle and close?",
+        "Can any authorized signer values be address(0)?",
+        "Is there other validation of ecrecover results elsewhere in the code paths?"
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "DISAGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "c2e44e47-b1cc-402b-a7b3-543e68d1b900",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 3,
+        "total": 3,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "TempoStreamChannel.settle",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.settle"
+          },
+          {
+            "index": 1,
+            "location": "TempoStreamChannel.close",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.close"
+          },
+          {
+            "index": 2,
+            "location": "TempoStreamChannel._recoverSigner",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel._recoverSigner"
+          }
+        ]
+      }
+    },
+    "agree": false
+  },
+  "req-2-malleable-signatures-for-replay": {
+    "first_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [
+        "No Improper Usage of Signatures for Replay Attack Protection"
+      ],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel",
+          "location": "_recoverSigner",
+          "claim": "Use of ecrecover() directly"
+        }
+      ],
+      "reasoning_summary": "The only evidence is that ecrecover is used directly in _recoverSigner. The requirement mandates protections against signature replay across functions/contracts/chains. Without details on message structure, domain separation, or checks to prevent reuse, there is not enough information to determine compliance or a violation.",
+      "open_questions": [
+        "How are messages structured and signed in _recoverSigner? Is there domain separation or nonce handling to prevent replay?",
+        "Is the same signature checked in multiple functions or contracts without differentiation?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "620a1a97-e90c-47de-a6eb-9196f1d5e00e",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 1,
+        "total": 1,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "_recoverSigner",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/_recoverSigner"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel",
+          "location": "_recoverSigner",
+          "claim": "The function uses ecrecover() directly to recover a signer from a signature."
+        }
+      ],
+      "reasoning_summary": "The only evidence presented is that a function calls ecrecover directly. The requirement focuses on preventing signature reuse across various contexts, but there is no information about how messages are constructed, whether nonces or domain separators are used, or whether the recovered signatures are reused. Without further context, a violation or conformance cannot be determined.",
+      "open_questions": [
+        "How are signatures constructed and verified in TempoStreamChannel? Are nonces or unique domain separators used to prevent replay?",
+        "Is the same message verified in multiple functions, contracts, or chains?",
+        "Does the implementation restrict signature reuse within the same function for the same message?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "7eaba307-091e-4e92-8e94-613ed7aa6756",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 1,
+        "total": 1,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "_recoverSigner",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/_recoverSigner"
+          }
+        ]
+      }
+    },
+    "agree": true
+  },
+  "req-3-all-valid-inputs": {
+    "first_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [
+        "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+      ],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel",
+          "location": "TempoStreamChannel.openChannel",
+          "claim": "Parameters authorizedSigner, deadline, deposit, payee, token are not referenced in any require()/assert() calls, suggesting lack of explicit input validation."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "TempoStreamChannel.settle",
+          "claim": "Parameters signature, voucher are not referenced in any require()/assert() calls, suggesting lack of explicit input validation."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "TempoStreamChannel.addDeposit",
+          "claim": "Parameters amount, channelId are not referenced in any require()/assert() calls, suggesting lack of explicit input validation."
+        }
+      ],
+      "reasoning_summary": "The requirement calls for input validation and correct handling of malformed inputs. Static analysis flags several functions whose parameters are not used in require/assert checks, implying potential missing validation. However, the absence of require/assert does not conclusively prove that inputs are not validated or that the code mishandles malformed inputs. Without specific code context or line references, there is insufficient evidence to determine conformance.",
+      "open_questions": [
+        "Are inputs validated through other mechanisms or checks within these functions?",
+        "Does the code handle malformed inputs correctly despite the absence of require/assert on parameters?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "2514642d-452a-4362-996f-4841539af74c",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 3,
+        "total": 3,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "TempoStreamChannel.openChannel",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.openChannel"
+          },
+          {
+            "index": 1,
+            "location": "TempoStreamChannel.settle",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.settle"
+          },
+          {
+            "index": 2,
+            "location": "TempoStreamChannel.addDeposit",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel.addDeposit"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [
+        "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+      ],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel",
+          "location": "openChannel",
+          "claim": "Static analysis reported that parameters (authorizedSigner, deadline, deposit, payee, token) are not referenced in require/assert, suggesting potential lack of explicit input validation."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "addDeposit",
+          "claim": "Static analysis reported that parameters (amount, channelId) are not referenced in require/assert, suggesting potential lack of explicit input validation."
+        }
+      ],
+      "reasoning_summary": "The requirement calls for input validation and correct handling of malformed inputs. The provided evidence consists of static-analysis flags noting that certain function parameters are not used in require/assert statements. This suggests possible missing validation but does not conclusively demonstrate that inputs are not validated through other logic, nor does it show actual incorrect handling of malformed inputs. Given the absence of concrete source locations or confirmation that these functions are fully unvalidated, there is insufficient evidence to confidently determine non-conformance.",
+      "open_questions": [
+        "Do the flagged functions implement input validation through other mechanisms not captured by require/assert usage?",
+        "Are there guard clauses or checks elsewhere that ensure inputs are validated before reaching these functions?",
+        "Are interface declarations like IERC20/IERC1363 being treated as part of the tested code for this requirement?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "65b83b67-1ed3-466c-9495-027d77d8f4d7",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 2,
+        "total": 2,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "openChannel",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/openChannel"
+          },
+          {
+            "index": 1,
+            "location": "addDeposit",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/addDeposit"
+          }
+        ]
+      }
+    },
+    "agree": true
+  }
+}

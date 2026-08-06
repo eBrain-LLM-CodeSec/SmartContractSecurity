@@ -1,0 +1,164 @@
+{
+  "req-3-access-control": {
+    "first_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [
+        "Enforce Least Privilege Tested code that enables privileged access MUST implement appropriate access control mechanisms that provide the least privilege necessary for those interactions"
+      ],
+      "evidence": [
+        {
+          "source": "static-analysis",
+          "location": "ERC20.transfer",
+          "claim": "State-mutating function flagged as unprotected; no assessment of whether this exceeds least privilege without documentation"
+        },
+        {
+          "source": "static-analysis",
+          "location": "PrizePool.setDrawManager",
+          "claim": "State-mutating function flagged as unprotected; without specification it is unclear if this should be restricted"
+        },
+        {
+          "source": "static-analysis",
+          "location": "Vault.mintYieldFee",
+          "claim": "State-mutating function flagged as unprotected; unclear if lack of access control violates least privilege without intended access model"
+        }
+      ],
+      "reasoning_summary": "The requirement asks that privileged interactions be access-controlled to the least necessary degree based on documented business logic. The provided evidence lists several state-mutating functions as unprotected according to a heuristic but explicitly notes that determining whether this is beyond the minimum necessary requires a documentation cross-check, which is not provided. Without knowing the intended access patterns from contract documentation, it is not possible to conclude whether the unprotected functions represent violations of least privilege.",
+      "open_questions": [
+        "What does the contract's business logic specify about who should be allowed to call functions like ERC20.transfer, PrizePool.setDrawManager, and Vault.mintYieldFee?",
+        "Are there documented privileged operations that require restricted access and are they properly enforced in the code?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "111f7f9c-e682-4671-81a9-4f30737303ea",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 3,
+        "total": 3,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "ERC20.transfer",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/ERC20.transfer"
+          },
+          {
+            "index": 1,
+            "location": "PrizePool.setDrawManager",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/PrizePool.setDrawManager"
+          },
+          {
+            "index": 2,
+            "location": "Vault.mintYieldFee",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/Vault.mintYieldFee"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [],
+      "evidence": [],
+      "reasoning_summary": "The requirement mandates enforcing least privilege based on documented contract logic. The provided evidence only lists functions marked as protected or unprotected by a heuristic and explicitly notes that whether the access level is appropriate requires a documentation cross\u2011check, which is not provided. Without documentation of intended roles or privileged operations, and given many functions (e.g., ERC20 standard methods) are expected to be public, there is no clear basis to confirm conformance or identify violations.",
+      "open_questions": [
+        "What are the documented intended access controls for the listed functions, especially those that appear administrative such as setDrawManager or mintYieldFee?",
+        "Which functions, if any, are considered privileged operations requiring restriction, per the contract's business logic documentation?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "717ccf56-c056-43e2-be04-c6732c774c49"
+    },
+    "agree": true
+  },
+  "req-3-all-valid-inputs": {
+    "first_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [],
+      "evidence": [
+        {
+          "source": "console2",
+          "location": "logInt",
+          "claim": "logInt's parameter p0 is not referenced in any require()/assert() call, indicating no explicit input validation in that function"
+        }
+      ],
+      "reasoning_summary": "The requirement mandates that inputs be validated and that the code handle malformed inputs. The provided evidence points out that certain console2 logging functions do not reference their parameters in require/assert statements, suggesting no explicit validation. However, without context on whether these functions are exposed to untrusted inputs or whether other validation mechanisms are in place, this absence alone is not sufficient to determine conformance or non-conformance. The evidence itself notes it is not proof of malformed-input handling.",
+      "open_questions": [
+        "Are the console2 functions exposed to external or untrusted inputs, or are they internal/debug-only utilities?",
+        "Does the code perform input validation through mechanisms other than require/assert in these or related functions?",
+        "Are there additional parts of the Tested Code where input validation is implemented that are not covered by the evidence?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "590ac39c-4345-4002-9cf7-01fe0097948f",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 1,
+        "total": 1,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "logInt",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/logInt"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [],
+      "evidence": [
+        {
+          "source": "console2",
+          "location": "console2.logInt",
+          "claim": "The parameter p0 is not referenced in any require()/assert() call, suggesting no explicit input validation in this function."
+        },
+        {
+          "source": "console2",
+          "location": "console2._sendLogPayload",
+          "claim": "The parameter payload is not referenced in any require()/assert() call, suggesting no explicit input validation in this function."
+        }
+      ],
+      "reasoning_summary": "The requirement calls for validating inputs and handling malformed inputs correctly. The static analysis flags functions where parameters are not used in require/assert checks, indicating a lack of explicit validation. However, without code context or evidence of actual incorrect handling of malformed inputs, it's not possible to conclusively determine nonconformance based solely on these indications.",
+      "open_questions": [
+        "What are the exact implementations of the flagged functions, and do they handle malformed inputs safely without require/assert?",
+        "Are these functions expected to validate their inputs given their intended use cases?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "c178daf9-3f11-493b-b24a-e85b64a0eb4f",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 2,
+        "total": 2,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "console2.logInt",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2.logInt"
+          },
+          {
+            "index": 1,
+            "location": "console2._sendLogPayload",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2._sendLogPayload"
+          }
+        ]
+      }
+    },
+    "agree": true
+  }
+}

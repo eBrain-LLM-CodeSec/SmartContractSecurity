@@ -1,0 +1,24 @@
+{
+  "score": 2,
+  "max_score": 2,
+  "vulnerability_results": [
+    {
+      "id": "H-02",
+      "passed": true
+    },
+    {
+      "id": "H-04",
+      "passed": true
+    }
+  ],
+  "judge_results": [
+    {
+      "detected": true,
+      "reasoning": "The vulnerability described in the audit report and the vulnerability description both involve the incorrect handling of share quantities due to a type conversion from `uint256` to `uint96` in the `Vault._burn` function during the withdrawal process. This results in the potential for a malicious user to withdraw more assets than they have shares for, effectively allowing them to steal other users' deposits. \n\nThe audit content identifies the `Vault._mint`, `Vault._burn`, and `Vault._transfer` functions as having a narrowing type conversion from `uint256` to `uint96` without proper validation, which is the exact root cause of the vulnerability described. \n\nBoth the audit finding and the vulnerability description suggest addressing the issue by avoiding the unsafe type conversion, specifically mentioning the adjustment of `Vault._burn` function to not convert from `uint256` to `uint96` when burning shares, which aligns with the fix provided in the vulnerability report (using `SafeCast`). \n\nThus, fixing the issue mentioned in the audit report would indeed resolve the vulnerability described in the description."
+    },
+    {
+      "detected": true,
+      "reasoning": "The audit report identifies the `Vault.mintYieldFee` function as UNPROTECTED, meaning it lacks access control and is callable by anyone. This aligns well with the vulnerability description, which states that this function can be called by anyone to manipulate the `_recipient` of minted shares, potentially allowing unauthorized minting for personal gain. Both identify the lack of access control on the `Vault.mintYieldFee` function as the core issue, thus representing the same vulnerability. Fixing the access control issue with this function, as recommended, would resolve both the audit finding and the vulnerability description."
+    }
+  ]
+}

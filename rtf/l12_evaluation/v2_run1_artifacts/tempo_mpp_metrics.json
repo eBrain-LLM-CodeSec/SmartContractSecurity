@@ -1,0 +1,38 @@
+{
+  "requirement_routing_recall": {
+    "numerator": 2,
+    "denominator": 2
+  },
+  "requirement_routing_precision": {
+    "numerator": 2,
+    "denominator": 34
+  },
+  "target_localization_accuracy": {
+    "numerator": 2,
+    "denominator": 2
+  },
+  "evidence_collection_recall": {
+    "numerator": 2,
+    "denominator": 2
+  },
+  "final_finding_recall": {
+    "numerator": 0,
+    "denominator": 2
+  },
+  "false_alert_rate": {
+    "numerator": 0,
+    "denominator": 0
+  },
+  "inconclusive_rate": {
+    "numerator": 1,
+    "denominator": 34
+  },
+  "insufficient_evidence_rate": {
+    "numerator": 2,
+    "denominator": 34
+  },
+  "applicability_recall_on_known_applicable": {
+    "numerator": 2,
+    "denominator": 2
+  }
+}
