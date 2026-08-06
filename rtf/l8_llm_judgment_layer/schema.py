@@ -10,6 +10,12 @@ rejected, not silently accepted.
 """
 from __future__ import annotations
 
+# Bump on any REQUIRED_FIELDS change or judgment_config schema change (the
+# "judgment_config" block's own internal shape -- see judgment_layer.py's
+# _judgment_config_metadata()). Distinct from PROMPT_VERSION (judgment_layer.py),
+# which tracks the prompt TEMPLATE text.
+SCHEMA_VERSION = "l8-judgment-schema-v2-with-config-metadata"
+
 DECISIONS = {"PASS", "FAIL", "INCONCLUSIVE", "INSUFFICIENT_EVIDENCE"}
 CONFIDENCES = {"HIGH", "MEDIUM", "LOW"}
 AGREEMENT_VALUES = {"AGREE", "DISAGREE", "N/A"}
@@ -25,6 +31,8 @@ REQUIRED_FIELDS = {
     "prompt_version",
     "run_id",
     "second_pass_agreement",
+    "schema_version",
+    "judgment_config",
 }
 
 
@@ -72,6 +80,25 @@ def validate_judgment(d: dict) -> list[str]:
 
     if d["second_pass_agreement"] not in AGREEMENT_VALUES:
         errors.append(f"second_pass_agreement {d['second_pass_agreement']!r} not in {sorted(AGREEMENT_VALUES)}")
+
+    if not isinstance(d["schema_version"], str) or not d["schema_version"]:
+        errors.append("schema_version must be a pinned, non-empty string")
+
+    # judgment_config: the full LLM-call configuration metadata (RTF Phase H
+    # item 1 -- "every future judgment artifact must automatically store this
+    # metadata"). Checked for presence of its required keys, not just
+    # dict-ness, so a partially-populated config can't silently pass.
+    _JUDGMENT_CONFIG_REQUIRED_KEYS = {
+        "provider", "model_id", "api_base_url", "temperature", "top_p", "max_tokens",
+        "timeout_seconds", "retry_max_attempts", "retry_wait_multiplier", "retry_wait_min",
+        "retry_wait_max", "prompt_version", "schema_version", "cache_key",
+    }
+    if not isinstance(d["judgment_config"], dict):
+        errors.append("judgment_config must be a dict")
+    else:
+        missing_cfg = _JUDGMENT_CONFIG_REQUIRED_KEYS - d["judgment_config"].keys()
+        if missing_cfg:
+            errors.append(f"judgment_config missing required keys: {sorted(missing_cfg)}")
 
     # The rule that gives 'errors' below teeth: confidence never substitutes
     # for evidence. A PASS/FAIL with no evidence at all is a defect

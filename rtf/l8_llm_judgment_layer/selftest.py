@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .citation_check import verify_evidence_citations
 from .judgment_layer import LLMJudgmentLayer, build_judgment_prompt
-from .schema import validate_judgment
+from .schema import SCHEMA_VERSION, validate_judgment
 from .stability import compute_stability
 
 PASSES = []
@@ -24,6 +24,17 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         PASSES.append(name)
     else:
         FAILURES.append(f"{name}: {detail}")
+
+
+def _valid_judgment_config() -> dict:
+    """A well-formed judgment_config block, for fixtures that need to pass
+    schema validation on everything except the field under test."""
+    return {
+        "provider": "openrouter", "model_id": "test-model-v1", "api_base_url": "https://fake.test/v1",
+        "temperature": 0.0, "top_p": 1.0, "max_tokens": 4096, "timeout_seconds": 120.0,
+        "retry_max_attempts": 5, "retry_wait_multiplier": 1, "retry_wait_min": 2, "retry_wait_max": 30,
+        "prompt_version": "rtf-l8-v1", "schema_version": SCHEMA_VERSION, "cache_key": "fake-key",
+    }
 
 
 def test_schema_valid_pass() -> None:
@@ -38,6 +49,8 @@ def test_schema_valid_pass() -> None:
         "prompt_version": "rtf-l8-v1",
         "run_id": "abc123",
         "second_pass_agreement": "N/A",
+        "schema_version": SCHEMA_VERSION,
+        "judgment_config": _valid_judgment_config(),
     }
     check("schema: well-formed PASS accepted", validate_judgment(good) == [], validate_judgment(good))
 
@@ -54,6 +67,8 @@ def test_schema_rejects_evidence_free_pass() -> None:
         "prompt_version": "rtf-l8-v1",
         "run_id": "abc123",
         "second_pass_agreement": "N/A",
+        "schema_version": SCHEMA_VERSION,
+        "judgment_config": _valid_judgment_config(),
     }
     errors = validate_judgment(bad)
     check(
@@ -75,9 +90,34 @@ def test_schema_rejects_bad_enum() -> None:
         "prompt_version": "p1",
         "run_id": "r1",
         "second_pass_agreement": "N/A",
+        "schema_version": SCHEMA_VERSION,
+        "judgment_config": _valid_judgment_config(),
     }
     errors = validate_judgment(bad)
     check("schema: invalid decision enum rejected", any("decision" in e for e in errors), errors)
+
+
+def test_schema_rejects_missing_judgment_config_keys() -> None:
+    bad = {
+        "decision": "PASS",
+        "requirement_citations": [],
+        "evidence": [{"source": "a", "location": "a.sol:1", "claim": "c"}],
+        "reasoning_summary": "x",
+        "open_questions": [],
+        "confidence": "HIGH",
+        "model_version": "v1",
+        "prompt_version": "p1",
+        "run_id": "r1",
+        "second_pass_agreement": "N/A",
+        "schema_version": SCHEMA_VERSION,
+        "judgment_config": {"provider": "openrouter"},  # deliberately incomplete
+    }
+    errors = validate_judgment(bad)
+    check(
+        "schema: judgment_config missing required keys is rejected",
+        any("judgment_config missing required keys" in e for e in errors),
+        errors,
+    )
 
 
 def test_citation_check_real_and_fake_files() -> None:
@@ -185,8 +225,10 @@ class FakeChatClient:
         self.tmp_cache_dir = tmp_cache_dir
         self.complete_json_calls = 0
         self.cache_path_lookups: list[Path] = []
+        self.base_url = "https://fake.test/v1"
+        self.timeout = 120.0
 
-    def _cache_key(self, messages, temperature):
+    def _cache_key(self, messages, temperature, top_p=None, max_tokens=None):
         return "fixed-key-since-messages-are-identical-across-repeat-calls"
 
     def _cache_path(self, key):
@@ -194,7 +236,7 @@ class FakeChatClient:
         self.cache_path_lookups.append(p)
         return p
 
-    def complete_json(self, messages, temperature=0.0):
+    def complete_json(self, messages, temperature=0.0, top_p=None, max_tokens=None):
         self.complete_json_calls += 1
         data = {
             "decision": "PASS",
@@ -254,10 +296,45 @@ def test_judge_stability_bypasses_cache_for_all_but_first_run() -> None:
         )
 
 
+def test_judge_once_stamps_full_config_metadata() -> None:
+    """Regression coverage for Phase H work item 1: every judgment artifact
+    must automatically carry its full LLM-call configuration -- not just
+    model_version/prompt_version/run_id (the pre-existing fields), but also
+    the sampling settings (top_p, max_tokens), timeout/retry policy, schema
+    version, and the exact cache key used for this call."""
+    with tempfile.TemporaryDirectory() as tmp:
+        fake = FakeChatClient(Path(tmp))
+        layer = LLMJudgmentLayer(chat_client=fake, model_version="test-model", top_p=0.9, max_tokens=2048)
+        bundle_record = {"bundle": {"self": "x", "parent_section_context": None, "definitions": [],
+                                     "overriding_requirements": [], "exceptions": [], "referenced_requirements": []}}
+        data = layer.judge_once(bundle_record, "q?")
+        check("judge_once: result passes schema validation as returned (no post-hoc patching needed)",
+              validate_judgment(data) == [], validate_judgment(data))
+        cfg = data.get("judgment_config", {})
+        check("judge_once: judgment_config.top_p reflects the layer's pinned value", cfg.get("top_p") == 0.9, cfg)
+        check("judge_once: judgment_config.max_tokens reflects the layer's pinned value", cfg.get("max_tokens") == 2048, cfg)
+        check("judge_once: judgment_config.provider is recorded", cfg.get("provider") == "openrouter", cfg)
+        check("judge_once: judgment_config.retry_max_attempts is recorded (not hand-duplicated)", cfg.get("retry_max_attempts") == 5, cfg)
+        check("judge_once: judgment_config.cache_key is a non-empty string", isinstance(cfg.get("cache_key"), str) and cfg["cache_key"], cfg)
+        check("judge_once: schema_version is stamped at the top level too", data.get("schema_version") == SCHEMA_VERSION, data)
+
+
+def test_judge_with_second_pass_records_same_model_flag() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        fake = FakeChatClient(Path(tmp))
+        layer = LLMJudgmentLayer(chat_client=fake, model_version="test-model")
+        bundle_record = {"bundle": {"self": "x", "parent_section_context": None, "definitions": [],
+                                     "overriding_requirements": [], "exceptions": [], "referenced_requirements": []}}
+        outcome = layer.judge_with_second_pass(bundle_record, "q?")
+        check("judge_with_second_pass: records same_model=True when both passes share one LLMJudgmentLayer",
+              outcome["same_model"] is True, outcome)
+
+
 def main() -> int:
     test_schema_valid_pass()
     test_schema_rejects_evidence_free_pass()
     test_schema_rejects_bad_enum()
+    test_schema_rejects_missing_judgment_config_keys()
     test_citation_check_real_and_fake_files()
     test_stability_aggregation()
     test_stability_requires_min_two_runs()
@@ -265,6 +342,8 @@ def main() -> int:
     test_judge_once_bypass_cache_deletes_entry()
     test_judge_with_second_pass_uses_fresh_second_call()
     test_judge_stability_bypasses_cache_for_all_but_first_run()
+    test_judge_once_stamps_full_config_metadata()
+    test_judge_with_second_pass_records_same_model_flag()
 
     print(f"PASSED: {len(PASSES)}")
     for p in PASSES:

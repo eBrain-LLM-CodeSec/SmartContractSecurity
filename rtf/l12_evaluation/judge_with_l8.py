@@ -19,6 +19,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from rtf.l8_llm_judgment_layer.judgment_layer import LLMJudgmentLayer
+from rtf.l12_evaluation.evidence_ranking import apply_evidence_budget, build_evidence_bundles, rank_evidence, render_bundles_for_prompt
 from rtf.l12_evaluation.failure_taxonomy import OperationalStatus
 from rtf.l12_evaluation.metrics import ConformanceState, RoutedRequirementResult, TargetRunResult
 
@@ -102,12 +103,60 @@ def build_judgment_question(evidence: list, max_items: int = 30) -> str:
     )
 
 
+def build_ranked_judgment_question(
+    req_id: str,
+    requirement_text: str,
+    evidence: list,
+    repo_root: Path | None,
+    max_bundles: int = 30,
+) -> tuple[str, dict]:
+    """The default (non-baseline) question builder: rank evidence
+    (deterministic, requirement/code-derived signals only -- see
+    evidence_ranking.py), merge same-location findings into coherent
+    bundles, then apply a requirement-aware budget over whole bundles
+    instead of the old flat `evidence[:max_items]` cutoff. Returns
+    (question_text, ranking_metadata) -- the metadata is what work item 5
+    asks to record (bundle counts, prompt char estimate as a token-count
+    proxy, excluded location list).
+    """
+    ranked = rank_evidence(list(evidence), repo_root)
+    bundles = build_evidence_bundles(req_id, requirement_text, ranked)
+    budget = apply_evidence_budget(bundles, max_bundles)
+    evidence_block = render_bundles_for_prompt(budget.included, omitted_count=len(budget.excluded))
+    question = (
+        "A static-analysis tool collected the following ranked evidence bundles from the Tested Code, "
+        "regarding this specific requirement (higher ranking_score = more specific and more likely to be "
+        "in the audited project's own code, not a vendored dependency):\n\n"
+        f"{evidence_block}\n\n"
+        "Based ONLY on the requirement text above and this evidence (do not assume "
+        "anything about the code not stated in the evidence), does the Tested Code "
+        "conform to the requirement? Note that the evidence is deliberately "
+        "over-inclusive by design (it flags candidate locations, not confirmed "
+        "violations) -- your job is to judge whether each specific listed location "
+        "is a GENUINE violation given the requirement's actual text, not to assume "
+        "every listed item is automatically a violation."
+    )
+    metadata = {
+        "ranking_enabled": True,
+        "raw_evidence_count": len(evidence),
+        "deduped_evidence_count": len(ranked),
+        "bundle_count": len(bundles),
+        "bundles_included": len(budget.included),
+        "bundles_excluded": len(budget.excluded),
+        "excluded_locations": [b["target"]["source_location"] for b in budget.excluded],
+        "prompt_char_estimate": budget.prompt_char_estimate,
+        "max_bundles": max_bundles,
+    }
+    return question, metadata
+
+
 def judge_result(
     judgment_layer: LLMJudgmentLayer,
     req_id: str,
     result: RoutedRequirementResult,
     repo_root: Path | None = None,
     use_second_pass: bool = True,
+    use_ranking: bool = True,
 ) -> tuple[RoutedRequirementResult, dict | None]:
     """Judge ONE requirement's already-collected evidence. Returns
     (updated_result, raw_l8_response_or_None). Never raises -- an L8
@@ -116,13 +165,33 @@ def judge_result(
     original evidence preserved, exactly the same per-requirement
     isolation discipline `run_rtf.py` already applies to predicate
     crashes.
+
+    `use_ranking` (default True) selects the requirement-aware ranked-
+    bundle question builder (`build_ranked_judgment_question`), which
+    replaces the old fixed "first 30 flat items" behavior -- see
+    evidence_ranking.py's module docstring for the concrete real-data bug
+    this fixes (PoolTogether's Vault._burn narrowing-cast evidence was
+    excluded outright by the old cutoff). `use_ranking=False` keeps the
+    OLD flat-list builder available on purpose, not as dead code: work
+    item 5 requires comparing ranked-bundle behavior against "current
+    flat-list behavior... as a baseline," which needs the old path to
+    still exist and still be callable.
     """
     bundle_path = BUNDLES_DIR / f"{req_id}.json"
     if not bundle_path.exists():
         return replace(result, operational_status=OperationalStatus.ENVIRONMENT_FAILURE), None
 
     bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
-    question = build_judgment_question(list(result.evidence))
+    evidence_item_limit = 30  # keep in sync with build_judgment_question's own default -- passed explicitly below so it's one source of truth, not two
+
+    if use_ranking:
+        requirement_text = bundle["bundle"]["self"]
+        question, ranking_meta = build_ranked_judgment_question(
+            req_id, requirement_text, list(result.evidence), repo_root, max_bundles=evidence_item_limit
+        )
+    else:
+        question = build_judgment_question(list(result.evidence), max_items=evidence_item_limit)
+        ranking_meta = None
 
     try:
         if use_second_pass:
@@ -137,6 +206,24 @@ def judge_result(
             result,
             operational_status=OperationalStatus.ENVIRONMENT_FAILURE,
         ), {"error": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc()}
+
+    # Evidence-truncation/ranking bookkeeping (Phase H work item 1:
+    # "evidence-item limit/truncation behavior" must be recorded on every
+    # judgment artifact; work item 5: "record ... excluded evidence").
+    # Attached at the L12 orchestration level, not inside L8 itself,
+    # because evidence bundling/budgeting is an L12-owned bridging
+    # decision, not something judgment_layer.py knows about.
+    if use_ranking:
+        truncation_meta = ranking_meta
+    else:
+        truncation_meta = {
+            "ranking_enabled": False,
+            "evidence_item_limit": evidence_item_limit,
+            "evidence_items_available": len(result.evidence),
+            "evidence_items_included": min(len(result.evidence), evidence_item_limit),
+            "evidence_items_omitted": max(0, len(result.evidence) - evidence_item_limit),
+        }
+    raw["evidence_truncation"] = truncation_meta
 
     conformance = resolve_conformance_from_judgment(judgment["decision"], raw.get("agree") if use_second_pass else None)
     updated = replace(result, conformance_state=conformance)
@@ -169,13 +256,15 @@ def judge_run(
     repo_root: Path | None = None,
     use_second_pass: bool = True,
     only_req_ids: set[str] | None = None,
+    use_ranking: bool = True,
 ) -> tuple[TargetRunResult, dict]:
     """Judge every APPLICABLE, evidence-backed, still-pending requirement
     in `run`. `only_req_ids`, if given, restricts judgment to that subset
     (e.g. only the requirements with a real L11 ground-truth mapping, to
     bound API cost on a bulk run) -- requirements outside that set are
     left untouched (still `conformance_state=None`, "not judged in this
-    pass", not silently marked anything else).
+    pass", not silently marked anything else). `use_ranking` is forwarded
+    to `judge_result` per-requirement -- see its docstring.
     """
     new_routed = dict(run.routed)
     raw_judgments: dict[str, dict] = {}
@@ -192,7 +281,7 @@ def judge_run(
         if result.operational_status.value != "OK":
             continue  # don't attempt to judge a result that already failed operationally
 
-        updated, raw = judge_result(judgment_layer, req_id, result, repo_root, use_second_pass)
+        updated, raw = judge_result(judgment_layer, req_id, result, repo_root, use_second_pass, use_ranking)
         new_routed[req_id] = updated
         if raw is not None:
             raw_judgments[req_id] = raw

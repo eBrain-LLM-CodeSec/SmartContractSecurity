@@ -332,6 +332,66 @@ wired into the orchestrator (every evidence-backed requirement stops at
 positive rate — this audit has only 2 *graded* findings, not a full
 ground-truth label for every one of the 38 requirements RTF flagged.
 
+## RTF Phase H (in progress) — LLM config pinning + evidence ranking/bundling
+
+Continuing from v2 run 1 (and a separate GLM-vs-GPT judge-strictness
+comparison, `RTF_V2_RUN2_GLM_JUDGE_COMPARISON.md`, not detailed in this
+summary — see that file directly). v2 run 1's own report named RTF's
+internal LLM judgment as the remaining bottleneck (`final_finding_recall`
+0/2 both audits) for two distinct reasons: Tempo's second-pass
+disagreement, and PoolTogether's evidence being "diluted" when the full
+739-item list was capped at the first 30. This phase's goal: make RTF's
+own internal judgments stable and requirement-grounded — explicitly NOT
+another routing/predicate change.
+
+**Work item 1 (LLM config audit):** found two real, previously-unpinned
+fields — `a4v.llm.ChatClient` never sent `top_p`/`max_tokens` in its
+request body at all (silent provider defaults). Fixed backward-
+compatibly (new optional params, only added to the request/cache-key
+when explicitly set — every existing Commentator/Auditor caller
+unaffected, confirmed by their own passing tests). RTF's `LLMJudgmentLayer`
+now pins `top_p=1.0`/`max_tokens=4096` for its own calls specifically.
+Every judgment artifact now automatically carries a `judgment_config`
+block (provider, model, temperature, top_p, max_tokens, timeout, retry
+policy, prompt/schema version, cache key) — `schema.py`'s
+`validate_judgment` now requires it. See AR-014.
+
+**Work item 2 (evidence-flow trace):** `EVIDENCE_FLOW_TRACE.md` —
+root-caused "diluted" precisely: PoolTogether's 739 `req-3-all-valid-
+inputs` items were ordered by predicate-registration-order x Slither's
+own contract-enumeration order (deterministic, but carrying zero
+relevance signal). 383 of 739 (52%) are `find_unvalidated_function_
+parameters` hits against `console2` (forge-std's debug shim), which
+sorts first. The real fix-diff evidence (`Vault._burn`'s narrowing-cast
+finding) sat at raw index 737/739 — not diluted, categorically EXCLUDED
+by the flat `evidence[:30]` cutoff on every prior run.
+
+**Work items 3-5 (ranking, bundles, budget):** new module
+`rtf/l12_evaluation/evidence_ranking.py` — `rank_evidence()` (4
+requirement/code-derived signals: priority-contract membership vs.
+vendored/test/build-artifact paths, structured-evidence specificity,
+explicit protection-status assessment, named concrete operation),
+`build_evidence_bundles()` (merges same-location findings into the
+user-specified bundle schema), `apply_evidence_budget()` (top-N whole
+bundles, not flat items). **Verified against the real, already-archived
+739-item PoolTogether dataset** (`test_evidence_ranking.py`, no new LLM
+calls): under the identical budget size (30), `Vault._burn`/`_mint`/
+`_transfer` now rank #1-3; zero `console2` items survive. Wired into
+`judge_with_l8.py::judge_result(..., use_ranking=True)` as the new
+default; the old flat-list path is kept (not deleted) specifically so
+the ranked-vs-flat comparison item 5 still requires can be run later.
+A real relative-vs-absolute-path bug was caught and fixed by this
+module's own real-data test before being trusted — see AR-015.
+
+**Still open (requires live LLM calls, not yet spent):** the actual
+ranked-vs-flat-list-vs-no-ranking comparison experiment against live L8
+judgments (rest of item 5); the 11-case LLM stability experiment (item
+6); the pre-registered model comparison (item 7); the second-pass
+design comparison (item 8); RTF version 3 freeze (item 10); and the
+ordered Tempo-then-PoolTogether rerun + final report (items 11-12).
+
+---
+
 ## What has NOT been done
 
 - **L12 has run exactly once, against one target.** 44 of 46 real
