@@ -1,0 +1,237 @@
+{
+  "req-2-signature-verification": {
+    "first_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel._recoverSigner",
+          "location": "TempoStreamChannel:_recoverSigner",
+          "claim": "Function uses ecrecover() directly to recover a signer"
+        }
+      ],
+      "reasoning_summary": "The only evidence indicates a function uses ecrecover directly, but without additional context or checks, it's not possible to determine if signature verification is properly implemented or deficient. There is insufficient information to assess conformance to the requirement.",
+      "open_questions": [
+        "How are recovered signatures validated against expected signers or message digests?"
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "7d01c9bd-b539-4d35-ad0d-c98cb56772e7",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 1,
+        "total": 1,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "TempoStreamChannel:_recoverSigner",
+            "ok": false,
+            "reason": "unparseable location format"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel",
+          "location": "TempoStreamChannel._recoverSigner",
+          "claim": "Uses ecrecover() directly to recover a signer"
+        }
+      ],
+      "reasoning_summary": "The only evidence provided is that a _recoverSigner helper uses ecrecover() directly. The requirement calls for proper verification of signatures for off\u2011chain messages, but without more detail about how the recovered address is checked against expected signers, how the message is hashed, or whether malleability protections are applied, it's not possible to determine compliance or a violation solely from this evidence.",
+      "open_questions": [
+        "How is the recovered signer from _recoverSigner used to verify message authenticity?",
+        "Is the message hashed with the proper Ethereum signed message prefix before calling ecrecover?",
+        "Are there checks to prevent signature malleability when using ecrecover?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "9417531f-d200-43b5-a812-7f31f0bf6346",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 1,
+        "total": 1,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "TempoStreamChannel._recoverSigner",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/TempoStreamChannel._recoverSigner"
+          }
+        ]
+      }
+    },
+    "agree": true
+  },
+  "req-3-all-valid-inputs": {
+    "first_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel",
+          "location": "_recoverSigner",
+          "claim": "Static analysis noted parameters 'digest' and 'signature' are not referenced in require()/assert() calls, suggesting potential lack of explicit input validation"
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "openChannel",
+          "claim": "Static analysis noted parameters 'authorizedSigner', 'deadline', 'deposit', 'payee', and 'token' are not referenced in require()/assert() calls, suggesting potential lack of explicit input validation"
+        }
+      ],
+      "reasoning_summary": "The requirement mandates that all inputs be validated and code behave correctly for designed or malformed inputs. The provided evidence merely notes that certain function parameters are not used in require/assert checks, which is suggestive but not definitive of missing validation. Without broader context or confirmation that inputs are unvalidated or mishandled, there is insufficient evidence to conclude conformance or non-conformance.",
+      "open_questions": [
+        "Are there other mechanisms in the code performing input validation for these parameters?",
+        "How does the code behave when malformed or unexpected inputs are provided to these functions?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "b0541fe2-2e83-4ccc-824f-f4928fb8713c",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 2,
+        "total": 2,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "_recoverSigner",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/_recoverSigner"
+          },
+          {
+            "index": 1,
+            "location": "openChannel",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/openChannel"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [],
+      "evidence": [
+        {
+          "source": "TempoStreamChannel",
+          "location": "_recoverSigner",
+          "claim": "Static analysis flagged that parameters ['digest', 'signature'] are not referenced in any require()/assert() call, suggesting potential lack of explicit input validation."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "openChannel",
+          "claim": "Parameters ['authorizedSigner', 'deadline', 'deposit', 'payee', 'token'] reportedly not checked in require()/assert(), indicating possible missing validation."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "addDeposit",
+          "claim": "Parameters ['amount', 'channelId'] are not used in require()/assert() according to static analysis."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "settle",
+          "claim": "Parameters ['signature', 'voucher'] are not referenced in require()/assert(), suggesting no explicit validation."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "initiateClose",
+          "claim": "Parameter ['channelId'] not used in require()/assert() per tool output."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "finalize",
+          "claim": "Parameter ['channelId'] not used in require()/assert() according to evidence."
+        },
+        {
+          "source": "TempoStreamChannel",
+          "location": "close",
+          "claim": "Parameters ['payerSignature', 'signature', 'voucher'] not referenced in require()/assert() per static analysis."
+        },
+        {
+          "source": "IERC20",
+          "location": "transfer",
+          "claim": "Interface function parameters ['to','value'] unsurprisingly have no require/assert checks; static tool flagged as lacking validation."
+        }
+      ],
+      "reasoning_summary": "The requirement mandates validating inputs and handling malformed input correctly. The provided evidence consists of static-analysis flags noting that various function parameters are not used in require/assert statements. However, without source code context, line numbers, or confirmation that these functions are external and truly lack validation (as opposed to using other validation patterns or being mere interface declarations), it's not possible to conclusively determine nonconformance. The over-inclusive nature of the evidence (e.g., interfaces) further limits confidence.",
+      "open_questions": [
+        "Are there other validation mechanisms in these functions (e.g., modifiers, internal checks) not captured by require/assert scanning?",
+        "Are the cited functions external/public entry points handling untrusted input?",
+        "What are the exact source files and line numbers for these functions to review their implementations?"
+      ],
+      "confidence": "LOW",
+      "second_pass_agreement": "AGREE",
+      "model_version": "openai/gpt-5.1-codex-max",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "e2c3e685-1112-4bb9-80c7-cc9ece825281",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 8,
+        "total": 8,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "_recoverSigner",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/_recoverSigner"
+          },
+          {
+            "index": 1,
+            "location": "openChannel",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/openChannel"
+          },
+          {
+            "index": 2,
+            "location": "addDeposit",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/addDeposit"
+          },
+          {
+            "index": 3,
+            "location": "settle",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/settle"
+          },
+          {
+            "index": 4,
+            "location": "initiateClose",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/initiateClose"
+          },
+          {
+            "index": 5,
+            "location": "finalize",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/finalize"
+          },
+          {
+            "index": 6,
+            "location": "close",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/close"
+          },
+          {
+            "index": 7,
+            "location": "transfer",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/2026-01-tempo-mpp-streams_src/transfer"
+          }
+        ]
+      }
+    },
+    "agree": true
+  }
+}

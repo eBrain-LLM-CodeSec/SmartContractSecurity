@@ -704,5 +704,40 @@
     ],
     "review_status": "independent_review_by_fresh_agent_no_prior_rtf_exposure",
     "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2026-01-tempo-mpp-streams/H-03",
+    "req_id": "req-2-signature-verification",
+    "relationship": "DIRECT",
+    "justification": "The requirement's trigger (per its own L6 record) is ecrecover() usage combined with a semantic condition on whether the recovered signer is properly validated. H-03's entire root cause is exactly this: 'ecrecover returns address(0) for invalid signatures' and the code 'compares the recovered signer directly to authorizedSigner without checking if either is address(0)' -- a textbook failure to validate an ecrecover() result before trusting it.",
+    "supporting_evidence": [
+      "ecrecover returns address(0) for invalid signatures",
+      "No check that signer != address(0)"
+    ],
+    "review_status": "reviewed_directly_by_orchestrating_session_temporal_blinding_basis -- all RTF L1-L8 translation artifacts (predicates, requirement corpus, L2-L7 records) were completed and hash-locked at commits d4f7ba6/95c4f88, many commits before this audit was cloned or its findings read for the first time in this pass; exposure to THIS SPECIFIC audit is genuinely NONE prior to this correspondence work, unlike pooltogether's SUBSTANTIAL declared exposure -- see EXPOSURE_DECLARATION.json for the tiered mitigation this satisfies (PARTIAL/NONE exposure: temporal/procedural blinding permitted as a logged, weaker-than-true-separation substitute)",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2026-01-tempo-mpp-streams/H-03",
+    "req_id": "req-2-malleable-signatures-for-replay",
+    "relationship": "PARTIAL",
+    "justification": "H-03 is fundamentally a missing-zero-address-check bug, not a signature-malleability (ECDSA s-value) issue -- the two are related (both are 'ecrecover() result not properly validated' failure classes, and this requirement's own trigger is shared with req-2-signature-verification) but H-03's specific mechanism is not malleability/replay. Marked PARTIAL, not DIRECT: the finding covers only part of what this requirement's malleability-specific text addresses.",
+    "supporting_evidence": [
+      "ecrecover returns address(0) for invalid signatures"
+    ],
+    "review_status": "reviewed_directly_by_orchestrating_session_temporal_blinding_basis",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2026-01-tempo-mpp-streams/H-03",
+    "req_id": "req-3-all-valid-inputs",
+    "relationship": "DIRECT",
+    "justification": "The requirement mandates the code 'validate inputs, and function correctly whether the input is as designed or malformed.' H-03 is exactly an input-validation failure: 'no validation that authorizedSigner is not the zero address' in openChannel(), and 'no check that signer != address(0)' in settle()/close() -- both are the code accepting a malformed/edge-case input (a zero address, or a signature that recovers to one) without validation, precisely as this requirement's own text prohibits.",
+    "supporting_evidence": [
+      "there is no validation that authorizedSigner is not the zero address",
+      "No check that signer != address(0)"
+    ],
+    "review_status": "reviewed_directly_by_orchestrating_session_temporal_blinding_basis",
+    "frozen_at_framework_version": "0.1.0-track-a"
   }
 ]

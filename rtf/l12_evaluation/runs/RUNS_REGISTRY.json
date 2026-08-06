@@ -64,5 +64,130 @@
     },
     "notes": "",
     "status": "ARCHIVED"
+  },
+  {
+    "rtf_version": "1",
+    "run_number": 2,
+    "run_id": "v1_run2_pooltogether-tempo-mpp-streams",
+    "audit_ids": [
+      "2023-07-pooltogether",
+      "2026-01-tempo-mpp-streams"
+    ],
+    "blocked_audit_ids": [
+      "2025-02-thorwallet",
+      "2024-03-taiko",
+      "2024-01-init-capital-invitational"
+    ],
+    "git_commit_at_run": "d7453d25b3fa704597ac5ae811f7659408ce02d8",
+    "archived_at": "2026-08-06T16:48:16Z",
+    "scope": "AR-011 fix (implementation defect, not text limit) + L8 integration + frozen audit sampling (4 selected, 3 blocked, 1 ran) + full 3-outcome evaluation with exposure tracking",
+    "detectgrader_summary": {
+      "2023-07-pooltogether": {
+        "score": 1,
+        "max_score": 2,
+        "vulnerability_results": [
+          {
+            "id": "H-02",
+            "passed": false
+          },
+          {
+            "id": "H-04",
+            "passed": true
+          }
+        ],
+        "exposure": "SUBSTANTIAL"
+      },
+      "2026-01-tempo-mpp-streams": {
+        "score": 0,
+        "max_score": 1,
+        "vulnerability_results": [
+          {
+            "id": "H-03",
+            "passed": false
+          }
+        ],
+        "exposure": "NONE"
+      }
+    },
+    "metrics_summary": {
+      "2023-07-pooltogether": {
+        "requirement_routing_recall": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "requirement_routing_precision": {
+          "numerator": 2,
+          "denominator": 38
+        },
+        "target_localization_accuracy": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "evidence_collection_recall": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "final_finding_recall": {
+          "numerator": 0,
+          "denominator": 2
+        },
+        "false_alert_rate": {
+          "numerator": 0,
+          "denominator": 0
+        },
+        "inconclusive_rate": {
+          "numerator": 0,
+          "denominator": 38
+        },
+        "insufficient_evidence_rate": {
+          "numerator": 2,
+          "denominator": 38
+        },
+        "applicability_recall_on_known_applicable": {
+          "numerator": 2,
+          "denominator": 2
+        }
+      },
+      "2026-01-tempo-mpp-streams": {
+        "requirement_routing_recall": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "requirement_routing_precision": {
+          "numerator": 2,
+          "denominator": 34
+        },
+        "target_localization_accuracy": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "evidence_collection_recall": {
+          "numerator": 2,
+          "denominator": 2
+        },
+        "final_finding_recall": {
+          "numerator": 0,
+          "denominator": 2
+        },
+        "false_alert_rate": {
+          "numerator": 0,
+          "denominator": 0
+        },
+        "inconclusive_rate": {
+          "numerator": 0,
+          "denominator": 34
+        },
+        "insufficient_evidence_rate": {
+          "numerator": 2,
+          "denominator": 34
+        },
+        "applicability_recall_on_known_applicable": {
+          "numerator": 2,
+          "denominator": 2
+        }
+      }
+    },
+    "notes": "See REPORT.md for the full 3-separated-outcome writeup and exposure-tracking discussion.",
+    "status": "ARCHIVED"
   }
 ]
