@@ -971,6 +971,46 @@ def test_unvalidated_function_parameters():
     check("input_validation: does not flag a function with no parameters at all", not any("noParams" in f["location"] for f in r), r)
 
 
+def test_reused_detector_safe_across_multiple_calls_on_shared_slither_object():
+    """Regression test for a real bug found by the L12 orchestrator
+    running many requirements' predicates against ONE shared, long-lived
+    Slither object (unlike every other test in this file, which compiles
+    a fresh object per test): calling run_reused_slither_detector twice
+    on the SAME object -- once with overlapping detector classes, once
+    with a different, unrelated class -- used to crash with
+    `SlitherError: You can't register X twice`, and even when it didn't
+    crash, results from an EARLIER unrelated call could leak into a
+    LATER call's return value (since slither.run_detectors() returns
+    every registered detector's results, not just the ones passed to a
+    given call).
+    """
+    from slither.detectors.statements.assembly import Assembly
+    from slither.detectors.operations.unchecked_low_level_return_values import UncheckedLowLevel
+    from slither.detectors.operations.unchecked_send_return_value import UncheckedSend
+
+    src = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function useAssembly() public pure returns (uint x) {
+            assembly { x := 1 }
+        }
+        function unchecked_() public {
+            address(this).call("");
+        }
+    }
+    """
+    shared = _write_and_compile(src)
+
+    r1 = P.run_reused_slither_detector(shared, [UncheckedLowLevel, UncheckedSend], "req-1-check-return")
+    r2 = P.run_reused_slither_detector(shared, [UncheckedLowLevel, UncheckedSend], "req-2-handle-return")  # SAME classes, second call -- must not crash
+    r3 = P.run_reused_slither_detector(shared, [Assembly], "req-1-no-assembly")  # DIFFERENT class, third call
+
+    check("reused_detector: repeated call with the SAME detector classes on a shared object does not crash", True, "")
+    check("reused_detector: second call with same classes returns the same finding, not empty/duplicated", len(r1) == 1 and len(r2) == 1, (r1, r2))
+    check("reused_detector: a later call with a DIFFERENT class does not leak the earlier call's unchecked-call findings into its own result", len(r3) == 1 and all("useAssembly" in f["location"] for f in r3), r3)
+    check("reused_detector: req_id is correctly attributed per-call, not stale from an earlier call", r1[0]["req_id"] == "req-1-check-return" and r2[0]["req_id"] == "req-2-handle-return", (r1, r2))
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -1011,6 +1051,7 @@ def main() -> int:
         test_pragma_solidity_version_specified,
         test_state_mutating_function_protection_status,
         test_unvalidated_function_parameters,
+        test_reused_detector_safe_across_multiple_calls_on_shared_slither_object,
     ]
     for t in tests:
         try:

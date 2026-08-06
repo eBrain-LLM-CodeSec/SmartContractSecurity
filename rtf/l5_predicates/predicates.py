@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from weakref import WeakKeyDictionary
 
 from slither import Slither
 from slither.core.declarations import FunctionContract
@@ -58,6 +59,9 @@ def check_compiler_version_floor(slither: Slither, req_id: str, floor: str) -> l
     return []
 
 
+_REUSED_DETECTOR_RESULT_CACHE: "WeakKeyDictionary" = WeakKeyDictionary()
+
+
 def run_reused_slither_detector(slither: Slither, detector_classes: list, req_id: str) -> list[dict]:
     """Generic wrapper for the EXACT_MATCH/PARTIAL_MATCH-as-evidence-
     collector components that reuse an existing Slither detector directly
@@ -65,24 +69,88 @@ def run_reused_slither_detector(slither: Slither, detector_classes: list, req_id
     predicate -- e.g. req-1-no-assembly reuses Slither's own `assembly`
     detector as-is (a genuine mere-presence check, per that record's own
     analysis), and req-1-check-return reuses `unchecked-lowlevel` +
-    `unchecked-send` together. Registers the given detector class(es) on
-    a FRESH copy of the compiled target and runs them via Slither's own
-    public API (register_detector/run_detectors), not by reimplementing
-    their logic.
+    `unchecked-send` together. Runs them via Slither's own public API
+    (register_detector/run_detectors), not by reimplementing their logic.
+
+    Safe to call MULTIPLE TIMES against the SAME shared `slither` object
+    with DIFFERENT (possibly overlapping) `detector_classes` -- confirmed
+    necessary, not a defensive guess: found via a real L12 orchestrator
+    run sharing one compiled Slither object across many requirements,
+    where req-1-check-return/req-2-handle-return (same detector classes)
+    and req-1-no-assembly (a different class) are all registered on the
+    same object in sequence.
+
+    THREE separate problems were found by that real run, not one, and
+    all three are handled here:
+    (1) `register_detector` raises `SlitherError` if the exact same class
+    is registered twice.
+    (2) `run_detectors()` returns results for EVERY detector ever
+    registered on the object, not just the ones passed to THIS call.
+    (3) The deeper, non-obvious one: `run_detectors()` is NOT idempotent
+    across repeated calls even for the SAME already-registered detector
+    -- confirmed empirically (not merely inferred from reading Slither's
+    source): calling it a second time for a detector that already
+    produced a finding on the first call returns an EMPTY result for
+    that finding the second time, even though nothing about the compiled
+    target changed. (Slither's own detectors/analyses appear to carry
+    state across `.detect()` calls on the same instance -- the exact
+    internal mechanism was not tracked down further, since problem (2)'s
+    fix below makes it moot: this predicate never needs to call
+    `run_detectors()` twice for the same detector class at all.)
+
+    Fix: cache each detector's raw results (keyed by the detector's own
+    `ARGUMENT`) the FIRST time it is registered and run, on a
+    `WeakKeyDictionary` keyed by the `slither` object itself (so the
+    cache is automatically garbage-collected with the object, never a
+    global leak across unrelated compiled targets). Every subsequent
+    call for an already-cached detector class reuses the cached raw
+    results directly and never calls `run_detectors()` again for that
+    class -- entirely sidestepping problem (3) rather than trying to
+    explain or work around Slither's own internal statefulness.
     """
-    for cls in detector_classes:
-        slither.register_detector(cls)
-    raw_results = slither.run_detectors()
+    if slither not in _REUSED_DETECTOR_RESULT_CACHE:
+        _REUSED_DETECTOR_RESULT_CACHE[slither] = {}
+    cache = _REUSED_DETECTOR_RESULT_CACHE[slither]
+
+    already_registered = {type(d) for d in slither.detectors}
+    newly_needed = [cls for cls in detector_classes if cls.ARGUMENT not in cache]
+    for cls in newly_needed:
+        if cls not in already_registered:
+            slither.register_detector(cls)
+    if newly_needed:
+        raw_results = slither.run_detectors()
+        newly_needed_arguments = {cls.ARGUMENT for cls in newly_needed}
+        for detector_results in raw_results:
+            for r in detector_results:
+                check = r.get("check")
+                if check in newly_needed_arguments:
+                    cache.setdefault(check, []).append(r)
+            # Ensure every newly-needed detector gets a (possibly empty) cache
+            # entry even if it produced zero results this run, so it's never
+            # re-registered/re-run again on a future call.
+        for cls in newly_needed:
+            cache.setdefault(cls.ARGUMENT, [])
+
+    wanted_arguments = {cls.ARGUMENT for cls in detector_classes}
     findings = []
-    for detector_results in raw_results:
-        for r in detector_results:
+    for check_name in wanted_arguments:
+        for r in cache.get(check_name, []):
             # Prefer the first "function"-typed element's real name (matches
             # this module's other predicates' "Contract.function" location
             # convention) over the bare check name, which was a real
             # inconsistency caught by this module's own composition test
             # (find_documented_trigger_sites) failing to recognize a hit.
             func_el = next((el for el in r.get("elements", []) if el.get("type") == "function"), None)
-            contract_name = (func_el or {}).get("type_specific_fields", {}).get("parent", {}).get("name", "?")
+            # `.get(key, {})`'s default only applies when `key` is MISSING --
+            # if it's present with an explicit `None` value (confirmed to
+            # happen for real, on a real EVMbench target: some detectors'
+            # "function" elements have `type_specific_fields: None`
+            # explicitly, not merely absent), `.get()` returns that `None`
+            # and the next chained `.get()` call crashes. `or {}` at each
+            # step guards against both "missing" and "explicitly None".
+            type_specific_fields = ((func_el or {}).get("type_specific_fields") or {})
+            parent = (type_specific_fields.get("parent") or {})
+            contract_name = parent.get("name", "?")
             func_name = (func_el or {}).get("name", r.get("check", "?"))
             findings.append({"req_id": req_id, "location": f"{contract_name}.{func_name}", "detail": r.get("description", "").strip()})
     return findings
