@@ -138,7 +138,28 @@ def test_build_evidence_bundles_merges_same_location_findings() -> None:
     check("bundles: merged bundle's target identifies the right contract/function", b["target"]["contract"] == "Vault" and b["target"]["function"] == "_burn", b["target"])
     check("bundles: merged bundle carries the specific predicate's operation field", "narrowing" in (b["observed_operation"] or ""), b["observed_operation"])
     check("bundles: merged bundle records BOTH contributing predicates in supporting_evidence_ids", len(b["supporting_evidence_ids"]) == 2, b["supporting_evidence_ids"])
-    check("bundles: possible_failure_mechanism is hedged ('may'), not an exploit-impact claim", "may" in (b["possible_failure_mechanism"] or ""), b["possible_failure_mechanism"])
+    # Real bug found and fixed via a live stability-experiment A/B comparison
+    # (see evidence_ranking.py's build_evidence_bundles docstring/comment):
+    # a predicate's own risk text is concrete supporting evidence and must
+    # be surfaced directly in possible_failure_mechanism, NOT buried under
+    # `limitations` with a hedging prefix -- doing so measurably made L8
+    # more uncertain on identical evidence.
+    check("bundles: possible_failure_mechanism surfaces the predicate's own risk text directly, not a generic template", b["possible_failure_mechanism"] == "truncation", b["possible_failure_mechanism"])
+    check("bundles: the predicate's risk text is NOT duplicated into limitations with a hedging prefix", not any("not an exploit claim" in x for x in b["limitations"]), b["limitations"])
+
+
+def test_build_evidence_bundles_falls_back_to_hedged_template_when_no_risk_text() -> None:
+    """When a contributing predicate provides missing_safety_condition but
+    NOT its own risk text, possible_failure_mechanism falls back to a
+    hedged ('may', never 'will') generic template -- per work item 4's
+    explicit 'must not claim exploit impact the code evidence can't
+    support' constraint, which applies to text THIS module invents."""
+    item = EvidenceItem(predicate="p", location="C.f", detail="d", structured={
+        "operation": "cast", "validation_found": "none", "missing_safety_condition": "x <= max",
+    })
+    ranked = rank_evidence([item], repo_root=None)
+    bundles = build_evidence_bundles("req-x", "text", ranked)
+    check("bundles: fallback possible_failure_mechanism is hedged ('may') when no predicate risk text exists", "may" in (bundles[0]["possible_failure_mechanism"] or ""), bundles[0]["possible_failure_mechanism"])
 
 
 def test_apply_evidence_budget_splits_included_excluded() -> None:
@@ -214,6 +235,7 @@ def main() -> int:
         test_rank_evidence_dedupes_exact_duplicates,
         test_rank_evidence_prioritizes_priority_contract_and_specificity,
         test_build_evidence_bundles_merges_same_location_findings,
+        test_build_evidence_bundles_falls_back_to_hedged_template_when_no_risk_text,
         test_apply_evidence_budget_splits_included_excluded,
         test_real_pooltogether_narrowing_cast_survives_budget_that_previously_excluded_it,
     ]

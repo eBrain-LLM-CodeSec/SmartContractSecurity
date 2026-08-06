@@ -340,6 +340,34 @@ def build_evidence_bundles(
         if not existing_protections and not missing_protections:
             limitations.append("protection status not explicitly assessed by any contributing predicate for this location")
 
+        # possible_failure_mechanism: prefer the contributing predicate's OWN
+        # risk text (concrete -- e.g. "values above X are silently truncated
+        # by this cast rather than rejected") over a generic templated
+        # sentence. Real bug found and fixed here (Phase H live stability
+        # experiment, see PHASE_H_STABILITY_EXPERIMENT_PREREGISTRATION.md /
+        # the session's AR log): an earlier version of this function put the
+        # predicate's risk text under `limitations` with a
+        # "(not an exploit claim)" hedge prefix instead, which measurably
+        # made L8 MORE uncertain (INSUFFICIENT_EVIDENCE, LOW confidence)
+        # than the exact same information rendered as a plain "Risk:" line
+        # in an isolated A/B comparison against identical evidence (FAIL,
+        # MEDIUM confidence) -- confirmed by direct side-by-side testing,
+        # not assumed. A predicate's own risk assessment is evidence, not a
+        # limitation/caveat about the evidence, and must not be framed as
+        # one. Still hedged ("may proceed", not "will cause") only in the
+        # template FALLBACK, used when no predicate provides its own risk
+        # text -- work item 4's "must not claim exploit impact the code
+        # evidence can't support" constraint applies to what THIS module
+        # invents, not to a predicate's own, already-appropriately-hedged
+        # factual claim (e.g. "silently truncated" is a mechanical fact
+        # about the cast, not an exploit-impact claim).
+        if risks:
+            possible_failure_mechanism = "; ".join(risks)
+        elif missing_protections:
+            possible_failure_mechanism = f"if {missing_protections[0]} is not otherwise enforced, the observed operation may proceed on out-of-range or unvalidated input"
+        else:
+            possible_failure_mechanism = None
+
         bundles.append({
             "req_id": req_id,
             "target": target,
@@ -350,16 +378,10 @@ def build_evidence_bundles(
             "data_flow": [],  # not currently derivable without interprocedural tracing beyond this module's scope -- left empty, not fabricated
             "existing_protections": existing_protections,
             "missing_or_uncertain_protections": missing_protections,
-            # Deliberately hedged phrasing ("may allow", never "will cause") --
-            # this module must not claim exploit impact the code evidence
-            # can't support (work item 4's explicit constraint).
-            "possible_failure_mechanism": (
-                f"if {missing_protections[0]} is not otherwise enforced, the observed operation may proceed on out-of-range or unvalidated input"
-                if missing_protections else None
-            ),
+            "possible_failure_mechanism": possible_failure_mechanism,
             "code_excerpts": [],  # source excerpts are attached by judge_with_l8.py's citation_check step, not duplicated here
             "supporting_evidence_ids": [f"{it.predicate}::{it.location}" for it in items],
-            "limitations": limitations + (risks and [f"predicate-assessed risk (not an exploit claim): {r}" for r in risks] or []),
+            "limitations": limitations,
             "ranking_score": round(bundle_score, 4),
             "ranking_breakdown": merged_breakdown,
         })

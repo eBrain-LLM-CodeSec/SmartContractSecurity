@@ -42,6 +42,7 @@ class ChatResult:
     prompt_tokens: int
     completion_tokens: int
     cached: bool
+    cost_usd: float | None = None  # OpenRouter reports this directly in usage.cost when present; None for cached hits (no new spend) or providers that omit it
 
 
 def _parse_json_tolerant(s: str) -> dict:
@@ -133,14 +134,14 @@ class ChatClient:
     def _cache_path(self, key: str) -> Path:
         return self.cache_dir / f"{key}.json"
 
-    def _log_tokens(self, prompt_tokens: int, completion_tokens: int, cached: bool) -> None:
+    def _log_tokens(self, prompt_tokens: int, completion_tokens: int, cached: bool, cost_usd: float | None = None) -> None:
         if not self.token_log_path:
             return
         self.token_log_path.parent.mkdir(parents=True, exist_ok=True)
         with self.token_log_path.open("a") as f:
             f.write(json.dumps({
                 "model": self.model, "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens, "cached": cached, "ts": time.time(),
+                "completion_tokens": completion_tokens, "cached": cached, "cost_usd": cost_usd, "ts": time.time(),
             }) + "\n")
 
     @retry(
@@ -182,12 +183,13 @@ class ChatClient:
         usage = data.get("usage", {})
         prompt_tokens = usage.get("prompt_tokens", 0)
         completion_tokens = usage.get("completion_tokens", 0)
+        cost_usd = usage.get("cost")  # OpenRouter-specific; None if absent (other providers/older responses)
 
         cache_path.write_text(json.dumps({
             "content": content, "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
         }))
-        self._log_tokens(prompt_tokens, completion_tokens, cached=False)
-        return ChatResult(content=content, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cached=False)
+        self._log_tokens(prompt_tokens, completion_tokens, cached=False, cost_usd=cost_usd)
+        return ChatResult(content=content, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cached=False, cost_usd=cost_usd)
 
     def complete_json(self, messages: list[dict], temperature: float = 0.0,
                        top_p: float | None = None, max_tokens: int | None = None) -> tuple[dict, ChatResult]:
