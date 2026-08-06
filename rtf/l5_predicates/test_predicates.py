@@ -693,6 +693,75 @@ def test_create2_deployed_target_violations():
     check("create2_target: does not fire when CREATE2 is not used at all", len(r_none) == 0, r_none)
 
 
+def test_unsafe_assembly_variable_write():
+    slot_reassignment = """
+    pragma solidity ^0.8.20;
+    contract C {
+        struct S { uint x; }
+        S s1;
+        S s2;
+        function reassign(bytes32 raw) public {
+            S storage p = s1;
+            assembly {
+                p.slot := raw
+            }
+            p.x = 1;
+        }
+    }
+    """
+    function_typed_slot_write = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function() external fp;
+        function setFp(bytes32 raw) public {
+            assembly {
+                sstore(fp.slot, raw)
+            }
+        }
+    }
+    """
+    computed_sstore_slot = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function write(uint val) public {
+            assembly {
+                sstore(add(1, 2), val)
+            }
+        }
+    }
+    """
+    direct_slot_reference_only = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint x;
+        function bump() public {
+            assembly {
+                sstore(x.slot, 1)
+            }
+        }
+    }
+    """
+    no_assembly = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint public x;
+        function bump() public { x += 1; }
+    }
+    """
+
+    r_reassign = P.find_unsafe_assembly_variable_write(_write_and_compile(slot_reassignment))
+    r_fp_slot = P.find_unsafe_assembly_variable_write(_write_and_compile(function_typed_slot_write))
+    r_computed = P.find_unsafe_assembly_variable_write(_write_and_compile(computed_sstore_slot))
+    r_direct = P.find_unsafe_assembly_variable_write(_write_and_compile(direct_slot_reference_only))
+    r_none = P.find_unsafe_assembly_variable_write(_write_and_compile(no_assembly))
+
+    check("safe_assembly: flags direct .slot := reassignment (storage pointer collision shape)", len(r_reassign) == 1 and "slot pointer" in r_reassign[0]["detail"], r_reassign)
+    check("safe_assembly: flags sstore(fp.slot, ...) and tags it as a function-typed variable", len(r_fp_slot) == 1 and "function-typed state variable" in r_fp_slot[0]["detail"], r_fp_slot)
+    check("safe_assembly: flags sstore() with a computed slot expression", len(r_computed) == 1 and "computed/non-.slot" in r_computed[0]["detail"], r_computed)
+    check("safe_assembly: does NOT flag sstore(x.slot, ...) -- direct reference to a declared variable's own slot", len(r_direct) == 0, r_direct)
+    check("safe_assembly: does not fire when there is no assembly at all", len(r_none) == 0, r_none)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -723,6 +792,7 @@ def main() -> int:
         test_natspec_presence,
         test_erc_interface_conformance,
         test_create2_deployed_target_violations,
+        test_unsafe_assembly_variable_write,
     ]
     for t in tests:
         try:

@@ -2,5 +2,11 @@
   "req_id": "req-2-safe-assembly",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Two specifically named attack surfaces make this more tractable than most M requirements: storage pointer collisions (checkable -- assembly `sstore`/`sload` with a computed, non-obviously-safe slot) and arbitrary values assigned to `function`-type variables (checkable -- assembly write targeting a variable of Solidity's function-pointer type). The 'unless the code cannot avoid it' exception still needs judgment, but the trigger is more specific than the broader req-1-no-assembly one.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGERS_IMPLEMENTED_AND_TESTED_WITH_A_DOCUMENTED_TOOL_LIMITATION_SEMANTIC_CONDITION_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: find_unsafe_assembly_variable_write()",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_unsafe_assembly_variable_write() -- direct .slot := reassignment, sstore(function-typed-var.slot, ...), computed sstore slot expression, direct non-function-typed sstore(.slot, ...) (not flagged), and no-assembly-at-all fixtures, verified 2026-08-06",
+    "note": "Three text-level triggers implemented (Slither exposes no variable IR inside assembly blocks at all -- see AR-008): (1) direct `.slot :=` storage-pointer reassignment, (2) sstore() with a computed/non-.slot slot expression, (3) sstore() writing directly into a function-typed state variable's own resolved slot. All three are DETERMINISTIC_EVIDENCE_ONLY per this record's own classification -- ambiguous cases (computed slot could be the well-known SAFE ERC-1967 unstructured-storage pattern) are explicitly flagged as ambiguous, not resolved. Genuine, unavoidable coverage gap logged in AR-008: Slither's own Yul parser crashes outright (SlitherException) on `.selector`/`.address` assignment to a LOCAL external-function-pointer variable in assembly -- Solidity's own only-valid syntax for that specific variable shape -- so this predicate cannot detect that sub-case at all, not even in principle, since no compiled Slither object can be produced for it."
+  }
 }

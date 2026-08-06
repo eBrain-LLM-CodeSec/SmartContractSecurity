@@ -801,3 +801,111 @@ def find_create2_deployed_target_violations(slither: Slither, req_id: str = "req
                         "detail": "assembly create2: deployed contract identity not statically resolvable from Tested Code -- cannot verify 'within Tested Code' or selfdestruct/delegatecall/callcode absence for this case (evidence gap, not a pass)",
                     })
     return findings
+
+
+def find_unsafe_assembly_variable_write(slither: Slither, req_id: str = "req-2-safe-assembly") -> list[dict]:
+    """req-2-safe-assembly (M): 'MUST NOT use the assembly {} instruction
+    to change a variable unless the code cannot: create storage pointer
+    collisions, nor allow arbitrary values to be assigned to variables of
+    type function.' Per this requirement's own L6 record, this is
+    DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION: the two named attack
+    surfaces are checkable triggers; whether a flagged write is genuinely
+    a collision/arbitrary-value risk versus a deliberately-safe pattern
+    (e.g. ERC-1967's well-known constant storage slot) needs semantic
+    review, not attempted here.
+
+    Slither exposes no variable-read/write IR for identifiers referenced
+    only inside an assembly block (confirmed empirically: node.variables_written
+    /node.state_variables_written are always empty for such nodes -- see
+    AR-008), so all three triggers below are necessarily text-level
+    matches against the raw assembly block content (via
+    `_assembly_block_text`), not IR-level ones.
+
+    Trigger 1 -- storage pointer reassignment (`<ident>.slot := <expr>`):
+    directly reassigning a variable's OWN storage slot pointer is the
+    literal 'storage pointer collision' shape the requirement names.
+    Flagged unconditionally (evidence only) -- whether `<expr>` is
+    attacker-influenced or a compile-time constant is not determined
+    here.
+
+    Trigger 2 -- computed `sstore` slot (`sstore(<expr>, ...)` where
+    `<expr>` is not a bare `<ident>.slot` reference): writing to a slot
+    not derived from any declared variable's own slot at all -- reached
+    via `sstore` instead of a direct `.slot :=` assignment. This trigger
+    is deliberately ambiguous by nature: a computed/non-.slot sstore
+    target is BOTH the textbook collision-risk shape AND the shape of the
+    well-known SAFE unstructured-storage pattern (e.g. ERC-1967's
+    `keccak256(...) - 1` constant slot) -- this predicate cannot and does
+    not attempt to distinguish the two.
+
+    Trigger 3 -- direct value write to a function-typed variable's own
+    slot (`sstore(<ident>.slot, <value>)` where `<ident>.slot` IS a bare,
+    already-resolved reference to a declared `function`-typed state
+    variable): unlike Trigger 2, the slot ADDRESS here is not in question
+    (Solidity's own compiler already rejects unresolved identifiers, so a
+    successfully-compiled `<ident>.slot` necessarily names a real
+    variable) -- what's flagged is the VALUE write into that specific
+    variable's slot, the requirement's own second named attack surface
+    ('arbitrary values ... assigned to variables of type function').
+    `sstore(<ident>.slot, ...)` for a non-function-typed `<ident>` is NOT
+    flagged by either Trigger 2 or 3 -- a direct, unconditional write to a
+    variable's own resolved slot is neither a collision risk nor a
+    function-pointer risk.
+
+    KNOWN GAP, not silently skipped: `.selector`/`.address` assignment on
+    a LOCAL variable of EXTERNAL function-pointer type inside assembly
+    (Solidity's only supported assembly accessors for that specific
+    variable shape, per the compiler's own error message when `.slot` is
+    attempted on it) could not be given ANY test fixture -- confirmed
+    empirically that Slither's own Yul parser raises
+    `SlitherException: unresolved reference to identifier <x>.address`
+    and crashes analysis entirely for this shape (a genuine Slither
+    limitation, not a predicate gap). This predicate therefore cannot
+    detect that specific sub-case at all; logged, not glossed over.
+    """
+    findings = []
+    for contract in slither.contracts:
+        function_typed_state_var_names = {
+            v.name for v in contract.state_variables if type(v.type).__name__ == "FunctionType"
+        }
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                if node.type.name != "ASSEMBLY":
+                    continue
+                text = _assembly_block_text(node)
+
+                for m in re.finditer(r"\b(\w+)\.slot\s*:=", text):
+                    ident = m.group(1)
+                    role = " (function-typed state variable)" if ident in function_typed_state_var_names else ""
+                    findings.append({
+                        "req_id": req_id,
+                        "location": f"{contract.name}.{func.name}",
+                        "detail": f"assembly reassigns storage slot pointer of '{ident}'{role} via .slot := -- storage pointer collision shape, evidence only",
+                    })
+
+                for m in re.finditer(r"sstore\s*\(\s*([^,]+?)\s*,", text):
+                    slot_expr = m.group(1).strip()
+                    direct_match = re.fullmatch(r"(\w+)\.slot", slot_expr)
+                    if direct_match:
+                        # bare <declared-var>.slot -- Solidity already resolved
+                        # this to a real variable at compile time, so the SLOT
+                        # ADDRESS itself is safe. Still flagged if that variable
+                        # is function-typed: this is then a direct VALUE write
+                        # into a function pointer's slot -- the requirement's
+                        # 'arbitrary values assigned to variables of type
+                        # function' shape, independent of the collision
+                        # question above.
+                        ident = direct_match.group(1)
+                        if ident in function_typed_state_var_names:
+                            findings.append({
+                                "req_id": req_id,
+                                "location": f"{contract.name}.{func.name}",
+                                "detail": f"sstore() writes directly to '{ident}.slot' (function-typed state variable) -- evidence for the 'arbitrary values assigned to variables of type function' shape, whether the written value is attacker-influenced needs semantic review",
+                            })
+                        continue
+                    findings.append({
+                        "req_id": req_id,
+                        "location": f"{contract.name}.{func.name}",
+                        "detail": f"sstore() with computed/non-.slot storage slot expression '{slot_expr}' -- ambiguous: matches both the collision-risk pattern and the well-known safe unstructured-storage constant pattern, evidence only",
+                    })
+    return findings
