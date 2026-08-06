@@ -206,10 +206,46 @@ project, logged with why it was unavoidable and its blast radius:
 | AR-008 | L5 | OPEN | The Slither Yul-parser crash limitation above |
 | AR-009 | L12 | SUPERSEDED | Foundry can't install on this HPC node (GLIBC); solved via direct-solc compilation with recursive remapping collection |
 | AR-010 | L12 | SUPERSEDED | `target_localization_accuracy()` matched on contract name only, not function — caught by the first real evaluation run |
+| AR-011 | L5/L7 | SUPERSEDED | `find_unvalidated_function_parameters()` was public/external-only with no basis in the text — a real defect, not a derivation limit |
 
 ---
 
-## L12: the first frozen evaluation (new this session)
+## RTF version 1, evaluation run 2 (latest — see `rtf/l12_evaluation/RTF_V1_RUN2_REPORT.md`)
+
+Run 1 (below) is now superseded by **run 2**: fixed AR-011 (a real
+implementation defect, confirmed using only the original EthTrust text,
+found to be the actual cause of run 1's H-02 localization miss — not a
+text-derivation limit); integrated L8 into the orchestrator and
+stress-tested it on clear/borderline/insufficient-evidence cases (the
+borderline case's second pass **disagreed** with the first — the first
+real, observed instance of the flip-risk Track A flagged as untested);
+sampled 4 new audits via a frozen protocol (3 blocked by real
+infrastructure limits on this HPC node — no Foundry, no Node.js — not
+substituted, per the protocol's own rule; 1, `2026-01-tempo-mpp-streams`,
+ran cleanly).
+
+**Three separated outcomes, both audits:**
+- **Routing/evidence:** 2/2 recall, 2/2 (100%) localization accuracy on
+  every real ground-truth finding, both audits.
+- **Final RTF judgment (post-L8):** 0/2 on both — a real, reproduced
+  finding, not noise: L8 correctly localizes but the evidence's generic
+  phrasing isn't specific enough for a confident verdict.
+- **Real DetectGrader recall:** pooltogether 1/2 (H-04 detected, H-02
+  still not detected — now correctly *located*, per AR-011, but still
+  not *specific* enough to count as detecting the same mechanism),
+  tempo-mpp-streams 0/1 (same pattern on a fresh, never-before-seen
+  target).
+
+**Audit-level confidence tracked separately, not pooled**: pooltogether
+carries a declared `SUBSTANTIAL`-exposure confidence downgrade;
+tempo-mpp-streams' matching results carry standard confidence and are
+this project's strongest evidence yet of real, un-primed generalization
+(its finding text was read for the first time only after every RTF
+translation artifact was already hash-locked).
+
+Archived: `rtf/l12_evaluation/runs/v1_run2_pooltogether-tempo-mpp-streams/`.
+
+## L12: the first frozen evaluation, run 1 (superseded by run 2 above)
 
 Built the full evaluation harness and ran it for real, once, against a
 real target: **2023-07-pooltogether's `Vault.sol`**, frozen at git commit
