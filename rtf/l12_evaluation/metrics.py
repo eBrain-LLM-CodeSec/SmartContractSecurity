@@ -46,6 +46,20 @@ class EvidenceItem:
     predicate: str
     location: str  # "Contract.function", "Contract", or a file path
     detail: str = ""
+    structured: dict | None = None
+    """Optional richer evidence, for predicates that can name the exact
+    operation/value/types/validation-status involved (e.g. an unsafe
+    narrowing cast, an unchecked ecrecover result) rather than just a
+    one-line prose summary. Added in response to a real, reproduced L12
+    finding (RTF_V1_RUN2_REPORT.md): L8 and the real DetectGrader both
+    independently reached the SAME conclusion on two unrelated audits --
+    RTF's evidence correctly localizes the vulnerable code but its bare
+    'parameter not validated'-style phrasing isn't specific enough for a
+    confident final judgment. `detail` stays populated for predicates
+    that don't (yet) produce structured evidence -- this field is
+    additive, not a replacement, so existing consumers reading `detail`
+    keep working unchanged.
+    """
 
 
 @dataclass(frozen=True)

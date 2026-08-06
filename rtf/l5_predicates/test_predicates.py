@@ -1038,6 +1038,220 @@ def test_reused_detector_safe_across_multiple_calls_on_shared_slither_object():
     check("reused_detector: req_id is correctly attributed per-call, not stale from an earlier call", r1[0]["req_id"] == "req-1-check-return" and r2[0]["req_id"] == "req-2-handle-return", (r1, r2))
 
 
+def test_unsafe_narrowing_cast_no_bound_check():
+    """Case 1: unsafe narrowing cast, no bound check at all."""
+    src = """
+    pragma solidity ^0.8.20;
+    contract Ledger {
+        mapping(address => uint96) internal _balances;
+        function record(address _who, uint256 _amount) internal {
+            _balances[_who] = uint96(_amount);
+        }
+    }
+    """
+    r = P.find_unsafe_narrowing_cast(_write_and_compile(src))
+    check("narrowing_cast: flags the unchecked cast", len(r) == 1, r)
+    if r:
+        f = r[0]
+        check("narrowing_cast: correct location", f["location"] == "Ledger.record", f)
+        se = f.get("structured_evidence") or {}
+        check("narrowing_cast: structured evidence names the operation", "uint256" in se.get("operation", "") and "uint96" in se.get("operation", ""), se)
+        check("narrowing_cast: structured evidence names the input", se.get("input", {}).get("name") == "_amount", se)
+        check("narrowing_cast: validation_found is 'none'", se.get("validation_found") == "none", se)
+        check("narrowing_cast: missing_safety_condition names the bound", "type(uint96).max" in se.get("missing_safety_condition", ""), se)
+
+
+def test_safe_narrowing_cast_with_bound_check():
+    """Case 2: safe narrowing cast, bounded via type(uint96).max."""
+    src = """
+    pragma solidity ^0.8.20;
+    contract Ledger {
+        mapping(address => uint96) internal _balances;
+        function record(address _who, uint256 _amount) internal {
+            require(_amount <= type(uint96).max, "too large");
+            _balances[_who] = uint96(_amount);
+        }
+    }
+    """
+    r = P.find_unsafe_narrowing_cast(_write_and_compile(src))
+    check("narrowing_cast: does NOT flag a cast bounded by type(uintN).max", len(r) == 0, r)
+
+
+def test_safe_narrowing_cast_with_literal_bound_check():
+    """Case 2b: safe narrowing cast, bounded via the equivalent raw literal
+    instead of the type(uintN).max idiom -- exercises the OTHER supported
+    bound-check form."""
+    src = """
+    pragma solidity ^0.8.20;
+    contract Ledger {
+        mapping(address => uint96) internal _balances;
+        function record(address _who, uint256 _amount) internal {
+            require(_amount <= 79228162514264337593543950335, "too large");
+            _balances[_who] = uint96(_amount);
+        }
+    }
+    """
+    r = P.find_unsafe_narrowing_cast(_write_and_compile(src))
+    check("narrowing_cast: does NOT flag a cast bounded by the equivalent literal", len(r) == 0, r)
+
+
+def test_narrowing_cast_ignores_safe_widening_and_non_integer_casts():
+    src = """
+    pragma solidity ^0.8.20;
+    contract Ledger {
+        function widen(uint96 _amount) internal pure returns (uint256) {
+            return uint256(_amount);
+        }
+        function reinterpretAddress(address _who) internal pure returns (uint160) {
+            return uint160(_who);
+        }
+    }
+    """
+    r = P.find_unsafe_narrowing_cast(_write_and_compile(src))
+    check("narrowing_cast: does not flag a WIDENING cast", not any("widen" in f["location"] for f in r), r)
+    check("narrowing_cast: does not flag an address<->uint160 reinterpretation cast (same width, different semantics)", not any("reinterpretAddress" in f["location"] for f in r), r)
+
+
+def test_narrowing_cast_does_not_flag_safecast_library_usage():
+    """Confirms the predicate does not (and structurally cannot) flag
+    OpenZeppelin's SafeCast-style pattern -- a LibraryCall, not a raw
+    TypeConversion, so it never matches this predicate's trigger at all."""
+    src = """
+    pragma solidity ^0.8.20;
+    library SafeCastLike {
+        function toUint96(uint256 value) internal pure returns (uint96) {
+            require(value <= type(uint96).max, "SafeCast: overflow");
+            return uint96(value);
+        }
+    }
+    contract Ledger {
+        using SafeCastLike for uint256;
+        mapping(address => uint96) internal _balances;
+        function record(address _who, uint256 _amount) internal {
+            _balances[_who] = _amount.toUint96();
+        }
+    }
+    """
+    r = P.find_unsafe_narrowing_cast(_write_and_compile(src))
+    check("narrowing_cast: does not flag Ledger.record (the cast happens inside the library, already checked there)", not any("Ledger.record" in f["location"] for f in r), r)
+
+
+def test_ecrecover_result_unchecked():
+    """Case 3: ecrecover result used without a zero-address check."""
+    src = """
+    pragma solidity ^0.8.20;
+    contract Auth {
+        address public authorizedSigner;
+        function verify(bytes32 _digest, uint8 _v, bytes32 _r, bytes32 _s) internal view returns (bool) {
+            address signer = ecrecover(_digest, _v, _r, _s);
+            return signer == authorizedSigner;
+        }
+    }
+    """
+    r = P.find_unchecked_ecrecover_result(_write_and_compile(src))
+    check("ecrecover_check: flags the unchecked ecrecover result", len(r) == 1, r)
+    if r:
+        f = r[0]
+        se = f.get("structured_evidence") or {}
+        check("ecrecover_check: correct location", f["location"] == "Auth.verify", f)
+        check("ecrecover_check: structured evidence names the operation", se.get("operation") == "ecrecover(...)", se)
+        check("ecrecover_check: validation_found is 'none'", se.get("validation_found") == "none", se)
+        check("ecrecover_check: missing_safety_condition names the zero-address check", "address(0)" in se.get("missing_safety_condition", ""), se)
+
+
+def test_ecrecover_result_checked():
+    """Case 4: ecrecover result correctly checked against address(0)."""
+    src = """
+    pragma solidity ^0.8.20;
+    contract Auth {
+        address public authorizedSigner;
+        function verify(bytes32 _digest, uint8 _v, bytes32 _r, bytes32 _s) internal view returns (bool) {
+            address signer = ecrecover(_digest, _v, _r, _s);
+            require(signer != address(0), "invalid signature");
+            return signer == authorizedSigner;
+        }
+    }
+    """
+    r = P.find_unchecked_ecrecover_result(_write_and_compile(src))
+    check("ecrecover_check: does not flag a properly-checked ecrecover result", len(r) == 0, r)
+
+
+def test_ecrecover_wrapper_function_traced_one_level():
+    """A local helper function that wraps ecrecover() and returns its
+    result directly (the general 'signature-recovery wrapper' pattern,
+    e.g. a hand-rolled equivalent of OpenZeppelin's ECDSA.recover()) --
+    confirms the predicate traces ONE level through such a wrapper to
+    find (or fail to find) the actual check at the CALL SITE, not just
+    adjacent to the raw ecrecover() call.
+    """
+    unchecked_src = """
+    pragma solidity ^0.8.20;
+    contract Auth {
+        address public authorizedSigner;
+        function _recover(bytes32 _digest, uint8 _v, bytes32 _r, bytes32 _s) internal pure returns (address) {
+            if (_v < 27) {
+                return address(0);
+            }
+            return ecrecover(_digest, _v, _r, _s);
+        }
+        function verify(bytes32 _digest, uint8 _v, bytes32 _r, bytes32 _s) internal view returns (bool) {
+            address signer = _recover(_digest, _v, _r, _s);
+            return signer == authorizedSigner;
+        }
+    }
+    """
+    checked_src = """
+    pragma solidity ^0.8.20;
+    contract Auth {
+        address public authorizedSigner;
+        function _recover(bytes32 _digest, uint8 _v, bytes32 _r, bytes32 _s) internal pure returns (address) {
+            if (_v < 27) {
+                return address(0);
+            }
+            return ecrecover(_digest, _v, _r, _s);
+        }
+        function verify(bytes32 _digest, uint8 _v, bytes32 _r, bytes32 _s) internal view returns (bool) {
+            address signer = _recover(_digest, _v, _r, _s);
+            require(signer != address(0), "invalid signature");
+            return signer == authorizedSigner;
+        }
+    }
+    """
+    r_unchecked = P.find_unchecked_ecrecover_result(_write_and_compile(unchecked_src))
+    r_checked = P.find_unchecked_ecrecover_result(_write_and_compile(checked_src))
+
+    verify_findings_unchecked = [f for f in r_unchecked if f["location"] == "Auth.verify"]
+    verify_findings_checked = [f for f in r_checked if f["location"] == "Auth.verify"]
+    check("ecrecover_check: traces through a one-level wrapper to flag the CALL SITE when unchecked", len(verify_findings_unchecked) == 1, r_unchecked)
+    if verify_findings_unchecked:
+        se = verify_findings_unchecked[0].get("structured_evidence") or {}
+        check("ecrecover_check: wrapper-traced finding names the wrapper in its operation field", "_recover" in se.get("operation", ""), se)
+    check("ecrecover_check: does not flag the call site when the wrapper's result IS checked there", len(verify_findings_checked) == 0, r_checked)
+
+
+def test_ecrecover_borderline_no_intermediate_variable():
+    """Case 5: borderline -- ecrecover's result is used inline with no
+    intermediate named variable, so this predicate cannot trace whether
+    it's checked. Per its own documented scope limit, this must be
+    reported as an explicit UNKNOWN, not silently treated as either
+    checked or unchecked -- exactly the 'insufficient evidence' shape
+    this test set is required to cover.
+    """
+    src = """
+    pragma solidity ^0.8.20;
+    contract Auth {
+        function verify(bytes32 _digest, uint8 _v, bytes32 _r, bytes32 _s, address _expected) internal pure returns (bool) {
+            return ecrecover(_digest, _v, _r, _s) == _expected;
+        }
+    }
+    """
+    r = P.find_unchecked_ecrecover_result(_write_and_compile(src))
+    check("ecrecover_check: borderline inline-use case produces exactly one finding", len(r) == 1, r)
+    if r:
+        se = r[0].get("structured_evidence") or {}
+        check("ecrecover_check: borderline case is reported as UNKNOWN, not silently checked or unchecked", se.get("validation_found", "").startswith("UNKNOWN"), se)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -1080,6 +1294,15 @@ def main() -> int:
         test_unvalidated_function_parameters,
         test_unvalidated_function_parameters_covers_internal_functions,
         test_reused_detector_safe_across_multiple_calls_on_shared_slither_object,
+        test_unsafe_narrowing_cast_no_bound_check,
+        test_safe_narrowing_cast_with_bound_check,
+        test_safe_narrowing_cast_with_literal_bound_check,
+        test_narrowing_cast_ignores_safe_widening_and_non_integer_casts,
+        test_narrowing_cast_does_not_flag_safecast_library_usage,
+        test_ecrecover_result_unchecked,
+        test_ecrecover_result_checked,
+        test_ecrecover_wrapper_function_traced_one_level,
+        test_ecrecover_borderline_no_intermediate_variable,
     ]
     for t in tests:
         try:

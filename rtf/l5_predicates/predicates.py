@@ -1407,3 +1407,294 @@ def find_unvalidated_function_parameters(slither: Slither, req_id: str = "req-3-
                     "detail": f"none of this function's parameters ({sorted(p.name for p in params)}) are referenced in any require()/assert() call -- evidence of no input validation, not a proof of malformed-input handling",
                 })
     return findings
+
+
+def _bound_check_covers_variable(func, variable, dest_bits: int) -> str | None:
+    """Shared helper for `find_unsafe_narrowing_cast`: does ANY node in
+    `func` contain a require()/assert()/SolidityCall-revert-style check
+    that reads `variable` and bounds it against `dest_bits`'s max value
+    (`2**dest_bits - 1`)? Checked via TWO real, confirmed-empirically
+    idioms (not guessed): (1) a literal constant operand in a Binary
+    comparison whose value exactly equals `2**dest_bits - 1` (confirmed:
+    Slither's IR resolves a raw numeric literal like
+    `79228162514264337593543950335` to a `Constant` with `.value` set);
+    (2) the `type(uintN).max`/`type(intN).max` idiom, which does NOT
+    constant-fold to a `Constant` at the IR level (confirmed empirically
+    -- it resolves to an opaque `TemporaryVariable`), so is matched
+    instead via `node.expression`'s own string form, which reliably
+    contains the literal text `type()(uintN).max` for this idiom.
+    Returns a human-readable description of the check found, or None.
+    """
+    from slither.slithir.operations import Binary
+
+    max_value = (2 ** dest_bits) - 1
+    for node in func.nodes:
+        if variable not in node.variables_read:
+            continue
+        expr_text = str(node.expression) if node.expression else ""
+        for ir in node.irs:
+            if not isinstance(ir, Binary):
+                continue
+            if variable not in (ir.variable_left, ir.variable_right):
+                continue
+            other = ir.variable_right if ir.variable_left is variable else ir.variable_left
+            if getattr(other, "value", None) == max_value:
+                return f"{expr_text.strip()} (literal bound {max_value} == 2**{dest_bits}-1)"
+        if ".max" in expr_text and (f"uint{dest_bits})" in expr_text or f"int{dest_bits})" in expr_text):
+            return f"{expr_text.strip()} (type(...).max idiom)"
+    return None
+
+
+def find_unsafe_narrowing_cast(slither: Slither, req_id: str = "req-3-all-valid-inputs") -> list[dict]:
+    """req-3-all-valid-inputs (Q): 'Tested Code MUST validate inputs,
+    and function correctly whether the input is as designed or
+    malformed.' A value larger than a narrower destination integer
+    type's max representable value IS a malformed input for that
+    specific downstream representation -- silently truncating it via an
+    explicit narrowing cast, without first validating the value fits,
+    is a direct failure to 'function correctly' on a malformed input;
+    this is the exact mechanism EVMbench finding H-02 (2023-07-
+    pooltogether) demonstrates (`uint96(_shares)` with no
+    `_shares <= type(uint96).max` check), confirmed by inspecting the
+    real fix diff, not assumed. General, NOT specific to that one
+    codebase: fires on ANY `uintN(x)`/`intN(x)` explicit narrowing
+    conversion (destination bit-width strictly less than the source's,
+    both integer-kind, not `address`/`bytesN` reinterpretation casts --
+    those have different semantics, not a magnitude-truncation risk)
+    where no require()/assert() in the same function bounds the source
+    value against the destination type's max. Does NOT flag code using
+    OpenZeppelin's `SafeCast` library (e.g. `.toUint96()`) -- those are
+    LibraryCall IR, not a raw TypeConversion, so they're structurally
+    invisible to this check, which only looks for the raw, unchecked
+    cast form; SafeCast's own internal implementation already performs
+    exactly this bound check, which is the entire reason it exists.
+
+    Produces STRUCTURED evidence (not just a one-line `detail` string),
+    added in response to a real, reproduced L12 finding
+    (RTF_V1_RUN2_REPORT.md): both L8 and the real upstream DetectGrader
+    independently judged this predicate's OLD bare 'parameter not
+    validated' phrasing too generic to support a confident verdict, even
+    when it correctly named the exact vulnerable location. The
+    structured fields name the specific operation, types, and the exact
+    missing condition, per the plan's own evidence design.
+
+    DETERMINISTIC_EVIDENCE_ONLY: confirms the cast is UNCHECKED by this
+    specific bound-check idiom, not that truncation is exploitable in
+    context (e.g. a value that can never realistically exceed the
+    destination type's range from any reachable caller would still be
+    flagged here, same over-inclusive-by-design tradeoff as this
+    project's other DETERMINISTIC_EVIDENCE_ONLY predicates) -- that
+    remains L8's semantic question.
+    """
+    from slither.slithir.operations import TypeConversion
+
+    INTEGER_PREFIXES = ("uint", "int")
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_declared:
+            for node in func.nodes:
+                for ir in node.irs:
+                    if not isinstance(ir, TypeConversion):
+                        continue
+                    src_var = ir.variable
+                    src_type = getattr(src_var, "type", None)
+                    dst_type = ir.type
+                    if src_type is None or dst_type is None:
+                        continue
+                    # Check the type's STRING form is integer-kind ("uintN"/"intN")
+                    # BEFORE ever touching `.size` -- confirmed by a real crash
+                    # against real code (pooltogether's Vault.sol): Slither's
+                    # `ElementaryType.size` is a property that RAISES
+                    # `SlitherException` for non-numeric types (e.g. "string",
+                    # "bool") rather than returning None, so `getattr(t, "size",
+                    # None)` does NOT safely no-op the way it would for a merely
+                    # MISSING attribute -- the property getter still executes and
+                    # still raises. TypeConversion fires for every explicit cast,
+                    # not just integer-narrowing ones, so this predicate must rule
+                    # out non-integer conversions using the type's `str()` form
+                    # first, never by probing `.size` speculatively.
+                    src_str, dst_str = str(src_type), str(dst_type)
+                    if not (src_str.startswith(INTEGER_PREFIXES) and dst_str.startswith(INTEGER_PREFIXES)):
+                        continue
+                    try:
+                        src_size = src_type.size
+                        dst_size = dst_type.size
+                    except Exception:  # noqa: BLE001 -- .size can still raise for a type shape not anticipated by the check above; skip rather than crash the whole run
+                        continue
+                    if dst_size >= src_size:
+                        continue
+
+                    check_desc = _bound_check_covers_variable(func, src_var, dst_size)
+                    src_name = getattr(src_var, "name", str(src_var))
+                    location = f"{contract.name}.{func.name}"
+
+                    if check_desc is not None:
+                        continue  # validated -- not flagged, matching this module's "flag only the unchecked case" convention
+
+                    findings.append({
+                        "req_id": req_id,
+                        "location": location,
+                        "detail": f"unchecked narrowing cast: {src_name} ({src_str}) -> {dst_str}, no bound check found for this parameter against the destination type's max value",
+                        "structured_evidence": {
+                            "operation": f"narrowing type conversion {src_str} -> {dst_str}",
+                            "input": {"name": src_name, "type": src_str},
+                            "source_type": src_str,
+                            "destination_type": dst_str,
+                            "validation_found": "none",
+                            "missing_safety_condition": f"{src_name} <= type({dst_str}).max",
+                            "risk": f"values of {src_name} above {dst_str}'s maximum representable value ({(2**dst_size)-1}) are silently truncated by this cast rather than rejected",
+                            "affected_functions": [location],
+                        },
+                    })
+    return findings
+
+
+def find_unchecked_ecrecover_result(slither: Slither, req_id: str = "req-2-signature-verification") -> list[dict]:
+    """req-2-signature-verification (M): 'Tested Code MUST properly
+    verify signatures to ensure authenticity of messages that were
+    signed off-chain.' `ecrecover()` returns `address(0)` for a
+    malformed/invalid signature (a documented Solidity/EVM behavior, not
+    a project-specific fact) -- if the caller never checks the recovered
+    address against `address(0)` before trusting it as 'the signer', an
+    invalid signature is silently treated as authentically signed BY the
+    zero address, which is exactly a failure to 'ensure authenticity'
+    per this requirement's own text. This is the precise mechanism
+    EVMbench finding H-03 (2026-01-tempo-mpp-streams) demonstrates,
+    confirmed by inspecting the real finding text and fix diff, not
+    assumed -- and independently, the SAME requirement's context bundle
+    references [swcregistry], where this exact pattern is a named,
+    externally-recognized weakness class (SWC-122), corroborating this
+    isn't an invented check.
+
+    General, NOT specific to any one codebase: fires on any raw
+    `ecrecover()` call (the same `SolidityCall` trigger
+    `find_ecrecover_usage()` already uses), OR a call to a LOCAL
+    'signature-recovery wrapper' function -- a function with at least one
+    `return` statement whose value is directly an `ecrecover()` call's
+    result in the same CFG node (the common `return ecrecover(...);`
+    idiom, including when it's only one of several return paths, e.g.
+    an early `return address(0)` for a malformed-length guard clause).
+    This second case was added after a real gap was found by running
+    against actual code (2026-01-tempo-mpp-streams): its `_recoverSigner`
+    helper wraps `ecrecover()` and returns its result directly, but the
+    actual `address(0)` check (or its absence) belongs at the CALL SITE
+    of `_recoverSigner`, not adjacent to the raw `ecrecover()` call
+    itself -- a one-level-only trace is not a benchmark-specific special
+    case, it is the general shape of 'a helper function wrapping a
+    primitive', the same pattern OpenZeppelin's own `ECDSA.recover()`
+    library function has (already covered separately by
+    `find_oz_ecdsa_library_usage()` for the malleability angle; this is
+    the equivalent for a hand-rolled, non-library wrapper).
+
+    For both trigger shapes, traces the result to the real named variable
+    it's assigned to (confirmed empirically: `address signer =
+    ecrecover(...)` / `address signer = _recoverSigner(...)` both compile
+    to a SolidityCall/InternalCall followed immediately by an Assignment
+    IR in the same node) and checks whether that variable is ever
+    compared against `address(0)` anywhere else in the function. A real,
+    documented scope limit remains: a one-line inline use with NO
+    intermediate named variable at either the ecrecover call OR the
+    wrapper call (e.g. `return ecrecover(...) != address(0)`) is not
+    traced and is reported as an explicit UNKNOWN, not silently treated
+    as checked or unchecked either way -- only wrapper functions ONE
+    level deep are traced, not arbitrarily nested call chains.
+
+    DETERMINISTIC_EVIDENCE_ONLY: absence of a traced address(0) check is
+    evidence the check is missing for this specific traced variable, not
+    proof no equivalent protection exists anywhere in the call chain
+    (e.g. a caller-side check two or more levels up) -- that broader
+    question remains L8's.
+    """
+    from slither.core.declarations import SolidityFunction
+    from slither.slithir.operations import Assignment, Binary, BinaryType, InternalCall, Return, SolidityCall
+
+    ECRECOVER_SIG = SolidityFunction("ecrecover(bytes32,uint8,bytes32,bytes32)")
+
+    def _zero_check_covers_variable(func, variable) -> bool:
+        for other_node in func.nodes:
+            if variable not in other_node.variables_read:
+                continue
+            expr_text = str(other_node.expression) if other_node.expression else ""
+            for other_ir in other_node.irs:
+                if isinstance(other_ir, Binary) and other_ir.type in (BinaryType.EQUAL, BinaryType.NOT_EQUAL):
+                    if variable in (other_ir.variable_left, other_ir.variable_right) and "address(0)" in expr_text.replace(" ", ""):
+                        return True
+        return False
+
+    def _named_var_for(node, tmp_result):
+        for other_ir in node.irs:
+            if isinstance(other_ir, Assignment) and other_ir.rvalue is tmp_result:
+                return other_ir.lvalue
+        return None
+
+    # Pass 1: identify local "signature-recovery wrapper" functions --
+    # a function with >=1 `return` node whose returned value is, in that
+    # SAME node, an ecrecover() call's lvalue.
+    wrapper_functions = set()
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                ecrecover_lvalues = {ir.lvalue for ir in node.irs if isinstance(ir, SolidityCall) and ir.function == ECRECOVER_SIG}
+                if not ecrecover_lvalues:
+                    continue
+                for ir in node.irs:
+                    if isinstance(ir, Return) and any(v in ecrecover_lvalues for v in ir.values):
+                        wrapper_functions.add(func)
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            location = f"{contract.name}.{func.name}"
+            for node in func.nodes:
+                # Trigger shape 1: direct ecrecover() call.
+                for ir in node.irs:
+                    if isinstance(ir, SolidityCall) and ir.function == ECRECOVER_SIG:
+                        named_var = _named_var_for(node, ir.lvalue)
+                        _emit_ecrecover_finding(findings, req_id, location, named_var, _zero_check_covers_variable, func)
+                # Trigger shape 2: call to a local wrapper function.
+                for ir in node.irs:
+                    if isinstance(ir, InternalCall) and ir.function in wrapper_functions:
+                        named_var = _named_var_for(node, ir.lvalue)
+                        _emit_ecrecover_finding(findings, req_id, location, named_var, _zero_check_covers_variable, func, via_wrapper=getattr(ir.function, "name", str(ir.function)))
+    return findings
+
+
+def _emit_ecrecover_finding(findings, req_id, location, named_var, zero_check_fn, func, via_wrapper=None):
+    """Shared finding-construction logic for both trigger shapes in
+    `find_unchecked_ecrecover_result` -- kept as one place so the
+    structured-evidence schema can't silently drift between the two
+    cases.
+    """
+    wrapper_note = f" (via local wrapper function '{via_wrapper}')" if via_wrapper else ""
+    if named_var is None:
+        findings.append({
+            "req_id": req_id,
+            "location": location,
+            "detail": f"ecrecover() result{wrapper_note} used without an intermediate named variable -- cannot trace whether it is checked against address(0) (known predicate scope limit, not evidence either way)",
+            "structured_evidence": {
+                "operation": f"ecrecover(...){wrapper_note}",
+                "possible_result": "address(0) for an invalid/malformed signature",
+                "validation_found": "UNKNOWN -- result not assigned to a traceable named variable",
+                "risk": "cannot be determined by this predicate; requires manual/semantic review",
+            },
+        })
+        return
+
+    if zero_check_fn(func, named_var):
+        return  # validated -- not flagged
+
+    findings.append({
+        "req_id": req_id,
+        "location": location,
+        "detail": f"ecrecover() result{wrapper_note} (assigned to '{getattr(named_var, 'name', named_var)}') is never compared against address(0) anywhere in this function",
+        "structured_evidence": {
+            "operation": f"ecrecover(...){wrapper_note}",
+            "input": {"name": getattr(named_var, "name", str(named_var)), "type": "address"},
+            "possible_result": "address(0) for an invalid/malformed signature (documented Solidity/EVM behavior)",
+            "validation_found": "none",
+            "missing_safety_condition": f"{getattr(named_var, 'name', named_var)} != address(0)",
+            "risk": "an invalid signature recovers to address(0) and, if address(0) is ever treated as authorized (e.g. an unset/default signer field), an invalid signature would be accepted as authentic",
+            "affected_functions": [location],
+        },
+    })

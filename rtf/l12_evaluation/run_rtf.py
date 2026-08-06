@@ -149,6 +149,7 @@ def run_rtf(
                         predicate=getattr(spec.func, "__name__", str(spec.func)),
                         location=f.get("location", "?"),
                         detail=f.get("detail", ""),
+                        structured=f.get("structured_evidence"),
                     ))
 
         conformance: ConformanceState | None = None
