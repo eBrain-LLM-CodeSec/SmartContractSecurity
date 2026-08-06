@@ -33,6 +33,42 @@ _DECISION_TO_CONFORMANCE = {
 }
 
 
+def _render_evidence_line(e) -> str:
+    """One evidence item as prompt text. Prefers the STRUCTURED fields
+    (operation/input/types/validation_found/missing_safety_condition/
+    risk) when a predicate provides them, over the older bare `detail`
+    string -- added in direct response to a real, reproduced finding
+    (RTF_V1_RUN2_REPORT.md): both L8 and the real DetectGrader
+    independently judged bare 'parameter not validated'-style phrasing
+    too generic for a confident verdict, even when correctly localized.
+    Falls back to `detail` for predicates that don't (yet) produce
+    structured evidence, so this stays a strict superset, not a breaking
+    change for the other ~30 predicates.
+    """
+    if not e.structured:
+        return f"- {e.location}: {e.detail}"
+    se = e.structured
+    parts = [f"- {e.location}:"]
+    if se.get("operation"):
+        parts.append(f"  Operation: {se['operation']}")
+    if se.get("input"):
+        inp = se["input"]
+        parts.append(f"  Input: {inp.get('name')}, type {inp.get('type')}")
+    if se.get("source_type") and se.get("destination_type"):
+        parts.append(f"  Type conversion: {se['source_type']} -> {se['destination_type']}")
+    if se.get("possible_result"):
+        parts.append(f"  Possible result: {se['possible_result']}")
+    if "validation_found" in se:
+        parts.append(f"  Validation found: {se['validation_found']}")
+    if se.get("missing_safety_condition"):
+        parts.append(f"  Missing safety condition: {se['missing_safety_condition']}")
+    if se.get("risk"):
+        parts.append(f"  Risk: {se['risk']}")
+    if se.get("affected_functions"):
+        parts.append(f"  Affected functions: {', '.join(se['affected_functions'])}")
+    return "\n".join(parts)
+
+
 def build_judgment_question(evidence: list, max_items: int = 30) -> str:
     """A generic question template usable across ANY requirement's
     evidence, deliberately NOT requirement-specific -- the requirement's
@@ -47,7 +83,7 @@ def build_judgment_question(evidence: list, max_items: int = 30) -> str:
     omitted, is stated in the question so the model knows the list may be
     partial, not exhaustive.
     """
-    lines = [f"- {e.location}: {e.detail}" for e in evidence[:max_items]]
+    lines = [_render_evidence_line(e) for e in evidence[:max_items]]
     omitted_note = ""
     if len(evidence) > max_items:
         omitted_note = f"\n(...and {len(evidence) - max_items} more similar items, omitted for length.)"

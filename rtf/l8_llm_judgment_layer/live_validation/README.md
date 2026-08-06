@@ -135,3 +135,49 @@ ambiguous case, not just a null result on easy ones. Both are load-
 bearing findings for how much any single L8 verdict should be trusted at
 scale — genuinely borderline cases need the second pass, not just the
 easy ones.
+
+## Run 4 (2026-08-06): re-evaluating the same 2 real vulnerabilities with ENRICHED evidence
+
+Run 2's report (`RTF_V1_RUN2_REPORT.md`) found L8 reached
+`INSUFFICIENT_EVIDENCE` on BOTH real ground-truth requirements, across
+BOTH audits, despite correct localization -- the evidence's generic
+phrasing was the identified bottleneck. `find_unsafe_narrowing_cast()`
+and `find_unchecked_ecrecover_result()` were built specifically to test
+whether richer, structured evidence (exact operation, types, missing
+condition, risk) fixes this. Re-ran the SAME two real findings with the
+new evidence. Script/raw output: `04_enriched_evidence_reevaluation.{py,json}`.
+
+**PoolTogether H-02** (`req-3-all-valid-inputs`, `Vault._burn`): **FLIPPED
+from `INSUFFICIENT_EVIDENCE` to a stable `FAIL`** (MEDIUM confidence,
+second pass AGREED). The enriched evidence -- naming the exact operation
+(`uint256 -> uint96`), the missing condition
+(`_shares <= type(uint96).max`), and the concrete risk (silent
+truncation) -- gave L8 enough to reach a confident, correct, STABLE
+verdict where the old bare "parameter not validated" phrasing couldn't.
+This is the clearest, most direct evidence yet that the evidence-
+specificity hypothesis from run 2's report was correct.
+
+**Tempo H-03** (`req-2-signature-verification`, `TempoStreamChannel.settle`):
+stayed at `INSUFFICIENT_EVIDENCE`, LOW confidence, and the **second pass
+DISAGREED** even with the enriched evidence. The reasoning is itself the
+finding: the model explicitly wants to know "whether address(0) could
+ever be treated as authorized" -- i.e. whether `channel.authorizedSigner`
+can actually BE `address(0)` for some channel. That fact lives in a
+DIFFERENT function (`openChannel()`) and, per this project's own L11
+correspondence work, is evidence for a DIFFERENT requirement
+(`req-3-all-valid-inputs`, not `req-2-signature-verification`). **H-03 is
+a genuinely COMPOUND vulnerability spanning two EthTrust requirements
+evaluated independently by this framework** -- neither half's evidence
+alone fully explains the exploit chain, and enriching one half's
+evidence further will not close this gap. This is a real, structural
+finding about compound vulnerabilities and per-requirement evidence
+isolation, not a predicate quality problem to iterate on further right
+now.
+
+**Net effect on the "insufficient input evidence, not insufficient
+autonomy" hypothesis this phase set out to test**: partially confirmed,
+with an important qualifier. It fully explains PoolTogether's gap
+(fixed). For Tempo, richer per-requirement evidence was necessary but
+not sufficient -- the real bottleneck there is that the vulnerability's
+full explanation requires evidence from two requirements' predicates
+considered TOGETHER, which this framework does not currently do.

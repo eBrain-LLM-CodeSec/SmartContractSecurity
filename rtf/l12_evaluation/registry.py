@@ -95,7 +95,9 @@ _reg("req-2-documented", PredicateSpec(P.find_documented_trigger_sites, ("slithe
 _reg("req-2-block-data-misuse", PredicateSpec(P.find_block_data_usage, ("slither",)))
 _reg("req-2-random-enough", PredicateSpec(P.find_block_data_usage, ("slither",)))
 _reg("req-2-check-rounding", PredicateSpec(P.find_division_in_value_context, ("slither",)))
-_reg("req-2-signature-verification", PredicateSpec(P.find_ecrecover_usage, ("slither",)))
+_reg("req-2-signature-verification",
+     PredicateSpec(P.find_ecrecover_usage, ("slither",)),
+     PredicateSpec(P.find_unchecked_ecrecover_result, ("slither",)))
 _reg("req-2-malleable-signatures-for-replay",
      PredicateSpec(P.find_ecrecover_usage, ("slither",)),
      PredicateSpec(P.find_oz_ecdsa_library_usage, ("slither",)))
@@ -117,7 +119,9 @@ _reg("req-3-linted",
      PredicateSpec(P.find_linting_violations_via_reused_detectors, ("slither",)),
      PredicateSpec(P.find_pragma_solidity_version_specified, ("sol_source_paths",)))
 _reg("req-3-access-control", PredicateSpec(P.find_state_mutating_function_protection_status, ("slither",)))
-_reg("req-3-all-valid-inputs", PredicateSpec(P.find_unvalidated_function_parameters, ("slither",)))
+_reg("req-3-all-valid-inputs",
+     PredicateSpec(P.find_unvalidated_function_parameters, ("slither",)),
+     PredicateSpec(P.find_unsafe_narrowing_cast, ("slither",)))
 
 # --- GP --------------------------------------------------------------------
 
