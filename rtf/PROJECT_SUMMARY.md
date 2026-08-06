@@ -8,11 +8,17 @@ the **EEA EthTrust Security Levels Specification** (Version 3, Apache
 result afterward — never to define it. Full design rationale, revision
 history, and rejected alternatives: `/scratch/md5344/.claude/plans/ou-are-a-critical-purring-eich.md`.
 
-**Status as of 2026-08-06:** full 81-requirement corpus translated
-(applicability + strategy derivation); 57/81 requirements have at least
-one real, tested static predicate implemented; **no EVMbench evaluation
-has been run yet** (see "What has NOT been done" below — this is the
-main outstanding gap).
+**Status as of 2026-08-06 (updated):** full 81-requirement corpus
+translated (applicability + strategy derivation); 57/81 requirements
+have at least one real, tested static predicate implemented; **the first
+frozen EVMbench evaluation has now been run** — a real orchestrator
+against a real target (2023-07-pooltogether), scored 1/2 by the real
+upstream `DetectGrader`. Still narrow in scope (1 of 46 real audits, L8
+not yet wired into the orchestrator — see "What has NOT been done"
+below) but no longer zero. Full audit: `rtf/AUDIT_L0_L12.md`. Full first-
+evaluation results and failure attribution:
+`rtf/l12_evaluation/FIRST_EVALUATION_RESULT.json`,
+`rtf/l12_evaluation/FAILURE_ATTRIBUTION_REPORT.md`.
 
 ---
 
@@ -198,25 +204,65 @@ project, logged with why it was unavoidable and its blast radius:
 | AR-006 | GP | OPEN | Whether SHOULD-level and MUST-level "FAIL" deserve the same formal weight |
 | AR-007 | L5 | SUPERSEDED | The `node.inline_asm` dead-code bug above |
 | AR-008 | L5 | OPEN | The Slither Yul-parser crash limitation above |
+| AR-009 | L12 | SUPERSEDED | Foundry can't install on this HPC node (GLIBC); solved via direct-solc compilation with recursive remapping collection |
+| AR-010 | L12 | SUPERSEDED | `target_localization_accuracy()` matched on contract name only, not function — caught by the first real evaluation run |
 
 ---
 
+## L12: the first frozen evaluation (new this session)
+
+Built the full evaluation harness and ran it for real, once, against a
+real target: **2023-07-pooltogether's `Vault.sol`**, frozen at git commit
+`95c4f88`. No Foundry/forge needed (see AR-009 — genuinely blocked on
+this HPC node, solved by compiling directly via solc with recursively-
+collected import remappings). 56/56 registered requirements evaluated,
+zero operational failures.
+
+**Real `DetectGrader` score: 1/2.** RTF's own evidence correctly named
+the exact vulnerable function for H-04 (`Vault.mintYieldFee`, flagged
+unprotected by `find_state_mutating_function_protection_status`) — the
+real grader independently confirmed detection. H-02 was missed: its real
+fix touches internal functions (`Vault._mint`/`_burn`/`_transfer`) that
+`req-3-all-valid-inputs`'s current predicate doesn't scan (public/
+external functions only) — a genuine, honestly-reported coverage gap,
+not a crash or a routing failure. RTF's own stage-separated metrics
+(`target_localization_accuracy: 1/2`) predicted this exact H-04-hit/
+H-02-miss split *before* the real grader ran. Full breakdown:
+`rtf/l12_evaluation/FAILURE_ATTRIBUTION_REPORT.md`.
+
+**Caught 2 real bugs in the process** (both logged, both fixed): a
+Slither shared-object detector-registration bug only surfacing when many
+requirements share one compiled target (not a synthetic-fixture-testable
+shape), and the localization-metric bug above (AR-010).
+
+**Scope, stated plainly**: 1 of 46 real EVMbench audits run; L8 was not
+wired into the orchestrator (every evidence-backed requirement stops at
+"judgment pending," never reaches a final verdict — this is why
+`final_finding_recall` reads 0/2 despite the real grader detecting H-04).
+`requirement_routing_precision: 2/38` should not be read as a 95% false-
+positive rate — this audit has only 2 *graded* findings, not a full
+ground-truth label for every one of the 38 requirements RTF flagged.
+
 ## What has NOT been done
 
-- **No EVMbench evaluation has been run.** The L12 evaluation harness
-  (the thing that would actually score RTF's strategies against real
-  EVMbench entries via the real `DetectGrader`) is designed but not
-  executed. The 12-item pre-evaluation freeze checklist is not complete.
-- **L11 correspondence only covers Track A's original 6 requirements**,
-  not the full 81 — extending it is real, separate effort (role-separated
-  or blinding-attested, per the plan's leakage-control rules).
-- **L8 (LLM Judgment Layer) has only run live twice**, against one file,
-  both landing on clear-cut answers — not stress-tested against a
-  genuinely borderline case, and not run at scale across the corpus.
+- **L12 has run exactly once, against one target.** 44 of 46 real
+  EVMbench audits have zero L11 correspondence records at all — not
+  checked-and-found-NONE, simply never attempted. A run against any of
+  them today would show 0/0 on every DIRECT-based metric.
+- **L8 is not wired into the orchestrator.** `run_rtf.py` deliberately
+  stops at evidence collection; no requirement in the first evaluation
+  reached a final PASS/FAIL/INCONCLUSIVE verdict via L8.
+- **L8 itself has only run live twice** (separately from the orchestrator
+  question above), against one file, both landing on clear-cut answers —
+  not stress-tested against a genuinely borderline case.
+- Every L11 `DIRECT` record (35 total, including the 2 used in the first
+  evaluation) carries an explicit, plan-mandated confidence downgrade:
+  built via a fresh-subagent mitigation, not true personnel separation
+  (this project's prior EVMbench exposure is `SUBSTANTIAL`, and a single-
+  session agent cannot provide genuine organizational separation).
 - Several `NOT_YET_BUILT`/`AMBIGUOUS_TEXT_GAP` components remain even
-  within the 57 "implemented" requirements — most implementations cover
-  the *trigger*, not the paired semantic-judgment component, which
-  depends on L8 running at scale.
+  within the 57 "implemented" requirements — most cover the *trigger*,
+  not the paired semantic-judgment component.
 - AR-001, AR-004, AR-006, AR-008 remain open.
 
 **Not to be confused with a different system**: the EVMbench runs
@@ -224,7 +270,8 @@ documented in this project's top-level `CLAUDE.md` (Task 10 /
 `2023-07-pooltogether`, `pipeline_lite`, scores of 0/2 then 1/2) are a
 **separate system** — an LLM-agent auditor (codex/GLM writing free-form
 reports) running through the `SingularityBackend` Slurm/Singularity
-deployment. RTF has no EVMbench score of its own yet.
+deployment, unrelated to RTF's own static-predicate framework and its
+own, separate 1/2 score above.
 
 ---
 
