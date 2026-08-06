@@ -819,6 +819,15 @@ def test_readonly_reentrancy_candidates():
     check("readonly_reentrancy: does not flag a view function reading an unrelated, never-post-call-written variable", len(r_unrelated) == 0, r_unrelated)
 
 
+def test_compiler_version_is_latest_stable():
+    matches = _write_and_compile("pragma solidity ^0.8.20;\ncontract C {}", version="0.8.20")
+    behind = _write_and_compile("pragma solidity ^0.8.9;\ncontract C {}", version="0.8.9")
+    r_match = P.check_compiler_version_is_latest_stable(matches, "req-R-use-latest-compiler", "0.8.20")
+    r_behind = P.check_compiler_version_is_latest_stable(behind, "req-R-use-latest-compiler", "0.8.20")
+    check("latest_compiler: does not flag when compiled version matches the caller-supplied latest", len(r_match) == 0, r_match)
+    check("latest_compiler: flags when compiled version is behind the caller-supplied latest", len(r_behind) == 1, r_behind)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -851,6 +860,7 @@ def main() -> int:
         test_create2_deployed_target_violations,
         test_unsafe_assembly_variable_write,
         test_readonly_reentrancy_candidates,
+        test_compiler_version_is_latest_stable,
     ]
     for t in tests:
         try:

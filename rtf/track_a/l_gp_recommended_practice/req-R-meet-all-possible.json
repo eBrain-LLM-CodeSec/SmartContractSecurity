@@ -2,5 +2,9 @@
   "req_id": "req-R-meet-all-possible",
   "modality": "SHOULD (advisory, non-certification-blocking)",
   "strategy_note": "Mechanically an aggregation (count how many higher-level requirements this Tested Code passes beyond its certified level) rather than its own analysis strategy -- similar in character to req-2-pass-l1/req-3-pass-l2's certification-bookkeeping role, just advisory (SHOULD) rather than a certification gate.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "NO_STANDALONE_PREDICATE_APPLICABLE",
+    "note": "Not a gap -- this requirement has no independent trigger to build. It is a pure aggregation over other requirements' already-computed conformance results (per its own strategy_note), so 'implementing' it means composing an L12-evaluation-level count, not writing an L5 predicate. Recorded as a deliberate terminal status, not an oversight."
+  }
 }

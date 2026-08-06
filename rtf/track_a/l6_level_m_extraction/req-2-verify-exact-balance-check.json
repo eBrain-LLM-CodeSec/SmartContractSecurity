@@ -8,7 +8,13 @@
       "component_type": "derived_predicate",
       "judgment_authority": "DETERMINISTIC_EVIDENCE_ONLY",
       "status": "NOT_YET_BUILT",
-      "note": "Would detect `==`/`!=` comparisons where an operand is a `.balance` access. Scope corrected per AR-002 (rtf/l9_assumptions_register/REGISTER.jsonl): an earlier draft of this component also included ERC20-style `balanceOf()` calls, which is not supported by this requirement's own text ('the balance of an account' names native ETH balance directly, matching req-1-exact-balance-check's wording) -- that was importing an external token-standard convention, caught during a self-review pass before any evaluation ran. Not implemented in this Track A pass -- flagged as the concrete next engineering step for this requirement, not silently assumed to exist."
+      "note": "Would detect `==`/`!=` comparisons where an operand is a `.balance` access. Scope corrected per AR-002 (rtf/l9_assumptions_register/REGISTER.jsonl): an earlier draft of this component also included ERC20-style `balanceOf()` calls, which is not supported by this requirement's own text ('the balance of an account' names native ETH balance directly, matching req-1-exact-balance-check's wording) -- that was importing an external token-standard convention, caught during a self-review pass before any evaluation ran.",
+      "implementation_status": {
+        "status": "IMPLEMENTED_AND_TESTED",
+        "code": "rtf/l5_predicates/predicates.py :: find_exact_native_balance_check(req_id) -- shared verbatim with req-1-exact-balance-check's own trigger, since the S and M requirements share one trigger per this record's own note",
+        "test": "rtf/l5_predicates/test_predicates.py -- compiled against real positive/negative Solidity fixtures, verified 2026-08-06",
+        "note": "This record's 'NOT_YET_BUILT' status above predated the trigger's actual implementation (built while implementing the sibling S-level req-1-exact-balance-check) -- this field was never back-filled here at the time. Corrected now: the trigger component is implemented and tested; semantic-review-transfer-protection below still depends on the not-yet-built L8 LLM Judgment Layer."
+      }
     },
     {
       "component_id": "semantic-review-transfer-protection",

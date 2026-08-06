@@ -973,3 +973,30 @@ def find_readonly_reentrancy_candidates(slither: Slither, req_id: str = "req-2-a
                     ),
                 })
     return findings
+
+
+def check_compiler_version_is_latest_stable(slither: Slither, req_id: str, latest_known_stable_version: str) -> list[dict]:
+    """req-R-use-latest-compiler (GP): 'SHOULD use the latest available
+    stable Solidity compiler version'. Per this requirement's own GP
+    record: the trigger (the compiled version, same
+    `compilation_unit.solc_version` field as
+    `check_compiler_version_floor`/`_exact`) is trivial, but the
+    comparison target -- 'the latest available stable' version -- is a
+    MOVING, externally-defined reference point as of the evaluation date,
+    not something derivable from the code or the frozen EthTrust spec
+    text. There is no honest way to hardcode a 'latest' version inside
+    this module without it silently going stale the moment a new
+    Solidity release ships.
+
+    Resolved by making the reference an explicit, REQUIRED parameter
+    (`latest_known_stable_version`) the caller must supply -- e.g. from
+    the Solidity release list as of the actual evaluation date -- rather
+    than a default baked into this module. This keeps the external-
+    evidence dependency visible and auditable (the caller's supplied
+    value is itself evidence, inspectable per-run) instead of hidden
+    inside a predicate that looks self-contained but silently isn't.
+    """
+    actual = slither.compilation_units[0].solc_version
+    if actual != latest_known_stable_version:
+        return [{"req_id": req_id, "location": "compiler config", "detail": f"solc {actual} != caller-supplied latest known stable version {latest_known_stable_version} (external, time-anchored reference -- not derived from spec text)"}]
+    return []

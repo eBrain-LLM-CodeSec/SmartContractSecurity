@@ -2,5 +2,9 @@
   "req_id": "req-R-multisig-threshold",
   "modality": "SHOULD (advisory, non-certification-blocking)",
   "strategy_note": "Similar to req-3-no-single-admin-eoa: the ACTUAL deployed threshold (M of N) is fundamentally a deployment/configuration fact. Where a deployment script or config in the repository sets the threshold explicitly (e.g. a Gnosis Safe setup script), it's checkable against the 'not 1-of-N, not N-of-N' rule mechanically; where the threshold is only decided at deployment time outside the repository, this is REQUIRES_EXTERNAL_EVIDENCE, the same repository-visible-evidence boundary req-3-no-single-admin-eoa already hit.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "NOT_IMPLEMENTED_NO_TEXT_GROUNDED_BASE_AVAILABLE",
+    "note": "The 'checkable when a deployment script sets the threshold explicitly' half of this strategy would require hardcoding a specific multisig factory's ABI (e.g. Gnosis Safe's setup(address[],uint256,...)) to recognize the threshold argument. Unlike req-R-follow-erc-standards' ERC20/ERC721 predicate, there is no Slither-native canonical signature list to reuse here -- building this without one would be exactly the kind of invented, externally-sourced heuristic this framework's derivation-traceability rule prohibits (a specific vendor's contract interface is not named in EthTrust's own text, unlike EIP-20 which the req-R-follow-erc-standards bundle names directly). Left unimplemented deliberately, not silently assumed solvable."
+  }
 }

@@ -2,5 +2,9 @@
   "req_id": "req-R-notify-news",
   "modality": "SHOULD (advisory, non-certification-blocking)",
   "strategy_note": "REQUIRES_EXTERNAL_EVIDENCE, entirely: this is about what the audited team DOES after discovering a new vulnerability class (responsible disclosure to the Working Group), which is never derivable from a repository snapshot regardless of how thorough the review is.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "NO_PREDICATE_POSSIBLE",
+    "note": "REQUIRES_EXTERNAL_EVIDENCE by nature (per this record's own strategy_note) -- an external, post-hoc team action, not a repository-visible artifact of any kind. No predicate, however written, could assess this from source code. Recorded as a deliberate terminal status."
+  }
 }

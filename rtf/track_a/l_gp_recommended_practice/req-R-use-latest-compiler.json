@@ -2,5 +2,11 @@
   "req_id": "req-R-use-latest-compiler",
   "modality": "SHOULD (advisory, non-certification-blocking)",
   "strategy_note": "Trigger (compiled solc_version) is trivially extractable, same as the S-level compiler-bug requirements -- but the comparison target ('the latest available stable Solidity compiler version') is a MOVING, externally-defined reference point, not derivable from the code or even from the frozen EthTrust spec text itself. REQUIRES_EXTERNAL_EVIDENCE in a narrow sense: needs an external, time-anchored reference (e.g. the Solidity release list as of the evaluation date) to be meaningful -- a genuinely different kind of gap than the S/M-level compiler-bug requirements, which compare against FIXED version thresholds.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "IMPLEMENTED_AND_TESTED_WITH_EXPLICIT_EXTERNAL_REFERENCE_PARAMETER",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_is_latest_stable(slither, req_id, latest_known_stable_version)",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_is_latest_stable(), verified 2026-08-06",
+    "note": "Resolves the moving-target gap by making the comparison reference a REQUIRED caller-supplied parameter rather than a value hardcoded in this module (which would silently go stale the moment a new Solidity release ships). The external-evidence dependency stays visible and auditable per-run (the caller's supplied value is itself inspectable evidence) instead of hidden inside a predicate that looks self-contained but isn't."
+  }
 }
