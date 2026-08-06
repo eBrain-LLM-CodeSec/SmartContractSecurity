@@ -6,5 +6,9 @@
     "Presence of a TimeLock-style delay mechanism (e.g. OpenZeppelin TimelockController, or a custom delay-then-execute pattern) guarding those specific operations"
   ],
   "mechanical_note": "The TimeLock MECHANISM's presence is itself fairly checkable (a two-step commit/execute pattern with a minimum delay) -- the harder part is judging WHICH functions should have been covered but aren't.",
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NOT_IMPLEMENTED",
+    "note": "NOT_IMPLEMENTED -- this record's own mechanical_note says a timelock MECHANISM's presence is 'fairly checkable', but detecting a 'two-step commit/execute pattern with a minimum delay' generically would require recognizing a design PATTERN across arbitrary naming/structuring choices, not a single named construct -- risks becoming an invented heuristic rather than a text-grounded derivation. Left unimplemented, not silently assumed feasible."
+  }
 }

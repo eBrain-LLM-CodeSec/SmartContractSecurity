@@ -6,5 +6,11 @@
     "Documentation of intended privilege boundaries (per req-3-documented) to assess whether implemented access control matches the LEAST-privilege claim, not just SOME access control"
   ],
   "mechanical_note": "Presence of an access-control modifier (onlyOwner-style, role-based) is checkable; whether it grants the minimum necessary privilege (vs. broader admin rights than needed) requires comparing against the documented intent -- a genuine evidence-vs-claim cross-check, the L7 archetype this layer was designed for.",
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "PROTECTION_EVIDENCE_IMPLEMENTED_AND_TESTED_MINIMUM_PRIVILEGE_CROSS_CHECK_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: find_state_mutating_function_protection_status()",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_state_mutating_function_protection_status(), verified 2026-08-06",
+    "note": "Reuses Function.is_protected() (same as req-2-self-destruct's protection evidence), scoped to state-mutating public/external functions -- a documented interpretive judgment for 'enables privileged access', since EthTrust's own text names no concrete construct for that clause (see the predicate's own docstring). Evidence only: whether a PROTECTED function's granted access is the MINIMUM necessary (this requirement's actual conformance question) still needs the documentation cross-check this Q-level layer exists for, not attempted here."
+  }
 }

@@ -6,5 +6,9 @@
     "Documentation of which oracle(s) are relied upon and their failure modes"
   ],
   "mechanical_note": "Oracle CALL SITES are syntactically locatable (a real, buildable trigger, similar in spirit to the S/M-level triggers) -- the adequacy of protection against a specific oracle's failure modes needs semantic review.",
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NOT_IMPLEMENTED",
+    "note": "NOT_IMPLEMENTED -- this record's own mechanical_note says oracle call sites are 'a real, buildable trigger', but building it would require maintaining a list of known oracle interface signatures (e.g. Chainlink's latestRoundData) -- explicitly already rejected as an invented heuristic for the same underlying concept in req-2-documented's own record ('oracle' isn't a language construct EthTrust's text names directly). Left unimplemented for consistency with that established precedent, not because it's infeasible in principle."
+  }
 }

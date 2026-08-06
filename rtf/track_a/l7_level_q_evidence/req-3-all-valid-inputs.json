@@ -5,5 +5,11 @@
     "Input-validation code review across public/external function parameters"
   ],
   "mechanical_note": "A PARTIAL deterministic signal is plausible: presence/absence of require()-style bounds checks on function parameters is syntactically locatable, though 'function correctly whether input is as designed or malformed' as a whole is a broad correctness property no single check covers.",
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "PARTIAL_EVIDENCE_IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_unvalidated_function_parameters()",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_unvalidated_function_parameters(), verified 2026-08-06",
+    "note": "Flags public/external functions where NO parameter is referenced in any require()/assert() call anywhere in the function body -- the clearer, more defensible half of this record's own 'partial deterministic signal' framing. DETERMINISTIC_EVIDENCE_ONLY: absence of a flag does NOT establish that validation is CORRECT or COMPLETE for every parameter and malformed-input case, only that the function is not entirely unvalidated. Whether the function 'functions correctly whether the input is as designed or malformed' as a whole remains this requirement's genuine semantic question, not attempted here."
+  }
 }

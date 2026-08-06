@@ -5,5 +5,9 @@
     "Aggregation of every Level [M] requirement's own conformance_state -- no new evidence category."
   ],
   "mechanical_note": null,
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NO_STANDALONE_PREDICATE_APPLICABLE",
+    "note": "Not a gap -- pure aggregation over every Level [M] requirement's own already-computed conformance_state (per this record's own evidence_expected), same shape as req-2-pass-l1 (S) and req-R-meet-all-possible (GP). Composed at the L12 evaluation level, not implemented as an independent predicate. Recorded as a deliberate terminal status."
+  }
 }

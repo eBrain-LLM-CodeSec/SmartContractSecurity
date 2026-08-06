@@ -5,5 +5,9 @@
     "A documented threat model: named threats, security assumptions, expected responses, expected outcomes -- 4 named sub-components, directly checkable for presence/absence even before assessing quality"
   ],
   "mechanical_note": null,
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NO_PREDICATE_POSSIBLE",
+    "note": "NO_PREDICATE_POSSIBLE -- same reasoning as req-3-document-system: documentation-content assessment, no mechanical trigger identified."
+  }
 }

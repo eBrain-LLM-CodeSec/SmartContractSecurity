@@ -5,5 +5,9 @@
     "Code review for gas-griefing patterns (unbounded external-call loops, gas-dependent logic others can manipulate)"
   ],
   "mechanical_note": null,
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NO_PREDICATE_POSSIBLE",
+    "note": "NO_PREDICATE_POSSIBLE -- no mechanical_note identified a concrete trigger in this record; gas-griefing protection is a broad design property without a single named construct to anchor on."
+  }
 }

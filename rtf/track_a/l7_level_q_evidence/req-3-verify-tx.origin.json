@@ -6,5 +6,11 @@
     "Cross-check against req-3-documented/req-3-document-system's stated security objectives -- does this specific usage violate any documented functionality assertion, INCLUDING when another (possibly malicious) contract is involved"
   ],
   "mechanical_note": "The trigger is fully reused from S-level work; the evidence-vs-claim cross-check against documentation is the genuine L7-shaped work here.",
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "TRIGGER_IMPLEMENTED_AND_TESTED_DOCUMENTATION_CROSS_CHECK_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: find_tx_origin_any_usage(req_id) -- shared verbatim with req-1-no-tx.origin's own trigger, per this record's own mechanical_note",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified 2026-08-06",
+    "note": "The trigger component was already implemented via req-1-no-tx.origin's sibling S-level work. The genuine L7-shaped work here -- cross-checking each usage site against req-3-documented/req-3-document-system's stated security objectives -- depends on the not-yet-built L8 LLM Judgment Layer plus actual documentation content, neither attempted here."
+  }
 }

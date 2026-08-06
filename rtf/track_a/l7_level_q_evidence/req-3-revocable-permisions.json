@@ -5,5 +5,9 @@
     "A revoke/transfer mechanism for granted privileges (e.g. OpenZeppelin AccessControl's revokeRole/grantRole, or a custom equivalent)"
   ],
   "mechanical_note": "Partially mechanical: presence of a revoke/transfer FUNCTION is checkable; whether it's reachable/usable in practice (not itself gated behind an unreachable or compromised path) needs review.",
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NOT_IMPLEMENTED",
+    "note": "NOT_IMPLEMENTED -- this record's own mechanical_note says 'presence of a revoke/transfer FUNCTION is checkable', but doing so would require matching against function NAMING conventions (e.g. functions named 'revoke'/'transferOwnership'), which is not a formally named Solidity construct EthTrust's text anchors on -- the same invented-heuristic risk already declined for req-3-check-oracles above. Left unimplemented for consistency."
+  }
 }

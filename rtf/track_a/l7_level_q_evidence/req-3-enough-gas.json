@@ -6,5 +6,9 @@
     "Code review of gas-cost growth patterns for those structures (e.g. unbounded loops over a growing array/mapping)"
   ],
   "mechanical_note": null,
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NO_PREDICATE_POSSIBLE",
+    "note": "NO_PREDICATE_POSSIBLE -- gas-sufficiency is a runtime/economic property with no mechanical_note identifying a concrete trigger in this record; would require gas-estimation/simulation, out of this framework's static-analysis scope as built."
+  }
 }

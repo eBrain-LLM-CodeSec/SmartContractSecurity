@@ -1139,3 +1139,184 @@ def find_selfdestruct_protection_status(slither: Slither, req_id: str = "req-2-s
                 ),
             })
     return findings
+
+
+def find_linting_violations_via_reused_detectors(slither: Slither, req_id: str = "req-3-linted") -> list[dict]:
+    """req-3-linted (Q): 'Code Linting' -- 7 named sub-clauses, per this
+    requirement's own record flagged as STRUCTURALLY MISPLACED at Level
+    [Q] ('the clearest example in the whole Q-level batch of the S/M/Q
+    axis NOT being a verification-method axis' -- these are classic
+    static-lint rules, mechanically closer to Level [S] in character).
+    This function reuses 7 EXISTING Slither detectors directly (via
+    `run_reused_slither_detector`, the same generic wrapper already used
+    for req-1-no-assembly/req-1-check-return), covering 3 of the 7 named
+    sub-clauses:
+
+    - 'MUST NOT create unnecessary variables' -> `UnusedStateVars`. Only
+      the STATE-variable subset is covered -- Slither ships no general
+      unused-LOCAL-variable detector (confirmed by search); a genuinely
+      unused local variable is not detected by any reused component
+      here.
+    - 'MUST NOT use the same name for functions, variables or other
+      tokens ... within the same scope' -> all 4 of Slither's own
+      shadowing detectors (`LocalShadowing`, `StateShadowing`,
+      `BuiltinSymbolShadowing`, `ShadowingAbstractDetection`).
+    - 'MUST NOT include code that cannot be reached in execution' ->
+      `DeadCode`. NOTE this is a PARTIAL/analogous match, not exact:
+      Slither's `DeadCode` detects internal FUNCTIONS never called from
+      any entry point, not unreachable STATEMENTS within a function body
+      (e.g. code after an unconditional `return`/`revert`) -- the
+      requirement's literal 'unreachable code' phrasing is closer to the
+      latter, which this reused detector does not cover.
+    - 'MUST NOT contain a function that has the same name as the smart
+      contract unless it is explicitly declared as a constructor' ->
+      `MultipleConstructorSchemes`. NOT exercised by this module's own
+      test suite: triggering it requires a pre-0.4.22 Solidity compiler
+      (the old function-named-as-contract constructor scheme was removed
+      entirely at 0.4.22), which is outside this project's supported
+      compiler range -- included for completeness and logged as
+      structurally untested here, not silently assumed working.
+
+    The remaining 3 sub-clauses are NOT covered by this function:
+    'MUST NOT include assert() statements that fail in normal operation'
+    (semantic -- requires knowing what 'normal operation' is), the
+    unreachable-STATEMENT half of the dead-code clause (see above), and
+    the pragma/visibility clauses (see
+    `find_pragma_solidity_version_specified` and this requirement's own
+    updated record for the visibility clause, which turns out to need no
+    predicate at all).
+    """
+    from slither.detectors.variables.unused_state_variables import UnusedStateVars
+    from slither.detectors.functions.dead_code import DeadCode
+    from slither.detectors.compiler_bugs.multiple_constructor_schemes import MultipleConstructorSchemes
+    from slither.detectors.shadowing.local import LocalShadowing
+    from slither.detectors.shadowing.state import StateShadowing
+    from slither.detectors.shadowing.builtin_symbols import BuiltinSymbolShadowing
+    from slither.detectors.shadowing.abstract import ShadowingAbstractDetection
+
+    return run_reused_slither_detector(
+        slither,
+        [
+            UnusedStateVars,
+            DeadCode,
+            MultipleConstructorSchemes,
+            LocalShadowing,
+            StateShadowing,
+            BuiltinSymbolShadowing,
+            ShadowingAbstractDetection,
+        ],
+        req_id,
+    )
+
+
+def find_pragma_solidity_version_specified(sol_source_paths: list[Path], req_id: str = "req-3-linted") -> list[dict]:
+    """req-3-linted (Q) sub-clause: 'MUST specify one or more Solidity
+    compiler versions in its pragma directive'. Pure text presence check
+    on raw source, same style as `find_spdx_or_license_file` -- flags
+    files MISSING a `pragma solidity` directive (this function reports
+    violations, i.e. absence, matching the 'MUST' framing, unlike the
+    license check which reports presence as evidence FOR compliance).
+    """
+    findings = []
+    for p in sol_source_paths:
+        text = p.read_text(encoding="utf-8", errors="replace")
+        if not re.search(r"pragma\s+solidity\s", text):
+            findings.append({"req_id": req_id, "location": str(p), "detail": "no 'pragma solidity ...' directive found in this file"})
+    return findings
+
+
+def find_state_mutating_function_protection_status(slither: Slither, req_id: str = "req-3-access-control") -> list[dict]:
+    """req-3-access-control (Q): 'Enforce Least Privilege' -- 'Tested
+    code that enables privileged access MUST implement appropriate
+    access control mechanisms'. Per this requirement's own record, the
+    mechanically-checkable half is 'presence of an access-control
+    modifier (onlyOwner-style, role-based)'; whether the GRANTED
+    privilege is the MINIMUM necessary needs the documentation
+    cross-check this layer exists for.
+
+    Scoping judgment, made explicit rather than silent: EthTrust's own
+    conditioning clause ('enables privileged access') names no concrete
+    Solidity construct to detect directly. This function interprets
+    STATE-MUTATING public/external functions as the defensible proxy for
+    'enables ... access' (a pure view/pure function cannot itself change
+    anything, so access control is not a meaningful question for it) --
+    broader than 'privileged' in the strict sense, narrower than 'every
+    public function'. This interpretive choice is logged here, not
+    treated as self-evidently correct.
+
+    Reuses `Function.is_protected()` (the same Slither method already
+    used by `find_selfdestruct_protection_status`) rather than
+    reimplementing access-control-modifier detection.
+    """
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_declared:
+            if func.is_constructor:
+                continue
+            if func.visibility not in ("public", "external"):
+                continue
+            if not func.all_state_variables_written():
+                continue
+            protected = func.is_protected()
+            findings.append({
+                "req_id": req_id,
+                "location": f"{contract.name}.{func.name}",
+                "detail": (
+                    f"state-mutating function is "
+                    f"{'PROTECTED (access-controlled)' if protected else 'UNPROTECTED -- callable by anyone'} "
+                    f"per Slither's own is_protected() heuristic -- evidence "
+                    f"only, whether the granted access level is the MINIMUM "
+                    f"necessary needs a documentation cross-check, not "
+                    f"attempted here"
+                ),
+            })
+    return findings
+
+
+def find_unvalidated_function_parameters(slither: Slither, req_id: str = "req-3-all-valid-inputs") -> list[dict]:
+    """req-3-all-valid-inputs (Q): 'Process All Inputs' -- 'MUST
+    validate inputs, and function correctly whether the input is as
+    designed or malformed'. Per this requirement's own record, a
+    PARTIAL deterministic signal is plausible: 'presence/absence of
+    require()-style bounds checks on function parameters is
+    syntactically locatable'.
+
+    For every public/external function with at least one parameter,
+    checks whether ANY `require()`/`assert()` call anywhere in the
+    function body reads at least one of that function's own parameters
+    (confirmed empirically: a `require(amount > 0, ...)` call's node
+    has the parameter variable in `node.variables_read`).
+    DETERMINISTIC_EVIDENCE_ONLY, not DETERMINISTIC_COMPLETE: presence of
+    SOME require() referencing SOME parameter does not establish that
+    validation is CORRECT or COMPLETE for every parameter and every
+    malformed-input case -- only that the function is not entirely
+    unvalidated. Flags functions where NO parameter is referenced in any
+    require()/assert() at all -- the clearer, more defensible signal.
+    """
+    from slither.slithir.operations import SolidityCall
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_declared:
+            if func.is_constructor:
+                continue
+            if func.visibility not in ("public", "external"):
+                continue
+            params = set(func.parameters)
+            if not params:
+                continue
+            validated_params = set()
+            for node in func.nodes:
+                is_require_or_assert = any(
+                    isinstance(ir, SolidityCall) and ir.function.name in ("require(bool)", "require(bool,string)", "assert(bool)")
+                    for ir in node.irs
+                )
+                if is_require_or_assert:
+                    validated_params |= set(node.variables_read) & params
+            if not validated_params:
+                findings.append({
+                    "req_id": req_id,
+                    "location": f"{contract.name}.{func.name}",
+                    "detail": f"none of this function's parameters ({sorted(p.name for p in params)}) are referenced in any require()/assert() call -- evidence of no input validation, not a proof of malformed-input handling",
+                })
+    return findings

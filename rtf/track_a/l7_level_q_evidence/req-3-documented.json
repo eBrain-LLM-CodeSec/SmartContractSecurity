@@ -6,5 +6,9 @@
     "Evidence the documentation is actually available to callers, not merely present in the source repo (see the repo-scope-limit note already logged in req-3-implement-as-documented's rubric)"
   ],
   "mechanical_note": null,
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NO_PREDICATE_POSSIBLE",
+    "note": "NO_PREDICATE_POSSIBLE -- assessing whether adequate business-logic documentation EXISTS and is genuinely available to callers is inherently semantic; no mechanical trigger identified in this record."
+  }
 }

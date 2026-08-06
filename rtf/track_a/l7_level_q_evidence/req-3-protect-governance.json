@@ -6,5 +6,9 @@
     "Protections against flash-loan voting-power attacks, proposal-execution timelocks, quorum manipulation"
   ],
   "mechanical_note": null,
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NO_PREDICATE_POSSIBLE",
+    "note": "NO_PREDICATE_POSSIBLE -- no mechanical_note identified a concrete trigger in this record; governance-attack protection is a broad design property, not a syntactic pattern."
+  }
 }

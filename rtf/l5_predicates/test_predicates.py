@@ -888,6 +888,89 @@ def test_selfdestruct_protection_status():
     check("selfdestruct_protection: reports a PROTECTED status for an onlyOwner-guarded selfdestruct", len(r_protected) == 1 and "PROTECTED" in r_protected[0]["detail"] and "UNPROTECTED" not in r_protected[0]["detail"], r_protected)
 
 
+def test_linting_violations_via_reused_detectors():
+    lint_issues = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint public counter;
+        uint private neverUsed;
+        function bump() public {
+            uint counter = 1;
+            counter += 1;
+        }
+        function neverCalled() internal returns (uint) { return 1; }
+    }
+    """
+    clean = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint public counter;
+        function bump() public {
+            counter += 1;
+        }
+    }
+    """
+    r_issues = P.find_linting_violations_via_reused_detectors(_write_and_compile(lint_issues))
+    r_clean = P.find_linting_violations_via_reused_detectors(_write_and_compile(clean))
+    check("linting: flags a contract with an unused state var, local shadowing, and a never-called internal function", len(r_issues) >= 3, r_issues)
+    check("linting: does not flag a clean contract", len(r_clean) == 0, r_clean)
+
+
+def test_pragma_solidity_version_specified():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        with_pragma = root / "WithPragma.sol"
+        with_pragma.write_text("pragma solidity ^0.8.20;\ncontract C {}", encoding="utf-8")
+        without_pragma = root / "NoPragma.sol"
+        without_pragma.write_text("contract C {}", encoding="utf-8")
+        r = P.find_pragma_solidity_version_specified([with_pragma, without_pragma])
+        check("pragma_specified: does not flag a file WITH a pragma directive", not any(f["location"] == str(with_pragma) for f in r), r)
+        check("pragma_specified: flags a file with no pragma directive at all", any(f["location"] == str(without_pragma) for f in r), r)
+
+
+def test_state_mutating_function_protection_status():
+    src = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint public x;
+        address owner;
+        modifier onlyOwner() { require(msg.sender == owner); _; }
+        function setUnprotected(uint v) public { x = v; }
+        function setProtected(uint v) public onlyOwner { x = v; }
+        function getX() public view returns (uint) { return x; }
+    }
+    """
+    r = P.find_state_mutating_function_protection_status(_write_and_compile(src))
+    unprotected = [f for f in r if "setUnprotected" in f["location"]]
+    protected = [f for f in r if "setProtected" in f["location"]]
+    getters = [f for f in r if "getX" in f["location"]]
+    check("access_control: flags an unprotected state-mutating function", len(unprotected) == 1 and "UNPROTECTED" in unprotected[0]["detail"], unprotected)
+    check("access_control: reports PROTECTED for an onlyOwner-guarded state-mutating function", len(protected) == 1 and "PROTECTED" in protected[0]["detail"] and "UNPROTECTED" not in protected[0]["detail"], protected)
+    check("access_control: does not report a pure view function at all (no state write)", len(getters) == 0, getters)
+
+
+def test_unvalidated_function_parameters():
+    src = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function validated(uint amount) public pure returns (uint) {
+            require(amount > 0, "bad");
+            return amount;
+        }
+        function unvalidated(uint amount) public pure returns (uint) {
+            return amount + 1;
+        }
+        function noParams() public pure returns (uint) {
+            return 1;
+        }
+    }
+    """
+    r = P.find_unvalidated_function_parameters(_write_and_compile(src))
+    check("input_validation: does not flag a function whose parameter is required()", not any("validated" == f["location"].split(".")[-1] for f in r), r)
+    check("input_validation: flags a function whose parameter is never validated", any("unvalidated" in f["location"] for f in r), r)
+    check("input_validation: does not flag a function with no parameters at all", not any("noParams" in f["location"] for f in r), r)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -924,6 +1007,10 @@ def main() -> int:
         test_compiler_version_is_latest_stable,
         test_keccak256_chainid_dependency,
         test_selfdestruct_protection_status,
+        test_linting_violations_via_reused_detectors,
+        test_pragma_solidity_version_specified,
+        test_state_mutating_function_protection_status,
+        test_unvalidated_function_parameters,
     ]
     for t in tests:
         try:

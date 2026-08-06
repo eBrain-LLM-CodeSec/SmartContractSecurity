@@ -5,5 +5,9 @@
     "Whether the admin address is a multisig contract (e.g. Gnosis Safe) vs a plain EOA -- only partially determinable from source code alone; the actual DEPLOYED admin address's type is a deployment fact, not purely a source-code property"
   ],
   "mechanical_note": "REQUIRES_EXTERNAL_EVIDENCE for full verification: source code can show whether the admin role is parameterized as an arbitrary address (compatible with either an EOA or a multisig) but generally cannot itself prove which one was actually deployed -- that's deployment/on-chain evidence, out of L7's repository-visible scope per the Rev. 3 re-scoping.",
-  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric."
+  "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
+  "implementation_status": {
+    "status": "NO_PREDICATE_POSSIBLE",
+    "note": "NO_PREDICATE_POSSIBLE -- per this record's own mechanical_note, REQUIRES_EXTERNAL_EVIDENCE: whether an admin address is a multisig vs. a plain EOA is a deployment fact, not purely a source-code property, explicitly out of L7's repository-visible scope per the Rev. 3 re-scoping."
+  }
 }
