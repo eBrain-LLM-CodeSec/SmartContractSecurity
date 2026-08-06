@@ -65,12 +65,22 @@ def _git_commit() -> str:
 
 def _framework_version() -> str:
     """No single canonical version file exists yet (a real L10 gap, see
-    AUDIT_L0_L12.md) -- reads the same literal string this project's own
-    Assumptions Register entries and L11 freeze calls already use
-    (`"0.1.0-track-a"`), rather than inventing a second, divergent
-    version identifier.
+    AUDIT_L0_L12.md) -- this literal string IS that canonical value for
+    now (referenced by L11 freeze calls, Assumptions Register entries,
+    and this manifest alike), rather than several divergent version
+    identifiers scattered across the codebase.
+
+    Bumped 0.1.0-track-a -> 0.2.0-evidence-enrichment per AR-012: a
+    real, logged, permitted post-evaluation change ("evidence-format and
+    evidence-collection improvement based on a repeated downstream
+    judgment failure" -- RTF v1 run 2 found L8 and the real DetectGrader
+    BOTH independently judged RTF's evidence too generic for a confident
+    verdict despite correct localization, on two unrelated real audits).
+    Any future bump must cite one of the plan's permitted reasons in a
+    new Assumptions Register entry the same way, never "improves
+    EVMbench performance" alone.
     """
-    return "0.1.0-track-a"
+    return "0.2.0-evidence-enrichment"
 
 
 def compute_manifest() -> dict:
