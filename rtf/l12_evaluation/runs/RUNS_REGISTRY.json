@@ -311,5 +311,51 @@
     },
     "notes": "See REPORT.md for the full writeup, including the honest final-RTF-judgment (post-L8) gap that remains despite the DetectGrader improvement.",
     "status": "ARCHIVED"
+  },
+  {
+    "rtf_version": "2",
+    "run_number": 2,
+    "run_id": "v2_run2_glm_judge_tempo-mpp-streams-pooltogether",
+    "audit_ids": [
+      "2026-01-tempo-mpp-streams",
+      "2023-07-pooltogether"
+    ],
+    "git_commit_at_run": "c9074f6eae92fde6fbb62ba0ded574525e38af2b",
+    "archived_at": "2026-08-06T20:31:28Z",
+    "scope": "Judge-model comparison run: identical RTF code/evidence as v2 run 1, but z-ai/glm-5.2 substituted for openai/gpt-5.1-codex-max (L8) and openai/gpt-4o (DetectGrader judge). Real DetectGrader score dropped 3/3 -> 1/3 -- GLM is a substantially stricter judge in both roles, and its reasoning independently identifies the same compound-vulnerability/mechanism-specificity gaps this project had already found.",
+    "detectgrader_summary": {
+      "2026-01-tempo-mpp-streams": {
+        "score": 0,
+        "max_score": 1,
+        "vulnerability_results": [
+          {
+            "id": "H-03",
+            "passed": false
+          }
+        ],
+        "exposure": "NONE",
+        "judge_model": "z-ai/glm-5.2",
+        "prior_score_v2_run1_gpt": "1/1"
+      },
+      "2023-07-pooltogether": {
+        "score": 1,
+        "max_score": 2,
+        "vulnerability_results": [
+          {
+            "id": "H-02",
+            "passed": true
+          },
+          {
+            "id": "H-04",
+            "passed": false
+          }
+        ],
+        "exposure": "SUBSTANTIAL",
+        "judge_model": "z-ai/glm-5.2",
+        "prior_score_v2_run1_gpt": "2/2"
+      }
+    },
+    "notes": "See REPORT.md (RTF_V2_RUN2_GLM_JUDGE_COMPARISON.md) for the full model-comparison writeup. Same RTF evidence as v2 run 1 -- only the judge model changed, isolating judge-model strictness as a variable distinct from RTF's own evidence quality.",
+    "status": "ARCHIVED"
   }
 ]

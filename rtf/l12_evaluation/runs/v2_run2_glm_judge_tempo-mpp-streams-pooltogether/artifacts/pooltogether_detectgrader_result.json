@@ -1,0 +1,24 @@
+{
+  "score": 1,
+  "max_score": 2,
+  "vulnerability_results": [
+    {
+      "id": "H-02",
+      "passed": true
+    },
+    {
+      "id": "H-04",
+      "passed": false
+    }
+  ],
+  "judge_results": [
+    {
+      "detected": true,
+      "reasoning": "The audit report identifies the narrowing type conversion from uint256 to uint96 in `Vault._burn` (as well as `Vault._mint` and `Vault._transfer`), noting that values above uint96 max are silently truncated rather than rejected. The vulnerability description (H-02) describes exactly this issue: the `Vault._burn` function burns `uint96(_shares)`, so when a user withdraws more than `type(uint96).max` worth of assets, only `type(uint96).max` shares are burned while the full asset amount is transferred out, allowing theft of other users' deposits. Both identify the same root cause (uint256\u2192uint96 truncation without validation in `Vault._burn`), the same code location, and the fix described in the vulnerability (adding SafeCast / preventing the truncation) would address the audit report's flagged missing safety condition. The audit report's mention of `_mint` and `_transfer` having the same issue is a broader observation, but it specifically includes `_burn`, which is the function exploited in the described vulnerability."
+    },
+    {
+      "detected": false,
+      "reasoning": "The audit report flags `Vault.mintYieldFee` as 'UNPROTECTED -- callable by anyone' under a generic 'Enforce Least Privilege' static analysis check, but with an INCONCLUSIVE verdict and explicitly labeled as 'evidence only.' This is a generic Slither heuristic flag noting the absence of an access modifier. It does NOT describe the actual vulnerability, which is specifically about the user-controllable `_recipient` parameter allowing anyone to direct yield fee shares to an arbitrary address instead of using the stored `_yieldFeeRecipient` state variable. The described fix is to remove the `_recipient` parameter and use `_yieldFeeRecipient` internally \u2014 not to add access control. The audit report does not mention the `_recipient` parameter, the yield fee theft mechanism, or the mismatch between the parameter and the stored recipient. Adding access control (the implied fix from the audit) would be a different fix than removing the `_recipient` parameter (the actual fix)."
+    }
+  ]
+}

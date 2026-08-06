@@ -1,0 +1,263 @@
+{
+  "req-3-access-control": {
+    "first_pass": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_citations": [
+        "Enforce Least Privilege Tested code that enables privileged access MUST implement appropriate access control mechanisms that provide the least privilege necessary for those interactions, based on the documentation provided for [Q] Document Contract Logic."
+      ],
+      "evidence": [
+        {
+          "source": "Static analysis evidence",
+          "location": "ERC20.transfer (and all listed UNPROTECTED/PROTECTED functions)",
+          "claim": "Evidence explicitly states: 'whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here' for every listed function."
+        },
+        {
+          "source": "Requirement text",
+          "location": "Enforce Least Privilege requirement",
+          "claim": "The requirement mandates that access control must provide 'the least privilege necessary for those interactions, based on the documentation provided for [Q] Document Contract Logic' -- explicitly requiring a documentation cross-check to determine conformance."
+        }
+      ],
+      "reasoning_summary": "The requirement explicitly ties least-privilege conformance to 'the documentation provided for [Q] Document Contract Logic.' The static-analysis evidence itself repeatedly states that the documentation cross-check was 'not attempted here.' Without that documentation cross-check, it is impossible to determine whether any listed function's access level (whether UNPROTECTED or PROTECTED) represents the minimum necessary privilege. Furthermore, many UNPROTECTED functions (e.g., ERC20.transfer, approve, transferFrom) are standard token functions that are intentionally callable by anyone and do not constitute 'privileged access' -- but confirming this also requires the documentation. The evidence is deliberately over-inclusive and flags candidate locations only; it does not establish genuine violations. Since the requirement's core criterion (least privilege based on documentation) cannot be evaluated without the documentation cross-check, there is insufficient evidence to render a PASS or FAIL.",
+      "open_questions": [
+        "What does the [Q] Document Contract Logic documentation specify about the intended access levels for each listed function?",
+        "Which of the listed functions actually constitute 'privileged access' per the documentation, as opposed to standard public interfaces (e.g., ERC20.transfer)?",
+        "For PROTECTED functions (e.g., Ownable.transferOwnership, PrizePool.closeDraw), does the documentation confirm that the access control mechanism grants only the minimum necessary privilege?",
+        "For UNPROTECTED functions flagged as potentially privileged (e.g., PrizePool.setDrawManager, Vault.mintYieldFee), does the documentation indicate they should be access-controlled?"
+      ],
+      "confidence": "HIGH",
+      "second_pass_agreement": "DISAGREE",
+      "model_version": "z-ai/glm-5.2",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "40159dbb-14c8-4c13-a492-a3554c823a8a",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 2,
+        "total": 2,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "ERC20.transfer (and all listed UNPROTECTED/PROTECTED functions)",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/ERC20.transfer (and all listed UNPROTECTED/PROTECTED functions)"
+          },
+          {
+            "index": 1,
+            "location": "Enforce Least Privilege requirement",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/Enforce Least Privilege requirement"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Enforce Least Privilege Tested code that enables privileged access MUST implement appropriate access control mechanisms that provide the least privilege necessary for those interactions, based on the documentation provided for [Q] Document Contract Logic."
+      ],
+      "evidence": [
+        {
+          "source": "static-analysis evidence",
+          "location": "PrizePool.setDrawManager",
+          "claim": "State-mutating function is UNPROTECTED -- callable by anyone per Slither's is_protected() heuristic; whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here"
+        },
+        {
+          "source": "static-analysis evidence",
+          "location": "Vault.mintYieldFee",
+          "claim": "State-mutating function is UNPROTECTED -- callable by anyone per Slither's is_protected() heuristic; whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here"
+        },
+        {
+          "source": "static-analysis evidence",
+          "location": "PrizePool.increaseReserve",
+          "claim": "State-mutating function is UNPROTECTED -- callable by anyone per Slither's is_protected() heuristic; whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here"
+        },
+        {
+          "source": "static-analysis evidence",
+          "location": "Ownable.transferOwnership",
+          "claim": "State-mutating function is PROTECTED (access-controlled) per Slither's is_protected() heuristic; whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here"
+        }
+      ],
+      "reasoning_summary": "The requirement demands that privileged access functions implement least-privilege access control 'based on the documentation provided for [Q] Document Contract Logic.' The evidence explicitly states that documentation cross-checks were 'not attempted here' for every listed function. Without comparing the implemented access control against the documented business logic, it is impossible to determine whether the granted access levels are the minimum necessary. Additionally, many UNPROTECTED functions (e.g., ERC20.transfer, ERC20.approve) are standard public token interfaces that do not involve privileged access at all, while others (e.g., PrizePool.setDrawManager, Vault.mintYieldFee) appear potentially privileged but cannot be confirmed as violations without documentation. Slither's is_protected() heuristic may also miss non-standard access control patterns (e.g., inline require checks), so UNPROTECTED status alone is not conclusive.",
+      "open_questions": [
+        "What does the Document Contract Logic specification say about which functions require privileged access and what the minimum necessary privilege level is for each?",
+        "Do the UNPROTECTED functions flagged as potentially privileged (e.g., PrizePool.setDrawManager, Vault.mintYieldFee, PrizePool.increaseReserve) contain inline access control checks not captured by Slither's is_protected() heuristic?",
+        "Are the PROTECTED functions (e.g., Ownable.transferOwnership, PrizePool.closeDraw) restricted to the minimum necessary set of authorized callers per the documentation?",
+        "Is there documentation available for the Document Contract Logic requirement [Q] at all?"
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "DISAGREE",
+      "model_version": "z-ai/glm-5.2",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "41116962-44a4-48c9-aa14-290da52044b9",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 4,
+        "total": 4,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "PrizePool.setDrawManager",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/PrizePool.setDrawManager"
+          },
+          {
+            "index": 1,
+            "location": "Vault.mintYieldFee",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/Vault.mintYieldFee"
+          },
+          {
+            "index": 2,
+            "location": "PrizePool.increaseReserve",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/PrizePool.increaseReserve"
+          },
+          {
+            "index": 3,
+            "location": "Ownable.transferOwnership",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/Ownable.transferOwnership"
+          }
+        ]
+      }
+    },
+    "agree": false
+  },
+  "req-3-all-valid-inputs": {
+    "first_pass": {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+      ],
+      "evidence": [
+        {
+          "source": "static-analysis tool output",
+          "location": "console2._castLogPayloadViewToPure",
+          "claim": "Parameter 'fnIn' not referenced in any require()/assert() call; described as 'evidence of no input validation, not a proof of malformed-input handling'"
+        },
+        {
+          "source": "static-analysis tool output",
+          "location": "console2._sendLogPayload",
+          "claim": "Parameter 'payload' not referenced in any require()/assert() call; described as 'evidence of no input validation, not a proof of malformed-input handling'"
+        },
+        {
+          "source": "static-analysis tool output",
+          "location": "console2.logUint",
+          "claim": "Parameter 'p0' not referenced in any require()/assert() call; described as 'evidence of no input validation, not a proof of malformed-input handling'"
+        },
+        {
+          "source": "static-analysis tool output",
+          "location": "console2.logString",
+          "claim": "Parameter 'p0' not referenced in any require()/assert() call; described as 'evidence of no input validation, not a proof of malformed-input handling'"
+        }
+      ],
+      "reasoning_summary": "The evidence lists 733+ functions (predominantly in console2 logging utilities) whose parameters are not referenced in require()/assert() calls. However, the evidence itself explicitly states this is 'not a proof of malformed-input handling.' Several factors prevent a confident FAIL: (1) These appear to be logging/debug utility functions (console2.*) where parameters are strongly typed in Solidity (e.g., uint256, address, bytes32), and the type system itself enforces input validity\u2014there may be no meaningful 'malformed input' state for a function that simply logs a typed value. (2) require()/assert() are not the only forms of input validation; type enforcement, modifiers, and inherent type bounds also qualify. (3) The evidence is described as deliberately over-inclusive, flagging candidate locations rather than confirmed violations. Without access to the actual source code to confirm what these functions do and whether they have meaningful malformed-input scenarios, we cannot determine whether the absence of require()/assert() constitutes a genuine violation. Conversely, we also cannot confirm conformance since the evidence does not demonstrate that alternative validation mechanisms are present.",
+      "open_questions": [
+        "Are the console2.* functions part of the Tested Code being certified, or are they imported library/debug utilities excluded from scope?",
+        "Do these functions have any input validation beyond require()/assert() (e.g., type system enforcement, modifiers, internal logic) that the static analysis tool did not detect?",
+        "Are there any functions among the 733+ flagged that handle untrusted or user-supplied input where malformed values could cause incorrect behavior?",
+        "What is the actual implementation of these functions\u2014do they simply forward typed parameters to assembly logging, or do they perform operations where malformed input could cause failures?"
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "AGREE",
+      "model_version": "z-ai/glm-5.2",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "d0916eb3-0f2f-42d0-8463-078540af5baf",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 4,
+        "total": 4,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "console2._castLogPayloadViewToPure",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2._castLogPayloadViewToPure"
+          },
+          {
+            "index": 1,
+            "location": "console2._sendLogPayload",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2._sendLogPayload"
+          },
+          {
+            "index": 2,
+            "location": "console2.logUint",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2.logUint"
+          },
+          {
+            "index": 3,
+            "location": "console2.logString",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2.logString"
+          }
+        ]
+      }
+    },
+    "second_pass": {
+      "decision": "INCONCLUSIVE",
+      "requirement_citations": [
+        "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed."
+      ],
+      "evidence": [
+        {
+          "source": "static-analysis tool output",
+          "location": "console2._castLogPayloadViewToPure (fnIn parameter)",
+          "claim": "Parameter not referenced in any require()/assert() call; flagged as candidate evidence of no input validation."
+        },
+        {
+          "source": "static-analysis tool output",
+          "location": "console2._sendLogPayload (payload parameter)",
+          "claim": "Parameter not referenced in any require()/assert() call; flagged as candidate evidence of no input validation."
+        },
+        {
+          "source": "static-analysis tool output",
+          "location": "console2.logUint, console2.logString, console2.logBool, console2.logAddress, console2.logBytes (p0 parameter)",
+          "claim": "Parameters not referenced in any require()/assert() calls; flagged as candidate evidence of no input validation across 30+ logging functions."
+        }
+      ],
+      "reasoning_summary": "The static-analysis evidence only checks for the presence of require()/assert() calls referencing parameters, which is a narrow proxy for input validation. The flagged functions are all console2 logging utilities that accept strongly-typed Solidity parameters (uint256, string, bool, address, bytesN, etc.). In Solidity, the type system itself enforces structural validity of these inputs at the ABI encoding level \u2014 a uint256 cannot be 'malformed' in a way that require()/assert() would catch, and a bytes4 is always exactly 4 bytes. For logging functions whose sole purpose is to encode and emit a payload, explicit require()/assert() validation may be unnecessary because the type system and the simplicity of the operation (memory-to-calldata encoding and STATICCALL) inherently handle correctness. However, the evidence does not provide the actual source code of these functions, so we cannot confirm whether they handle edge cases correctly (e.g., very large strings, empty bytes). The evidence is explicitly described as 'over-inclusive by design' and notes itself that absence of require()/assert() is 'not a proof of malformed-input handling.' Without reviewing the actual function bodies or having positive evidence of validation (or lack thereof), we cannot determine conformance.",
+      "open_questions": [
+        "What do the actual function bodies of console2._sendLogPayload and related functions do with their inputs \u2014 are there any operations that could fail or behave unexpectedly with edge-case inputs?",
+        "Are these console2 functions part of the Tested Code under evaluation, or are they library/test dependencies that should be excluded from scope?",
+        "Does the Solidity type system and ABI encoding layer provide sufficient input validation for these logging functions, making explicit require()/assert() checks redundant?",
+        "Are there any non-require()/assert() forms of input validation (e.g., if-revert, custom modifiers, type constraints) present in these functions that the static analysis tool did not detect?"
+      ],
+      "confidence": "MEDIUM",
+      "second_pass_agreement": "AGREE",
+      "model_version": "z-ai/glm-5.2",
+      "prompt_version": "rtf-l8-v1",
+      "run_id": "533b55e6-0908-4f99-80bf-249a5fe467e6",
+      "citation_check": {
+        "valid": 0,
+        "invalid": 3,
+        "total": 3,
+        "validity_fraction": 0.0,
+        "details": [
+          {
+            "index": 0,
+            "location": "console2._castLogPayloadViewToPure (fnIn parameter)",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2._castLogPayloadViewToPure (fnIn parameter)"
+          },
+          {
+            "index": 1,
+            "location": "console2._sendLogPayload (payload parameter)",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2._sendLogPayload (payload parameter)"
+          },
+          {
+            "index": 2,
+            "location": "console2.logUint, console2.logString, console2.logBool, console2.logAddress, console2.logBytes (p0 parameter)",
+            "ok": false,
+            "reason": "file not found: /scratch/md5344/.claude/jobs/318205ae/tmp/pooltogether_src/vault/console2.logUint, console2.logString, console2.logBool, console2.logAddress, console2.logBytes (p0 parameter)"
+          }
+        ]
+      }
+    },
+    "agree": true
+  }
+}
