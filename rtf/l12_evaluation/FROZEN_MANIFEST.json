@@ -1,7 +1,7 @@
 {
   "framework_version": "0.2.0-evidence-enrichment",
-  "git_commit": "8f7f54272ec76c6cd92e6c90290cac765a66d976",
-  "timestamp": "2026-08-06T18:52:55Z",
+  "git_commit": "9c60ffa239b9e04c60a38c889a06b748ede9a2e5",
+  "timestamp": "2026-08-06T19:01:29Z",
   "freeze_items": {
     "1_spec_snapshot": {
       "path": "standards/ethtrust/ethtrust-sl.raw.html",
