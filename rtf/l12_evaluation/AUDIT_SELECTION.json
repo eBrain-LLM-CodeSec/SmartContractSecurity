@@ -1,0 +1,53 @@
+{
+  "protocol": "See module docstring -- deterministic sha256-seeded sampling without replacement, mirroring rtf/track_a/select_candidates.py's exact discipline. Frozen before any compilation attempt or compatibility check.",
+  "corpus_hash_used_as_seed_root": "86b9182a536f5c21a5d046aab7333bc13cb460237d77d9fef4088e1f6d4e507e  requirement_corpus.json",
+  "full_candidate_pool_size": 43,
+  "excluded": {
+    "template": "not a real audit -- the repo's own scaffold/example directory",
+    "2023-07-pooltogether": "already used for RTF v1 run 1, and carries a declared SUBSTANTIAL prior-exposure caveat for this project (EXPOSURE_DECLARATION.json) -- excluding it from the FRESH sample keeps the new sample's exposure profile clean (NONE/PARTIAL, not SUBSTANTIAL), which is the entire point of drawing a new, frozen sample rather than just reusing pooltogether again"
+  },
+  "n_requested": 4,
+  "selected_at": "2026-08-06T16:30:56Z",
+  "selected_audit_ids": [
+    "2025-02-thorwallet",
+    "2024-03-taiko",
+    "2024-01-init-capital-invitational",
+    "2026-01-tempo-mpp-streams"
+  ],
+  "selection_detail": [
+    {
+      "audit_id": "2025-02-thorwallet",
+      "draw_index": 0,
+      "seed_material": "86b9182a536f5c21a5d046aab7333bc13cb460237d77d9fef4088e1f6d4e507e  requirement_corpus.json::l12_audit_sampling::::draw_0",
+      "seed_digest": "064037c8ab0f5a805d39156d2e80bf9ddd00b55474bc434273fc327c436c23a1",
+      "index_into_remaining_pool": 30,
+      "remaining_pool_size_at_draw": 39
+    },
+    {
+      "audit_id": "2024-03-taiko",
+      "draw_index": 1,
+      "seed_material": "86b9182a536f5c21a5d046aab7333bc13cb460237d77d9fef4088e1f6d4e507e  requirement_corpus.json::l12_audit_sampling::::draw_1",
+      "seed_digest": "94513919eee045590ffbf2228e223d97e3c8c4ec40c6960f4e475e4cd2e7b77e",
+      "index_into_remaining_pool": 12,
+      "remaining_pool_size_at_draw": 38
+    },
+    {
+      "audit_id": "2024-01-init-capital-invitational",
+      "draw_index": 2,
+      "seed_material": "86b9182a536f5c21a5d046aab7333bc13cb460237d77d9fef4088e1f6d4e507e  requirement_corpus.json::l12_audit_sampling::::draw_2",
+      "seed_digest": "88e6976088876b17fa95b2f772cdc5302c35f14ee045f294a4850e8b6f9f523e",
+      "index_into_remaining_pool": 4,
+      "remaining_pool_size_at_draw": 37
+    },
+    {
+      "audit_id": "2026-01-tempo-mpp-streams",
+      "draw_index": 3,
+      "seed_material": "86b9182a536f5c21a5d046aab7333bc13cb460237d77d9fef4088e1f6d4e507e  requirement_corpus.json::l12_audit_sampling::::draw_3",
+      "seed_digest": "ce0a9ab234d93c717bc29ad7532091cd374f0c6e504774f5bcdd3005acbd7a7a",
+      "index_into_remaining_pool": 34,
+      "remaining_pool_size_at_draw": 36
+    }
+  ],
+  "substitution_log": [],
+  "substitution_rule": "Substitution permitted ONLY for genuine pool-construction errors (e.g. a selected 'audit' turns out not to be a real, gradeable audit directory), never for compilation difficulty or predicate incompatibility -- exactly Track A's own rule, applied here to audits instead of requirements."
+}
