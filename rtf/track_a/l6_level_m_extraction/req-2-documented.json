@@ -2,5 +2,11 @@
   "req_id": "req-2-documented",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "The cleanest DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION case in the whole M-level batch: all 8 named triggers already have predicates scoped or built elsewhere in this project (CREATE2/assembly/selfdestruct/delegatecall from S-level work above; external calls from req-1-use-c-e-i; overflow/underflow from Track A's req-2-overflow-underflow; block.timestamp/randomness from req-2-random-enough/block-data-misuse below). Semantic condition: is there nearby documentation explaining the need AND how misuse/errors are protected against, AND is that documentation available to anyone who can call the Tested Code (a reachability/publication question, not just presence). Also explicitly notes the external-calls trigger applies to ALL external calls, regardless of whether they separately meet CEI.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "7_OF_8_TRIGGERS_IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_documented_trigger_sites()",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified the composition correctly catches assembly/delegatecall/selfdestruct/timestamp sites and correctly skips a function with none of them",
+    "note": "Composes 7 of the 8 named triggers from already-built predicates (CREATE2, assembly, selfdestruct, external calls, delegatecall, unprotected arithmetic, block data). The 8th, oracle usage specifically, is NOT implemented -- unlike the other 7, 'oracle' isn't a language construct EthTrust's text names directly, and building a detector would require maintaining a list of known oracle interface signatures, closer to an invented heuristic than a text-grounded derivation. Left unbuilt and flagged rather than guessed at. Semantic condition (adequate documentation presence/reachability) requires L8."
+  }
 }

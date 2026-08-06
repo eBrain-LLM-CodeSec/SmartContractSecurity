@@ -16,10 +16,18 @@
       "component_type": "llm_condition_review",
       "judgment_authority": "LLM_JUDGMENT",
       "status": "NOT_YET_BUILT",
-      "inputs_from": ["trigger-unprotected-arithmetic-context"],
+      "inputs_from": [
+        "trigger-unprotected-arithmetic-context"
+      ],
       "note": "Must independently assess BOTH whether the flagged arithmetic site can realistically overflow/underflow given surrounding value constraints, AND (only if so) whether a demonstrated need plus adequate guards -- consistent with the contract author's own claims -- are present, per the requirement's own inline exception text (see context bundle: 'there is a demonstrated need ... and there are guards ... to ensure behavior consistent with the claims of the contract author'). Depends on the L8 shared LLM Judgment Layer, not yet built."
     }
   ],
   "aggregation_rule": "applicability_state = APPLICABLE iff trigger-unprotected-arithmetic-context fires at least once; conformance_state = semantic-review-overflow-risk-and-guards's decision when applicable, NOT_APPLICABLE otherwise.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_COMPONENT_IMPLEMENTED_AND_TESTED_SEMANTIC_CONDITION_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: find_unprotected_arithmetic()",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified against unchecked{}, default-checked (>=0.8.0), and pre-0.8.0 arithmetic",
+    "note": "2 of the 3 named sub-conditions implemented (unchecked{} block, pre-0.8.0 default). The third (arithmetic specifically within inline assembly, distinct from mere assembly presence) is not implemented -- would need raw Yul-text parsing, flagged not silently skipped. Semantic condition (real overflow reachability + demonstrated-need/guard adequacy) requires L8, not built here."
+  }
 }

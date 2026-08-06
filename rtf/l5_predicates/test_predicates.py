@@ -271,6 +271,59 @@ def test_reused_unchecked_call_detectors_for_check_return():
     check("reused unchecked-lowlevel: does not flag a checked .call() return", len(r_neg) == 0, r_neg)
 
 
+def test_documented_trigger_sites_composition():
+    src = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function useAssembly() public pure returns (uint x) { assembly { x := 1 } }
+        function useDelegatecall(address t) public { (bool ok, ) = t.delegatecall(""); require(ok); }
+        function useSelfdestruct() public { selfdestruct(payable(msg.sender)); }
+        function useTimestamp() public view returns (uint) { return block.timestamp; }
+        function boring() public pure returns (uint) { return 1; }
+    }
+    """
+    r = P.find_documented_trigger_sites(_write_and_compile(src))
+    locations_hit = {f["location"].split(".")[-1] for f in r}
+    check(
+        "documented_trigger_sites: composition catches assembly/delegatecall/selfdestruct/timestamp, skips boring()",
+        {"useAssembly", "useDelegatecall", "useSelfdestruct", "useTimestamp"} <= locations_hit and "boring" not in locations_hit,
+        locations_hit,
+    )
+
+
+def test_unprotected_arithmetic():
+    unchecked_block = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f(uint a, uint b) public pure returns (uint) {
+            unchecked { return a + b; }
+        }
+    }
+    """
+    checked_default = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function f(uint a, uint b) public pure returns (uint) {
+            return a + b;
+        }
+    }
+    """
+    pre_080 = """
+    pragma solidity ^0.7.6;
+    contract C {
+        function f(uint a, uint b) public pure returns (uint) {
+            return a + b;
+        }
+    }
+    """
+    r_unchecked = P.find_unprotected_arithmetic(_write_and_compile(unchecked_block))
+    r_checked = P.find_unprotected_arithmetic(_write_and_compile(checked_default))
+    r_pre080 = P.find_unprotected_arithmetic(_write_and_compile(pre_080, version="0.7.6"))
+    check("unprotected_arithmetic: flags addition inside unchecked{}", len(r_unchecked) == 1, r_unchecked)
+    check("unprotected_arithmetic: does NOT flag default-checked (>=0.8.0) addition", len(r_checked) == 0, r_checked)
+    check("unprotected_arithmetic: flags addition in pre-0.8.0 code (unchecked by default)", len(r_pre080) == 1, r_pre080)
+
+
 def test_state_write_after_external_call_ordering():
     positive = """
     pragma solidity ^0.8.20;
@@ -434,6 +487,8 @@ def main() -> int:
         test_unicode_direction_control_chars,
         test_reused_assembly_detector_for_no_assembly,
         test_reused_unchecked_call_detectors_for_check_return,
+        test_documented_trigger_sites_composition,
+        test_unprotected_arithmetic,
         test_state_write_after_external_call_ordering,
         test_block_data_usage_covers_prevrandao_gap,
         test_udvt_narrower_than_32_bytes,

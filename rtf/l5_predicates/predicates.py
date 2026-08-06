@@ -76,7 +76,15 @@ def run_reused_slither_detector(slither: Slither, detector_classes: list, req_id
     findings = []
     for detector_results in raw_results:
         for r in detector_results:
-            findings.append({"req_id": req_id, "location": r.get("check", "?"), "detail": r.get("description", "").strip()})
+            # Prefer the first "function"-typed element's real name (matches
+            # this module's other predicates' "Contract.function" location
+            # convention) over the bare check name, which was a real
+            # inconsistency caught by this module's own composition test
+            # (find_documented_trigger_sites) failing to recognize a hit.
+            func_el = next((el for el in r.get("elements", []) if el.get("type") == "function"), None)
+            contract_name = (func_el or {}).get("type_specific_fields", {}).get("parent", {}).get("name", "?")
+            func_name = (func_el or {}).get("name", r.get("check", "?"))
+            findings.append({"req_id": req_id, "location": f"{contract_name}.{func_name}", "detail": r.get("description", "").strip()})
     return findings
 
 
@@ -332,6 +340,46 @@ def find_block_data_usage(slither: Slither, req_id: str) -> list[dict]:
     return findings
 
 
+def find_unprotected_arithmetic(slither: Slither, req_id: str = "req-2-overflow-underflow") -> list[dict]:
+    """req-2-overflow-underflow (M) trigger, per its own L6 record:
+    arithmetic in `unchecked {}` blocks, or in code compiled <0.8.0
+    (unchecked by default), or via inline assembly (bypasses checks
+    entirely). Explicitly noted in that record as a COARSE, deliberately
+    over-inclusive trigger -- `unchecked {}` is also used for benign gas
+    optimization where overflow is provably unreachable (e.g. a bounded
+    loop counter), which this predicate cannot distinguish from genuinely
+    risky arithmetic; that judgment belongs to the semantic-condition
+    component (L8), not here.
+
+    Two of the three named sub-conditions are implemented (unchecked-block
+    arithmetic via node.scope.is_checked, confirmed by direct inspection
+    of a real compiled example -- not documented anywhere in Slither's own
+    detector source, since no existing detector reads this field; and
+    pre-0.8.0 arithmetic via compilation_unit.solc_version). The third
+    (arithmetic specifically WITHIN inline assembly, as opposed to mere
+    assembly presence) is NOT implemented -- flagged, not silently
+    skipped, since distinguishing arithmetic opcodes from other assembly
+    content requires parsing the raw Yul/assembly text, not yet done.
+    """
+    from slither.slithir.operations import Binary, BinaryType
+
+    arithmetic_ops = {BinaryType.ADDITION, BinaryType.SUBTRACTION, BinaryType.MULTIPLICATION, BinaryType.POWER}
+    pre_080 = tuple(int(x) for x in slither.compilation_units[0].solc_version.split(".")) < (0, 8, 0)
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                is_unchecked_scope = not getattr(node.scope, "is_checked", True)
+                if not (is_unchecked_scope or pre_080):
+                    continue
+                for ir in node.irs:
+                    if isinstance(ir, Binary) and ir.type in arithmetic_ops:
+                        reason = "inside unchecked{} block" if is_unchecked_scope else f"solc {slither.compilation_units[0].solc_version} < 0.8.0 (unchecked by default)"
+                        findings.append({"req_id": req_id, "location": f"{contract.name}.{func.name}", "detail": f"{ir.type.value} operation, {reason}"})
+    return findings
+
+
 def find_state_write_after_external_call(slither: Slither, req_id: str) -> list[dict]:
     """req-1-use-c-e-i (S) / req-2-external-calls (M)'s CEI sub-clause /
     req-3-external-calls (Q)'s trigger, all sharing this concept per their
@@ -376,6 +424,54 @@ def _reachable_nodes(start_node) -> set:
         seen.add(n)
         frontier.extend(n.sons)
     return seen
+
+
+def find_external_call_presence(slither: Slither, req_id: str) -> list[dict]:
+    """Simple standalone 'makes external calls' trigger, shared by several
+    M/Q requirements' applicability rules (req-2-avoid-readonly-
+    reentrancy, req-2-random-enough's sibling req-3-external-calls' own
+    trigger reuse, etc.) -- any high_level_calls or low_level_calls at
+    any node.
+    """
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                if node.high_level_calls or node.low_level_calls:
+                    findings.append({"req_id": req_id, "location": f"{contract.name}.{func.name}", "detail": "makes an external call"})
+    return findings
+
+
+def find_documented_trigger_sites(slither: Slither) -> list[dict]:
+    """req-2-documented (M): 'MUST document the need for each instance of'
+    8 named triggers -- CREATE2, assembly{}, selfdestruct()/suicide(),
+    external calls, delegatecall(), overflow/underflow-prone code,
+    block.number/block.timestamp, oracle/pseudo-randomness use.
+    Composes 7 of the 8 already-built predicates (this requirement's own
+    L6 record explicitly noted all 8 triggers are shared with other
+    requirements built elsewhere in this project -- confirmed true for 7).
+    Oracle usage specifically is NOT composed here: unlike the other 7,
+    'oracle' isn't a language construct EthTrust's text names directly
+    (the way block.timestamp or delegatecall() are) -- detecting it would
+    require maintaining a list of known oracle interface signatures (e.g.
+    Chainlink's latestRoundData), which is closer to an invented
+    heuristic than a text-grounded derivation. Left unbuilt and flagged,
+    not guessed at.
+    """
+    from slither.detectors.statements.assembly import Assembly
+
+    findings = []
+    findings += find_create2_usage(slither)
+    findings += run_reused_slither_detector(slither, [Assembly], "req-2-documented")
+    findings += find_selfdestruct_presence(slither, req_id="req-2-documented")
+    findings += find_external_call_presence(slither, req_id="req-2-documented")
+    findings += find_delegatecall_presence(slither, req_id="req-2-documented")
+    findings += find_unprotected_arithmetic(slither, req_id="req-2-documented")
+    findings += find_block_data_usage(slither, req_id="req-2-documented")
+    # 8th trigger, oracle/pseudo-randomness use: pseudo-randomness is
+    # already covered by find_block_data_usage above; oracle usage
+    # specifically is NOT covered -- see docstring.
+    return findings
 
 
 def find_unicode_direction_control_chars(sol_source_paths: list[Path], req_id: str = "req-1-unicode-bdo") -> list[dict]:
