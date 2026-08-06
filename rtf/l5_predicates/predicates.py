@@ -474,6 +474,61 @@ def find_documented_trigger_sites(slither: Slither) -> list[dict]:
     return findings
 
 
+def find_fuzzing_evidence(repo_root: Path, sol_test_paths: list[Path], req_id: str = "req-R-fuzzing-in-testing") -> list[dict]:
+    """req-R-fuzzing-in-testing (GP): 'Fuzzing SHOULD be used to probe
+    Tested Code for errors'. Presence-only check per this requirement's
+    own strategy note: an Echidna/Medusa config file, OR a Foundry-
+    convention test function taking one or more parameters (the standard
+    way Foundry recognizes a fuzz test -- `forge test` randomizes any
+    parameterized test function's inputs automatically, no special
+    annotation needed).
+    """
+    findings = []
+    for name in ("echidna.yaml", "echidna.yml", "medusa.json"):
+        if (repo_root / name).exists():
+            findings.append({"req_id": req_id, "location": name, "detail": "fuzzing tool config present"})
+    for p in sol_test_paths:
+        text = p.read_text(encoding="utf-8", errors="replace")
+        for m in re.finditer(r"function\s+(test\w*)\s*\(([^)]+)\)", text):
+            params = m.group(2).strip()
+            if params:
+                findings.append({"req_id": req_id, "location": f"{p}:{m.group(1)}", "detail": "Foundry-convention parameterized test function (fuzzed by forge test)"})
+    return findings
+
+
+def find_mutation_testing_evidence(repo_root: Path, req_id: str = "req-R-mutation-testing") -> list[dict]:
+    """req-R-mutation-testing (GP): 'Mutation Testing SHOULD be used to
+    evaluate and improve the quality of test suites'. Presence-only check:
+    a config file for a known mutation-testing tool (gambit, universal
+    mutator, vertigo).
+    """
+    findings = []
+    for name in ("gambit.json", ".gambit.json", "universalmutator.yaml", "vertigo.toml", "vertigo.yaml"):
+        if (repo_root / name).exists():
+            findings.append({"req_id": req_id, "location": name, "detail": "mutation testing tool config present"})
+    return findings
+
+
+def find_formal_verification_evidence(repo_root: Path, sol_source_paths: list[Path], req_id: str = "req-R-formal-verification") -> list[dict]:
+    """req-R-formal-verification (GP): 'The Tested Code SHOULD undergo
+    formal verification'. Presence-only check: a Certora spec file
+    (*.spec), a Certora conf file (*.conf mentioning certora), or
+    Solidity's own SMTChecker pragma (`pragma experimental SMTChecker;`
+    or the newer `// SPDX...` + `settings { "modelChecker": ...}` foundry
+    config -- checked here only for the simpler in-source pragma form).
+    """
+    findings = []
+    for p in repo_root.rglob("*.spec"):
+        findings.append({"req_id": req_id, "location": str(p), "detail": "Certora spec file present"})
+    for p in repo_root.rglob("*.conf"):
+        if "certora" in p.read_text(encoding="utf-8", errors="replace").lower():
+            findings.append({"req_id": req_id, "location": str(p), "detail": "Certora conf file present"})
+    for p in sol_source_paths:
+        if "SMTChecker" in p.read_text(encoding="utf-8", errors="replace"):
+            findings.append({"req_id": req_id, "location": str(p), "detail": "SMTChecker pragma present"})
+    return findings
+
+
 def find_unicode_direction_control_chars(sol_source_paths: list[Path], req_id: str = "req-1-unicode-bdo") -> list[dict]:
     """req-1-unicode-bdo (S): 'MUST NOT contain any of the Unicode
     Direction Control Characters U+2066, U+2067, U+2068, U+2029, U+202A,

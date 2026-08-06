@@ -2,5 +2,10 @@
   "req_id": "req-R-fuzzing-in-testing",
   "modality": "SHOULD (advisory, non-certification-blocking)",
   "strategy_note": "Presence check is plausible: fuzz-shaped test functions (Foundry convention: test functions taking parameters, run via `forge test` with randomized inputs) or an Echidna/Medusa config file are syntactically/structurally locatable in a repo. Whether the fuzzing actually exercises meaningful invariants (vs. trivial parameterized tests) needs judgment beyond mere presence.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_fuzzing_evidence()",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified against representative config-file and (for fuzzing) Foundry-convention fixtures, 2026-08-06"
+  }
 }

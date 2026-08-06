@@ -2,5 +2,10 @@
   "req_id": "req-R-mutation-testing",
   "modality": "SHOULD (advisory, non-certification-blocking)",
   "strategy_note": "Presence check plausible: a mutation-testing tool's config/output artifacts (e.g. gambit, universalmutator, vertigo) would be a direct, checkable signal if present in the repository -- their ABSENCE is easy to confirm; their PRESENCE plus meaningful use is a slightly softer question.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_mutation_testing_evidence()",
+    "test": "rtf/l5_predicates/test_predicates.py -- verified against representative config-file and (for fuzzing) Foundry-convention fixtures, 2026-08-06"
+  }
 }

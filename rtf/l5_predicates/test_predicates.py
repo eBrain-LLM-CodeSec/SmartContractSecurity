@@ -434,6 +434,51 @@ def test_non_exact_pragma():
     check("pragma: does not flag an exact single-version pin", len(r_neg) == 0, r_neg)
 
 
+def test_fuzzing_evidence():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        test_with_params = root / "C.t.sol"
+        test_with_params.write_text("contract CTest { function testDeposit(uint amount, address user) public {} }", encoding="utf-8")
+        test_no_params = root / "D.t.sol"
+        test_no_params.write_text("contract DTest { function testSetup() public {} }", encoding="utf-8")
+
+        r_params = P.find_fuzzing_evidence(root, [test_with_params])
+        r_no_params = P.find_fuzzing_evidence(root, [test_no_params])
+        check("fuzzing: flags a parameterized Foundry test function (fuzzed by forge test)", len(r_params) == 1, r_params)
+        check("fuzzing: does not flag a no-argument test function", len(r_no_params) == 0, r_no_params)
+
+        (root / "echidna.yaml").write_text("testMode: assertion", encoding="utf-8")
+        r_config = P.find_fuzzing_evidence(root, [test_no_params])
+        check("fuzzing: an echidna.yaml config alone counts as evidence", any("echidna" in f["location"] for f in r_config), r_config)
+
+
+def test_mutation_testing_evidence():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        check("mutation_testing: no finding without a config file", P.find_mutation_testing_evidence(root) == [], P.find_mutation_testing_evidence(root))
+        (root / "gambit.json").write_text("{}", encoding="utf-8")
+        r = P.find_mutation_testing_evidence(root)
+        check("mutation_testing: flags gambit.json presence", len(r) == 1, r)
+
+
+def test_formal_verification_evidence():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        sol_with_smt = root / "C.sol"
+        sol_with_smt.write_text("pragma solidity ^0.8.20;\npragma experimental SMTChecker;\ncontract C {}", encoding="utf-8")
+        sol_without = root / "D.sol"
+        sol_without.write_text("pragma solidity ^0.8.20;\ncontract D {}", encoding="utf-8")
+
+        r_smt = P.find_formal_verification_evidence(root, [sol_with_smt])
+        r_none = P.find_formal_verification_evidence(root, [sol_without])
+        check("formal_verification: flags SMTChecker pragma", len(r_smt) == 1, r_smt)
+        check("formal_verification: no finding for plain source with no FV evidence at all", len(r_none) == 0, r_none)
+
+        (root / "Vault.spec").write_text("rule noop {}", encoding="utf-8")
+        r_certora = P.find_formal_verification_evidence(root, [sol_without])
+        check("formal_verification: a Certora .spec file alone counts as evidence", any(".spec" in f["location"] for f in r_certora), r_certora)
+
+
 def test_spdx_or_license_file():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -494,6 +539,9 @@ def main() -> int:
         test_udvt_narrower_than_32_bytes,
         test_state_write_without_event,
         test_non_exact_pragma,
+        test_fuzzing_evidence,
+        test_mutation_testing_evidence,
+        test_formal_verification_evidence,
         test_spdx_or_license_file,
         test_natspec_presence,
     ]
