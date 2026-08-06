@@ -584,6 +584,45 @@ def test_natspec_presence():
     check("natspec: DOES flag a public function with no NatSpec", len(r_neg) == 1, r_neg)
 
 
+def test_erc_interface_conformance():
+    conformant_erc20 = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function totalSupply() external view returns (uint256) { return 0; }
+        function balanceOf(address) external view returns (uint256) { return 0; }
+        function transfer(address, uint256) external returns (bool) { return true; }
+        function transferFrom(address, address, uint256) external returns (bool) { return true; }
+        function approve(address, uint256) external returns (bool) { return true; }
+        function allowance(address, address) external view returns (uint256) { return 0; }
+    }
+    """
+    broken_erc20 = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function totalSupply() external view returns (uint256) { return 0; }
+        function balanceOf(address) external view returns (uint256) { return 0; }
+        function transfer(address, uint256) external {}
+        function transferFrom(address, address, uint256) external returns (bool) { return true; }
+        function approve(address, uint256) external returns (bool) { return true; }
+        function allowance(address, address) external view returns (uint256) { return 0; }
+    }
+    """
+    unrelated = """
+    pragma solidity ^0.8.20;
+    contract C {
+        uint256 public count;
+        function increment() external { count += 1; }
+    }
+    """
+    r_conformant = P.find_erc_interface_conformance(_write_and_compile(conformant_erc20))
+    r_broken = P.find_erc_interface_conformance(_write_and_compile(broken_erc20))
+    r_unrelated = P.find_erc_interface_conformance(_write_and_compile(unrelated))
+
+    check("erc_conformance: resembles ERC20 and reports it conforms", len(r_conformant) == 1 and "resembles ERC20" in r_conformant[0]["detail"] and "interface_mismatches=[]" in r_conformant[0]["detail"], r_conformant)
+    check("erc_conformance: resembles ERC20 and flags the broken transfer() signature", len(r_broken) == 1 and "resembles ERC20" in r_broken[0]["detail"] and "transfer" in r_broken[0]["detail"], r_broken)
+    check("erc_conformance: does not fire on a contract with no ERC resemblance", len(r_unrelated) == 0, r_unrelated)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -612,6 +651,7 @@ def main() -> int:
         test_formal_verification_evidence,
         test_spdx_or_license_file,
         test_natspec_presence,
+        test_erc_interface_conformance,
     ]
     for t in tests:
         try:

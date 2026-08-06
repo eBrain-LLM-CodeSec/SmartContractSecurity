@@ -637,3 +637,70 @@ def _has_natspec_comment(func: FunctionContract) -> bool:
     # (not guessed): Slither exposes this as the boolean
     # `has_documentation`, not a structured `natspec` object.
     return bool(getattr(func, "has_documentation", False))
+
+
+def find_erc_interface_conformance(slither: Slither, req_id: str = "req-R-follow-erc-standards") -> list[dict]:
+    """req-R-follow-erc-standards (GP): 'SHOULD conform to finalized [ERC]
+    standards when it is reasonably capable of doing so for its use-case'.
+
+    DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION-shaped per this requirement's
+    own GP record: identifying which ERC a contract's interface resembles,
+    and whether its function signatures match that ERC's own declared
+    return types, is a checkable signature-matching exercise; whether
+    pursuing that ERC was 'reasonably' applicable to the contract's
+    use-case, and whether full conformance (events, invariants, not just
+    signatures) holds, are semantic judgments this predicate does not make.
+
+    Deliberately reuses Slither's OWN ERC-resemblance heuristics
+    (`Contract.is_possible_erc20`/`is_possible_erc721`) and Slither's OWN
+    interface-correctness checkers
+    (`IncorrectERC20InterfaceDetection`/`IncorrectERC721InterfaceDetection`,
+    both of which encode ERC-20/ERC-721's own standardized function
+    signatures) rather than re-deriving a signature list here -- the same
+    'reuse an existing analyzer's own construct-level knowledge, don't
+    reinvent it' discipline used throughout L4/L5, applied to a GP
+    requirement instead of an S requirement.
+    """
+    from slither.detectors.erc.erc20.incorrect_erc20_interface import (
+        IncorrectERC20InterfaceDetection,
+    )
+    from slither.detectors.erc.incorrect_erc721_interface import (
+        IncorrectERC721InterfaceDetection,
+    )
+
+    findings = []
+    for contract in slither.contracts_derived:
+        resembles_erc20 = contract.is_possible_erc20()
+        resembles_erc721 = contract.is_possible_erc721()
+        if not resembles_erc20 and not resembles_erc721:
+            continue
+
+        if resembles_erc721 and resembles_erc20:
+            standard = "ERC721"
+            mismatches = IncorrectERC721InterfaceDetection.detect_incorrect_erc721_interface(contract)
+            signature_check_performed = True
+        elif resembles_erc20:
+            standard = "ERC20"
+            mismatches = IncorrectERC20InterfaceDetection.detect_incorrect_erc20_interface(contract)
+            signature_check_performed = True
+        else:
+            # resembles_erc721 only: Slither's own erc721 checker requires
+            # is_possible_erc20() to ALSO be true before it runs at all
+            # (see incorrect_erc721_interface.py's own detect_ function
+            # gate) -- so no signature check actually executes for this
+            # case. Reported honestly as "not performed" rather than
+            # defaulting to a misleading "conforms".
+            standard = "ERC721_ONLY_RESEMBLANCE_NO_CHECK_AVAILABLE"
+            mismatches = []
+            signature_check_performed = False
+
+        findings.append({
+            "req_id": req_id,
+            "location": contract.name,
+            "detail": (
+                f"resembles {standard}; signature_check_performed="
+                f"{signature_check_performed}; "
+                f"interface_mismatches={[f.full_name for f in mismatches]}"
+            ),
+        })
+    return findings

@@ -2,5 +2,11 @@
   "req_id": "req-R-follow-erc-standards",
   "modality": "SHOULD (advisory, non-certification-blocking)",
   "strategy_note": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION-shaped: identifying which ERC (if any) the contract's interface resembles (ERC20/721/1155/4626/etc.) is a checkable function-signature-matching exercise; full conformance to that ERC's spec, and whether pursuing it was 'reasonably' applicable to begin with, needs judgment.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_AND_SIGNATURE_EVIDENCE_IMPLEMENTED_AND_TESTED_SEMANTIC_CONDITION_NOT_ATTEMPTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_erc_interface_conformance()",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_erc_interface_conformance() -- conformant ERC20, broken-interface ERC20, and unrelated-contract fixtures, verified 2026-08-06",
+    "note": "Reuses Slither's OWN ERC20/ERC721 resemblance heuristics (Contract.is_possible_erc20/is_possible_erc721, which match against the ERC's own canonical required-signature list in slither/utils/erc.py) and Slither's OWN interface-correctness checkers (IncorrectERC20InterfaceDetection/IncorrectERC721InterfaceDetection) rather than re-deriving a signature list -- same analyzer-reuse discipline as L4/L5, applied to a GP requirement. Only covers ERC20/ERC721 (the two Slither ships interface checkers for); ERC1155/ERC4626/etc. resemblance detection is NOT implemented (Slither has no equivalent canonical signature list for them) and is left as an explicit gap rather than a hand-derived one. Evidence-only, deliberately: signature-shape resemblance + return-type correctness does not establish full ERC conformance (events, additional invariants) or whether pursuing the ERC was 'reasonably' applicable to the use-case -- both remain semantic judgments, not attempted here."
+  }
 }
