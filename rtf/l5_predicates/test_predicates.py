@@ -271,6 +271,71 @@ def test_reused_unchecked_call_detectors_for_check_return():
     check("reused unchecked-lowlevel: does not flag a checked .call() return", len(r_neg) == 0, r_neg)
 
 
+def test_ecrecover_usage():
+    positive = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function verify(bytes32 h, uint8 v, bytes32 r, bytes32 s) public pure returns (address) {
+            return ecrecover(h, v, r, s);
+        }
+    }
+    """
+    negative = "pragma solidity ^0.8.20;\ncontract C { function f() public pure returns (uint) { return 1; } }"
+    r_pos = P.find_ecrecover_usage(_write_and_compile(positive), "req-2-signature-verification")
+    r_neg = P.find_ecrecover_usage(_write_and_compile(negative), "req-2-signature-verification")
+    check("ecrecover: flags direct ecrecover() usage", len(r_pos) == 1, r_pos)
+    check("ecrecover: does not flag code without signature verification", len(r_neg) == 0, r_neg)
+
+
+def test_oz_ecdsa_library_usage():
+    # Minimal stand-in for OpenZeppelin's ECDSA library shape (a `library
+    # ECDSA` with a `recover` function) -- not the real OZ source, just
+    # enough to exercise the library-name + function-name matching logic
+    # against a REAL compiled `using ECDSA for bytes32` call site.
+    positive = """
+    pragma solidity ^0.8.20;
+    library ECDSA {
+        function recover(bytes32 hash, bytes memory sig) internal pure returns (address) {
+            return address(0);
+        }
+    }
+    contract C {
+        using ECDSA for bytes32;
+        function verify(bytes32 h, bytes memory sig) public pure returns (address) {
+            return h.recover(sig);
+        }
+    }
+    """
+    negative = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function verify(bytes32 h, uint8 v, bytes32 r, bytes32 s) public pure returns (address) {
+            return ecrecover(h, v, r, s);
+        }
+    }
+    """
+    r_pos = P.find_oz_ecdsa_library_usage(_write_and_compile(positive))
+    r_neg = P.find_oz_ecdsa_library_usage(_write_and_compile(negative))
+    check("oz_ecdsa: flags usage of a library named ECDSA's recover()", len(r_pos) == 1, r_pos)
+    check("oz_ecdsa: does not flag raw ecrecover() with no ECDSA library involved", len(r_neg) == 0, r_neg)
+
+
+def test_division_in_value_context():
+    positive = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function share(uint total, uint parts) public pure returns (uint) {
+            return total / parts;
+        }
+    }
+    """
+    negative = "pragma solidity ^0.8.20;\ncontract C { function f(uint a, uint b) public pure returns (uint) { return a + b; } }"
+    r_pos = P.find_division_in_value_context(_write_and_compile(positive))
+    r_neg = P.find_division_in_value_context(_write_and_compile(negative))
+    check("division: flags a division operation", len(r_pos) == 1, r_pos)
+    check("division: does not flag addition-only code", len(r_neg) == 0, r_neg)
+
+
 def test_documented_trigger_sites_composition():
     src = """
     pragma solidity ^0.8.20;
@@ -532,6 +597,9 @@ def main() -> int:
         test_unicode_direction_control_chars,
         test_reused_assembly_detector_for_no_assembly,
         test_reused_unchecked_call_detectors_for_check_return,
+        test_ecrecover_usage,
+        test_oz_ecdsa_library_usage,
+        test_division_in_value_context,
         test_documented_trigger_sites_composition,
         test_unprotected_arithmetic,
         test_state_write_after_external_call_ordering,

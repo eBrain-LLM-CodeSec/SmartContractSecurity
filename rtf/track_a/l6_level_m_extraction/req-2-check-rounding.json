@@ -2,5 +2,11 @@
   "req_id": "req-2-check-rounding",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Coarse trigger (division operations in balance/value-computation contexts) plausible, similar in character to req-2-overflow-underflow's coarse trigger from Track A -- over-inclusive by itself. Three sub-obligations (document error range; don't lose/create value; no exploitable round-trip) all require genuine mathematical/financial reasoning about a SPECIFIC formula's behavior -- the semantic-reviewer's job here is substantial, closer in weight to req-2-overflow-underflow's than to req-2-verify-exact-balance-check's narrow case.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_COMPONENT_IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_division_in_value_context()",
+    "test": "rtf/l5_predicates/test_predicates.py",
+    "note": "Coarse trigger only (any division) -- the three named sub-obligations (documented error range, no unintentional value creation/loss, no exploitable round-trip) all need L8 semantic review, not attempted here."
+  }
 }

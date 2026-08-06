@@ -2,5 +2,11 @@
   "req_id": "req-2-malleable-signatures-for-replay",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Trigger (signature-verification usage) shared with req-2-signature-verification. Partially deterministic sub-check: malleability protection specifically has a well-known, checkable pattern (OpenZeppelin's ECDSA.recover enforces the low-s-value check that blocks the classic signature-malleability trick; raw ecrecover does not) -- a library-usage check is plausible and not yet evaluated for feasibility. The 4 named replay vectors (function/contract/chain scoping of the signed message, e.g. via chainid+address+nonce in the signed payload) need broader semantic review to confirm all four are actually covered by a given signing scheme.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_AND_PARTIAL_MALLEABILITY_EVIDENCE_IMPLEMENTED_AND_TESTED",
+    "code": "rtf/l5_predicates/predicates.py :: find_ecrecover_usage() + find_oz_ecdsa_library_usage()",
+    "test": "rtf/l5_predicates/test_predicates.py -- OZ library detection verified against a real compiled `using ECDSA for bytes32` call site",
+    "note": "Trigger (signature verification usage) and a POSITIVE-only malleability signal (OZ ECDSA library usage) are implemented. Absence of OZ ECDSA usage is NOT treated as a violation (a project could implement its own guard) -- the 4 named replay-scoping vectors (function/contract/chain) still need semantic review."
+  }
 }

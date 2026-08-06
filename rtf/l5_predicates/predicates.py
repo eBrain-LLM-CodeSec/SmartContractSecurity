@@ -529,6 +529,73 @@ def find_formal_verification_evidence(repo_root: Path, sol_source_paths: list[Pa
     return findings
 
 
+def find_ecrecover_usage(slither: Slither, req_id: str) -> list[dict]:
+    """req-2-signature-verification (M) / req-2-malleable-signatures-for-
+    replay (M) shared trigger, per their L6 records: signature-
+    verification usage. `ecrecover` is a SolidityCall IR (confirmed by
+    direct inspection, not guessed), directly named in Solidity itself --
+    the same mechanism as find_encode_packed_untainted_collision's
+    SolidityFunction matching.
+    """
+    from slither.core.declarations import SolidityFunction
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for ir in func.solidity_calls:
+                if ir.function == SolidityFunction("ecrecover(bytes32,uint8,bytes32,bytes32)"):
+                    findings.append({"req_id": req_id, "location": f"{contract.name}.{func.name}", "detail": "ecrecover() used directly"})
+    return findings
+
+
+def find_oz_ecdsa_library_usage(slither: Slither, req_id: str = "req-2-malleable-signatures-for-replay") -> list[dict]:
+    """req-2-malleable-signatures-for-replay (M)'s malleability sub-
+    condition: OpenZeppelin's ECDSA.recover()/tryRecover() enforce the
+    low-s-value check that blocks the classic signature-malleability
+    attack; raw ecrecover() does not. This checks for a LIBRARY named
+    'ECDSA' being used (the OZ convention specifically) -- NOT proof that
+    malleability is unhandled if absent (a project could implement its
+    own guard manually), only positive evidence that the well-known safe
+    pattern IS present when found. Framed as evidence, not a full
+    verdict, consistent with this requirement's own DETERMINISTIC_
+    EVIDENCE_ONLY framing for its trigger components.
+    """
+    from slither.slithir.operations import LibraryCall
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                for ir in node.irs:
+                    # `using ECDSA for bytes32; h.recover(sig)` compiles to a
+                    # LibraryCall IR (confirmed by direct inspection, not
+                    # internal_calls as first guessed -- library calls via
+                    # `using X for Y` are their own IR operation type).
+                    if isinstance(ir, LibraryCall) and ir.function.contract.name == "ECDSA" and ir.function.name in ("recover", "tryRecover"):
+                        findings.append({"req_id": req_id, "location": f"{contract.name}.{func.name}", "detail": "uses OpenZeppelin ECDSA.recover/tryRecover (malleability-guarded)"})
+    return findings
+
+
+def find_division_in_value_context(slither: Slither, req_id: str = "req-2-check-rounding") -> list[dict]:
+    """req-2-check-rounding (M) coarse trigger, per its own L6 record:
+    'similar in character to req-2-overflow-underflow's coarse trigger'.
+    Any DIVISION binary operation -- deliberately broad (division is the
+    only arithmetic operator that can introduce rounding at all; whether
+    a SPECIFIC division is value-affecting and whether its rounding is
+    exploitable both require semantic review, not attempted here).
+    """
+    from slither.slithir.operations import Binary, BinaryType
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                for ir in node.irs:
+                    if isinstance(ir, Binary) and ir.type == BinaryType.DIVISION:
+                        findings.append({"req_id": req_id, "location": f"{contract.name}.{func.name}", "detail": "division operation (potential rounding)"})
+    return findings
+
+
 def find_unicode_direction_control_chars(sol_source_paths: list[Path], req_id: str = "req-1-unicode-bdo") -> list[dict]:
     """req-1-unicode-bdo (S): 'MUST NOT contain any of the Unicode
     Direction Control Characters U+2066, U+2067, U+2068, U+2029, U+202A,
