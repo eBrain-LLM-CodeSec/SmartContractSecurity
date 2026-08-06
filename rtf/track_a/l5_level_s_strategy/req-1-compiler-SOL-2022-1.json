@@ -3,5 +3,11 @@
   "sub_type": "PATTERN_AND_VERSION",
   "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
   "note": "Pattern component: a Number or String literal argument passed as the first parameter to abi.encodeCall(), where the target parameter type is bytesNN shorter than 32 bytes (Number literal case) or any bytesNN (String literal case) -- directly checkable via Slither's call-argument type resolution.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_PATTERN_COMPONENT_NOT_IMPLEMENTED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_in_range(req_id, low='0.8.11', high='0.8.12')",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_floor/test_compiler_version_in_range (shared, generic tests -- verified against the specific ranges above via direct function calls, not per-requirement fixtures)",
+    "note": "MUST NOT use compiler version 0.8.11 or 0.8.12 -- reuses check_compiler_version_in_range() (equivalent to the two-exact-version OR, since 0.8.11/0.8.12 are consecutive); the Number/String-literal-to-abi.encodeCall() pattern component is not implemented."
+  }
 }

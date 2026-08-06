@@ -3,5 +3,11 @@
   "sub_type": "PATTERN_AND_VERSION_PLUS_OPTIMIZER_FLAG",
   "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
   "note": "Three-part applicability: (1) 2+ keccak(mem,length) call sites, (2) same mem/differing non-32-multiple length across them, (3) Optimizer enabled in the compile config -- the most compound applicability condition in this entire compiler-bug batch, and the only one needing compiler-CONFIG (not just source-pattern) inspection.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_PATTERN_COMPONENT_NOT_IMPLEMENTED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_floor(req_id, floor='0.8.3')",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_floor/test_compiler_version_in_range (shared, generic tests -- verified against the specific ranges above via direct function calls, not per-requirement fixtures)",
+    "note": "MUST NOT use the Optimizer with a compiler version older than 0.8.3 -- reuses check_compiler_version_floor(); the Optimizer-enabled AND keccak(mem,length) pattern components are not implemented."
+  }
 }

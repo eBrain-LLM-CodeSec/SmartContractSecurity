@@ -3,5 +3,11 @@
   "sub_type": "PATTERN_AND_VERSION",
   "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
   "note": "Pattern component needs to detect an internal-call site whose signature resolution predates a data-location change across an override -- an inheritance/override-resolution analysis, more involved than a simple syntactic scan.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_PATTERN_COMPONENT_NOT_IMPLEMENTED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_in_range(req_id, low='0.6.9', high='0.8.12')",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_floor/test_compiler_version_in_range (shared, generic tests -- verified against the specific ranges above via direct function calls, not per-requirement fixtures)",
+    "note": "MUST NOT use a compiler version in [0.6.9, 0.8.12] -- reuses check_compiler_version_in_range(); the memory/calldata-pointer-inheritance-mismatch pattern component is not implemented."
+  }
 }

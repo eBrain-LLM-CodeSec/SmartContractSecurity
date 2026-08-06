@@ -104,6 +104,36 @@ def check_compiler_version_exact(slither: Slither, req_id: str, exact: str) -> l
     return []
 
 
+def check_compiler_version_in_range(slither: Slither, req_id: str, low: str, high: str) -> list[dict]:
+    """Version-range component shared by the batch of individually-named
+    Compiler Bug S/M requirements (req-1-compiler-SOL-2021-*,
+    req-1-compiler-SOL-2022-*, req-1-compiler-SOL-2023-*,
+    req-2-compiler-SOL-2021-3, req-2-compiler-SOL-2022-*,
+    req-2-compiler-SOL-2023-1), each of whose own text names an explicit
+    inclusive version range ('... between X and Y (inclusive)') rather
+    than a single floor or exact version. Same `compilation_unit.solc_version`
+    field as `check_compiler_version_floor`/`_exact`, inclusive range
+    comparison instead of a floor/equality one.
+
+    This is deliberately only the VERSION half of each of these
+    requirements' PATTERN_AND_VERSION strategy -- per each requirement's
+    own L5/L6 record, the pattern component (the specific named code
+    shape, e.g. 'keccak(mem,length) with mismatched non-32-multiple
+    lengths') is a separate, not-yet-implemented component; a version
+    match alone does not by itself mean the requirement is violated,
+    since the vulnerable PATTERN might not be present at all -- exactly
+    the VERSION_ONLY-vs-PATTERN_AND_VERSION distinction this project's
+    own architecture (see the plan's Contradiction c) requires keeping
+    separate, not silently collapsed into a single verdict.
+    """
+    actual = tuple(int(x) for x in slither.compilation_units[0].solc_version.split("."))
+    lo = tuple(int(x) for x in low.split("."))
+    hi = tuple(int(x) for x in high.split("."))
+    if lo <= actual <= hi:
+        return [{"req_id": req_id, "location": "compiler config", "detail": f"solc {slither.compilation_units[0].solc_version} within named range [{low}, {high}] -- version component only, pattern component not evaluated here"}]
+    return []
+
+
 def _assembly_block_text(node) -> str:
     """Confirmed by direct inspection (not guessed): Slither's own
     `node.inline_asm` (backed by `_asm_source_code`) is only populated
@@ -1000,3 +1030,60 @@ def check_compiler_version_is_latest_stable(slither: Slither, req_id: str, lates
     if actual != latest_known_stable_version:
         return [{"req_id": req_id, "location": "compiler config", "detail": f"solc {actual} != caller-supplied latest known stable version {latest_known_stable_version} (external, time-anchored reference -- not derived from spec text)"}]
     return []
+
+
+def find_keccak256_calls_chainid_dependency(slither: Slither, req_id: str = "req-1-eip155-chainid") -> list[dict]:
+    """req-1-eip155-chainid (S): 'MUST create hashes for transactions
+    that incorporate chainid values ... [EIP-155]'. Per this
+    requirement's own L5 record: the APPLICABILITY side ('is this hash a
+    transaction/signature-authorization hash at all') is an
+    AMBIGUOUS_TEXT_GAP -- EthTrust's own text names no specific Solidity
+    construct for recognizing signing-hash sites, so no predicate for
+    that half is derivable without importing outside domain knowledge.
+    This function implements ONLY the record's other, explicitly
+    text-grounded component (`conformance-hash-incorporates-chainid`):
+    'chainid' IS a term the requirement's own L1 enumerated_terms name
+    directly, and checking whether `block.chainid` is a dependency of a
+    given `keccak256()` call is mechanically checkable.
+
+    Reports EVERY `keccak256()` call site and whether `block.chainid` is
+    read in the SAME CFG node as that call (confirmed empirically: for a
+    single-expression `keccak256(abi.encodePacked(..., block.chainid))`,
+    Slither's `node.solidity_variables_read` correctly includes
+    'block.chainid' on that node) -- NOT which of those sites are
+    actually transaction/signature-authorization hashes (the blocked
+    applicability half). Consuming code (or the L8 semantic reviewer this
+    requirement's own record says it converges on) must independently
+    determine which reported sites are relevant tx-signing hashes.
+
+    Deliberate, documented limitation: this only detects `block.chainid`
+    read in the SAME node as the `keccak256()` call, not a chainid value
+    CACHED into a local/state variable earlier and referenced later
+    (e.g. `uint c = block.chainid; ... keccak256(abi.encodePacked(c))`)
+    -- that would require real data-dependency/taint tracking across
+    statements, which this predicate does not attempt (the requirement's
+    own L5 record scoped this component to the isolated,
+    already-tractable case, not full interprocedural analysis).
+    """
+    from slither.slithir.operations import SolidityCall
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                for ir in node.irs:
+                    if isinstance(ir, SolidityCall) and ir.function.name == "keccak256(bytes)":
+                        has_chainid = any(v.name == "block.chainid" for v in node.solidity_variables_read)
+                        findings.append({
+                            "req_id": req_id,
+                            "location": f"{contract.name}.{func.name}",
+                            "detail": (
+                                f"keccak256() call at node {node.node_id}: "
+                                f"block.chainid {'IS' if has_chainid else 'is NOT'} "
+                                f"read in the same expression -- whether this is a "
+                                f"transaction/signature-authorization hash at all is "
+                                f"NOT determined here (blocked applicability "
+                                f"component, see this requirement's own L5 record)"
+                            ),
+                        })
+    return findings

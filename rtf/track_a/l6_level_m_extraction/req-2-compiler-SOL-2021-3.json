@@ -2,5 +2,11 @@
   "req_id": "req-2-compiler-SOL-2021-3",
   "classification": "FULLY_DETERMINISTIC (compiler-bug pattern)",
   "classification_rationale": "bugs_by_version['0.6.5'] AND ['0.8.8'] both include 'SignedImmutables' -- a direct, unambiguous name match ('Signed', 'Immutables') at both ends of the stated 0.6.5-0.8.8 range.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_PATTERN_COMPONENT_NOT_IMPLEMENTED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_in_range(req_id, low='0.6.5', high='0.8.8')",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_floor/test_compiler_version_in_range (shared, generic tests -- verified against the specific ranges above via direct function calls, not per-requirement fixtures)",
+    "note": "MUST NOT use a compiler version in [0.6.5, 0.8.8] -- reuses check_compiler_version_in_range(); the immutable-signed-integer-shorter-than-256-bits-read-in-assembly pattern component is not implemented."
+  }
 }

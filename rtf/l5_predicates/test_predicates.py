@@ -46,6 +46,21 @@ def test_compiler_version_exact():
     check("compiler_version_exact: does not flag a different version", len(r_miss) == 0, r_miss)
 
 
+def test_compiler_version_in_range():
+    inside_low_end = _write_and_compile("pragma solidity 0.8.13;\ncontract C {}", version="0.8.13")
+    inside_high_end = _write_and_compile("pragma solidity 0.8.16;\ncontract C {}", version="0.8.16")
+    below = _write_and_compile("pragma solidity 0.8.12;\ncontract C {}", version="0.8.12")
+    above = _write_and_compile("pragma solidity 0.8.17;\ncontract C {}", version="0.8.17")
+    r_low = P.check_compiler_version_in_range(inside_low_end, "req-2-compiler-SOL-2022-7", "0.8.13", "0.8.16")
+    r_high = P.check_compiler_version_in_range(inside_high_end, "req-2-compiler-SOL-2022-7", "0.8.13", "0.8.16")
+    r_below = P.check_compiler_version_in_range(below, "req-2-compiler-SOL-2022-7", "0.8.13", "0.8.16")
+    r_above = P.check_compiler_version_in_range(above, "req-2-compiler-SOL-2022-7", "0.8.13", "0.8.16")
+    check("compiler_version_in_range: flags the low (inclusive) end of the range", len(r_low) == 1, r_low)
+    check("compiler_version_in_range: flags the high (inclusive) end of the range", len(r_high) == 1, r_high)
+    check("compiler_version_in_range: does not flag just below the range", len(r_below) == 0, r_below)
+    check("compiler_version_in_range: does not flag just above the range", len(r_above) == 0, r_above)
+
+
 def test_create2():
     positive = """
     pragma solidity ^0.8.20;
@@ -828,10 +843,31 @@ def test_compiler_version_is_latest_stable():
     check("latest_compiler: flags when compiled version is behind the caller-supplied latest", len(r_behind) == 1, r_behind)
 
 
+def test_keccak256_chainid_dependency():
+    src = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function hashWithChainid(address a, uint256 nonce) public view returns (bytes32) {
+            return keccak256(abi.encodePacked(a, nonce, block.chainid));
+        }
+        function hashWithoutChainid(address a, uint256 nonce) public pure returns (bytes32) {
+            return keccak256(abi.encodePacked(a, nonce));
+        }
+    }
+    """
+    r = P.find_keccak256_calls_chainid_dependency(_write_and_compile(src))
+    with_chainid = [f for f in r if "hashWithChainid" in f["location"]]
+    without_chainid = [f for f in r if "hashWithoutChainid" in f["location"]]
+    check("chainid_dependency: reports both keccak256() call sites", len(r) == 2, r)
+    check("chainid_dependency: reports 'block.chainid IS read' for the site that includes it", len(with_chainid) == 1 and "IS read" in with_chainid[0]["detail"], with_chainid)
+    check("chainid_dependency: reports 'is NOT read' for the site that omits it", len(without_chainid) == 1 and "is NOT read" in without_chainid[0]["detail"], without_chainid)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
         test_compiler_version_exact,
+        test_compiler_version_in_range,
         test_create2,
         test_selfdestruct_presence_unconditional_on_protection,
         test_delegatecall_presence_unconditional_on_taint,
@@ -861,6 +897,7 @@ def main() -> int:
         test_unsafe_assembly_variable_write,
         test_readonly_reentrancy_candidates,
         test_compiler_version_is_latest_stable,
+        test_keccak256_chainid_dependency,
     ]
     for t in tests:
         try:

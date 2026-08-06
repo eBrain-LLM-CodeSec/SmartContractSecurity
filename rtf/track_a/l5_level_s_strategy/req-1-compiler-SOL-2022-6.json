@@ -3,5 +3,11 @@
   "sub_type": "PATTERN_AND_VERSION",
   "status": "DERIVATION_PLAUSIBLE_NOT_YET_IMPLEMENTED",
   "note": "Pattern component would need to detect ABIEncoderV2 tuple encoding with a calldata static array (uint/bytes32) as the last element -- a fairly specific ABI-encoding shape, not yet evaluated against Slither's IR for feasibility.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_PATTERN_COMPONENT_NOT_IMPLEMENTED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_in_range(req_id, low='0.5.8', high='0.8.15')",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_floor/test_compiler_version_in_range (shared, generic tests -- verified against the specific ranges above via direct function calls, not per-requirement fixtures)",
+    "note": "MUST NOT use a compiler version in [0.5.8, 0.8.15] -- reuses check_compiler_version_in_range(); the ABIEncoderV2-tuple-with-trailing-calldata-static-array pattern component is not implemented."
+  }
 }

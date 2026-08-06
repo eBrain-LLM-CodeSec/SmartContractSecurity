@@ -3,5 +3,11 @@
   "sub_type": "PATTERN_AND_VERSION",
   "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED",
   "note": "Two components needed: (1) a Yul-code pattern predicate (detect repeated `verbatim` calls surrounded by identical code -- would need to inspect Slither's Yul/inline-assembly IR, not yet evaluated in depth) and (2) an exact compiled-version check against the stated 0.8.5-0.8.22 range.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_PATTERN_COMPONENT_NOT_IMPLEMENTED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_in_range(req_id, low='0.8.5', high='0.8.22')",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_floor/test_compiler_version_in_range (shared, generic tests -- verified against the specific ranges above via direct function calls, not per-requirement fixtures)",
+    "note": "Applicability-range component only: version in [0.8.5, 0.8.22] -- reuses check_compiler_version_in_range(). NOTE this requirement's conformance condition is different in shape from its S-level siblings ('MUST disable the Block Deduplicator', not 'MUST NOT use this version') -- the range check establishes applicability, not a violation by itself. The verbatim-instruction-used-twice pattern component and the Block-Deduplicator-disabled conformance check are not implemented."
+  }
 }

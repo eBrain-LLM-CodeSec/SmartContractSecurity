@@ -2,5 +2,11 @@
   "req_id": "req-2-compiler-SOL-2022-7",
   "classification": "FULLY_DETERMINISTIC (compiler-bug pattern)",
   "classification_rationale": "bugs_by_version['0.8.13'] AND ['0.8.16'] both include 'StorageWriteRemovalBeforeConditionalTermination' -- an almost-verbatim name match, at both ends of the stated 0.8.13-0.8.16 range. The strongest corroboration found in the entire M-level compiler-bug sub-batch.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_PATTERN_COMPONENT_NOT_IMPLEMENTED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_in_range(req_id, low='0.8.13', high='0.8.16')",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_floor/test_compiler_version_in_range (shared, generic tests -- verified against the specific ranges above via direct function calls, not per-requirement fixtures)",
+    "note": "MUST NOT use a compiler version in [0.8.13, 0.8.16] -- reuses check_compiler_version_in_range(); the storage-write-followed-by-conditional-early-termination-from-assembly pattern component is not implemented."
+  }
 }

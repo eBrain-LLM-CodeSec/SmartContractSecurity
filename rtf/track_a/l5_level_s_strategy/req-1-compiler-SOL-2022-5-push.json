@@ -3,5 +3,11 @@
   "sub_type": "PATTERN_AND_VERSION",
   "status": "DERIVATION_LEGITIMATE_NOT_YET_IMPLEMENTED_NO_CORROBORATION",
   "note": "Pattern component (empty .push() writing to a non-32-byte-multiple copied array) and version component (<0.8.15) both need to be built from EthTrust's text alone, without a Slither-side cross-check to lean on -- a slightly higher-risk derivation than its siblings in this batch.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "VERSION_COMPONENT_IMPLEMENTED_AND_TESTED_PATTERN_COMPONENT_NOT_IMPLEMENTED",
+    "code": "rtf/l5_predicates/predicates.py :: check_compiler_version_floor(req_id, floor='0.8.15')",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_compiler_version_floor/test_compiler_version_in_range (shared, generic tests -- verified against the specific ranges above via direct function calls, not per-requirement fixtures)",
+    "note": "MUST NOT use a compiler version older than 0.8.15 -- reuses check_compiler_version_floor(); the non-32-multiple-byte-array-copy-plus-empty-.push() pattern component is not implemented."
+  }
 }
