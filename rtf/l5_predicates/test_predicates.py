@@ -971,6 +971,33 @@ def test_unvalidated_function_parameters():
     check("input_validation: does not flag a function with no parameters at all", not any("noParams" in f["location"] for f in r), r)
 
 
+def test_unvalidated_function_parameters_covers_internal_functions():
+    """Regression test for AR-011: the predicate used to scan only
+    public/external functions, which has no basis in this requirement's
+    own text and would have missed a real EVMbench vulnerability (H-02)
+    whose exact shape -- an internal function truncating a parameter via
+    an unsafe cast, with zero require()/assert() touching it -- is
+    reproduced directly here.
+    """
+    src = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function _burn(address _owner, uint256 _shares) internal virtual {
+            _reallyBurn(_owner, uint96(_shares));
+        }
+        function _reallyBurn(address, uint96) internal virtual {}
+
+        function _mintValidated(uint256 _shares) internal virtual returns (uint256) {
+            require(_shares > 0, "bad");
+            return _shares;
+        }
+    }
+    """
+    r = P.find_unvalidated_function_parameters(_write_and_compile(src))
+    check("input_validation: flags an INTERNAL function with an unvalidated parameter (previously invisible to this predicate)", any("_burn" == f["location"].split(".")[-1] for f in r), r)
+    check("input_validation: does not flag an internal function whose parameter IS required()", not any("_mintValidated" == f["location"].split(".")[-1] for f in r), r)
+
+
 def test_reused_detector_safe_across_multiple_calls_on_shared_slither_object():
     """Regression test for a real bug found by the L12 orchestrator
     running many requirements' predicates against ONE shared, long-lived
@@ -1051,6 +1078,7 @@ def main() -> int:
         test_pragma_solidity_version_specified,
         test_state_mutating_function_protection_status,
         test_unvalidated_function_parameters,
+        test_unvalidated_function_parameters_covers_internal_functions,
         test_reused_detector_safe_across_multiple_calls_on_shared_slither_object,
     ]
     for t in tests:

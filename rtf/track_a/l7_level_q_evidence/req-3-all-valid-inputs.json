@@ -2,14 +2,14 @@
   "req_id": "req-3-all-valid-inputs",
   "status": "RUBRIC_SPECIFIED_NOT_EXECUTED",
   "evidence_expected": [
-    "Input-validation code review across public/external function parameters"
+    "Input-validation code review across ALL function parameters, any visibility -- corrected per AR-011, see below"
   ],
   "mechanical_note": "A PARTIAL deterministic signal is plausible: presence/absence of require()-style bounds checks on function parameters is syntactically locatable, though 'function correctly whether input is as designed or malformed' as a whole is a broad correctness property no single check covers.",
   "not_yet_done": "Rubric specified per SCHEMA.md's pattern; not executed against a live repository in this pass -- requires L8, same status as req-3-implement-as-documented's own rubric.",
   "implementation_status": {
-    "status": "PARTIAL_EVIDENCE_IMPLEMENTED_AND_TESTED",
+    "status": "PARTIAL_EVIDENCE_IMPLEMENTED_AND_TESTED_SCOPE_CORRECTED",
     "code": "rtf/l5_predicates/predicates.py :: find_unvalidated_function_parameters()",
-    "test": "rtf/l5_predicates/test_predicates.py :: test_unvalidated_function_parameters(), verified 2026-08-06",
-    "note": "Flags public/external functions where NO parameter is referenced in any require()/assert() call anywhere in the function body -- the clearer, more defensible half of this record's own 'partial deterministic signal' framing. DETERMINISTIC_EVIDENCE_ONLY: absence of a flag does NOT establish that validation is CORRECT or COMPLETE for every parameter and malformed-input case, only that the function is not entirely unvalidated. Whether the function 'functions correctly whether the input is as designed or malformed' as a whole remains this requirement's genuine semantic question, not attempted here."
+    "test": "rtf/l5_predicates/test_predicates.py :: test_unvalidated_function_parameters(), test_unvalidated_function_parameters_covers_internal_functions(), verified 2026-08-06",
+    "note": "CORRECTION (see AR-011): this record's original 'public/external function parameters' scoping (both here and in the predicate itself) was found, on re-derivation from this requirement's own text and definitions, to have NO textual basis -- 'Tested Code' is defined broadly, with no visibility restriction anywhere in this requirement's normative text. Judged a genuine implementation defect, not a defensible choice: confirmed concretely against a real EVMbench target, where the old scope missed the exact internal functions (Vault._burn/_mint/_transfer) containing EVMbench finding H-02's real vulnerable cast. Predicate now scans ALL functions regardless of visibility. Still DETERMINISTIC_EVIDENCE_ONLY, still does not establish CORRECT/COMPLETE validation, only non-total-absence of a require()/assert() touching each parameter -- and now noisier (flags more internal helper functions), an expected precision/recall tradeoff for a broader, more text-faithful scope, not a new defect."
   }
 }

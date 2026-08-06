@@ -1349,17 +1349,38 @@ def find_unvalidated_function_parameters(slither: Slither, req_id: str = "req-3-
     require()-style bounds checks on function parameters is
     syntactically locatable'.
 
-    For every public/external function with at least one parameter,
-    checks whether ANY `require()`/`assert()` call anywhere in the
-    function body reads at least one of that function's own parameters
-    (confirmed empirically: a `require(amount > 0, ...)` call's node
-    has the parameter variable in `node.variables_read`).
-    DETERMINISTIC_EVIDENCE_ONLY, not DETERMINISTIC_COMPLETE: presence of
-    SOME require() referencing SOME parameter does not establish that
-    validation is CORRECT or COMPLETE for every parameter and every
-    malformed-input case -- only that the function is not entirely
-    unvalidated. Flags functions where NO parameter is referenced in any
-    require()/assert() at all -- the clearer, more defensible signal.
+    For EVERY function with at least one parameter -- ALL visibilities,
+    not just public/external -- checks whether ANY `require()`/`assert()`
+    call anywhere in the function body reads at least one of that
+    function's own parameters (confirmed empirically: a
+    `require(amount > 0, ...)` call's node has the parameter variable in
+    `node.variables_read`). DETERMINISTIC_EVIDENCE_ONLY, not
+    DETERMINISTIC_COMPLETE: presence of SOME require() referencing SOME
+    parameter does not establish that validation is CORRECT or COMPLETE
+    for every parameter and every malformed-input case -- only that the
+    function is not entirely unvalidated. Flags functions where NO
+    parameter is referenced in any require()/assert() at all -- the
+    clearer, more defensible signal.
+
+    CORRECTION (see AR-011): an earlier version of this predicate
+    restricted scanning to `public`/`external` functions only. Re-reading
+    this requirement's own normative text and definitions found NO
+    textual basis for that restriction anywhere -- 'Tested Code' is
+    defined broadly as all of a contract's (or related contracts')
+    Solidity source, and 'inputs' is never scoped to the external
+    interface specifically. The public/external-only restriction was an
+    unexamined convention imported from general Solidity-audit practice
+    (attack-surface framing), not a derivation from this requirement's
+    own text -- exactly the kind of unsupported narrowing this project's
+    methodology exists to catch. Confirmed as a real, fixable gap, not a
+    theoretical one: on a real EVMbench target (2023-07-pooltogether),
+    the OLD scope missed `Vault._burn`/`_mint`/`_transfer` entirely --
+    all three are `internal` overrides with a `uint96(_shares)` truncating
+    cast and ZERO require()/assert() touching `_shares` anywhere in their
+    bodies (confirmed by direct inspection of the real source) -- exactly
+    the real vulnerability (EVMbench finding H-02) this predicate exists
+    to help surface evidence for, and the OLD scope could never have
+    found it regardless of anything else in the pipeline.
     """
     from slither.slithir.operations import SolidityCall
 
@@ -1367,8 +1388,6 @@ def find_unvalidated_function_parameters(slither: Slither, req_id: str = "req-3-
     for contract in slither.contracts:
         for func in contract.functions_declared:
             if func.is_constructor:
-                continue
-            if func.visibility not in ("public", "external"):
                 continue
             params = set(func.parameters)
             if not params:
