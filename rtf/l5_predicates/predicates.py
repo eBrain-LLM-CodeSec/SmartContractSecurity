@@ -104,6 +104,25 @@ def check_compiler_version_exact(slither: Slither, req_id: str, exact: str) -> l
     return []
 
 
+def _assembly_block_text(node) -> str:
+    """Confirmed by direct inspection (not guessed): Slither's own
+    `node.inline_asm` (backed by `_asm_source_code`) is only populated
+    for some AST/solc-version combinations -- for a stock 0.8.20 compile
+    of a plain `assembly { ... }` block, it is None even when the block
+    plainly contains e.g. `create2`. The raw block text is reliably
+    available via `node.source_mapping.content` instead (confirmed
+    against a real ASSEMBLY-type node from a real compile). Prefer
+    `inline_asm` when Slither does populate it, fall back to source text
+    otherwise.
+    """
+    asm = node.inline_asm
+    if asm:
+        return str(asm)
+    if node.source_mapping is not None and node.source_mapping.content:
+        return node.source_mapping.content
+    return ""
+
+
 def find_create2_usage(slither: Slither) -> list[dict]:
     """req-1-no-create2 (S): 'MUST NOT contain a CREATE2 instruction'.
     Two code shapes named in the requirement's own text: high-level
@@ -119,12 +138,12 @@ def find_create2_usage(slither: Slither) -> list[dict]:
                 for ir in node.irs:
                     if type(ir).__name__ == "NewContract" and getattr(ir, "call_salt", None) is not None:
                         findings.append({"req_id": "req-1-no-create2", "location": f"{contract.name}.{func.name}", "detail": "salted new{}() (CREATE2)"})
-                if node.type.name == "ASSEMBLY" and node.inline_asm and "create2" in str(node.inline_asm):
+                if node.type.name == "ASSEMBLY" and "create2" in _assembly_block_text(node):
                     findings.append({"req_id": "req-1-no-create2", "location": f"{contract.name}.{func.name}", "detail": "create2 opcode in assembly"})
     return findings
 
 
-def find_selfdestruct_presence(slither: Slither, req_id: str = "req-1-self-destruct") -> list[dict]:
+def find_selfdestruct_presence(slither: Slither, req_id: str = "req-1-self-destruct", contracts: list | None = None) -> list[dict]:
     """req-1-self-destruct (S): 'MUST NOT contain selfdestruct()/suicide()'
     -- mere presence, unconditional on protection (unlike Slither's own
     `suicidal` detector, explicitly rejected as a match for this
@@ -132,9 +151,16 @@ def find_selfdestruct_presence(slither: Slither, req_id: str = "req-1-self-destr
     public/external calls, conflating 'absent' with 'present-but-
     protected'). Reuses the same internal-call-name matching suicidal.py
     itself uses, minus its protection/visibility filters.
+
+    `contracts`, if given, scopes the scan to a specific contract set
+    (e.g. one CREATE2-deployed target plus its bases) instead of every
+    contract in the compilation unit -- reused as-is by
+    `find_create2_deployed_target_violations` for req-2-protect-create2,
+    per that requirement's own L6 record noting this exact reuse
+    opportunity. Default (None) preserves the original whole-unit scan.
     """
     findings = []
-    for contract in slither.contracts:
+    for contract in (contracts if contracts is not None else slither.contracts):
         for func in contract.functions_declared:
             calls = [ir.function.name for ir in func.all_internal_calls() if ir.function]
             if "selfdestruct(address)" in calls or "suicide(address)" in calls:
@@ -142,16 +168,23 @@ def find_selfdestruct_presence(slither: Slither, req_id: str = "req-1-self-destr
     return findings
 
 
-def find_delegatecall_presence(slither: Slither, req_id: str = "req-1-delegatecall") -> list[dict]:
+def find_delegatecall_presence(slither: Slither, req_id: str = "req-1-delegatecall", contracts: list | None = None) -> list[dict]:
     """req-1-delegatecall (S): 'MUST NOT contain the delegatecall()
     instruction' -- mere presence, unconditional on destination taint
     (unlike Slither's `controlled-delegatecall`, which only flags a
     TAINTED destination -- explicitly noted as a scope gap in this
     requirement's L4 record). Reuses `function.low_level_calls`, the same
-    IR controlled_delegatecall.py reads, minus the taint filter.
+    IR controlled_delegatecall.py reads, minus the taint filter. Also
+    covers `callcode()` (the requirement's third named instruction) in
+    the same pass, since Slither's own low_level_calls IR names both
+    identically apart from `function_name`.
+
+    `contracts`, if given, scopes the scan the same way as
+    `find_selfdestruct_presence` above -- reused by
+    `find_create2_deployed_target_violations` for req-2-protect-create2.
     """
     findings = []
-    for contract in slither.contracts:
+    for contract in (contracts if contracts is not None else slither.contracts):
         for func in contract.functions_and_modifiers_declared:
             for ir in func.low_level_calls:
                 if ir.function_name in ("delegatecall", "callcode"):
@@ -703,4 +736,68 @@ def find_erc_interface_conformance(slither: Slither, req_id: str = "req-R-follow
                 f"interface_mismatches={[f.full_name for f in mismatches]}"
             ),
         })
+    return findings
+
+
+def find_create2_deployed_target_violations(slither: Slither, req_id: str = "req-2-protect-create2") -> list[dict]:
+    """req-2-protect-create2 (M): 'For Tested Code that uses the CREATE2
+    instruction, any contract to be deployed using CREATE2 MUST be within
+    the Tested Code, and MUST NOT use any selfdestruct(), delegatecall()
+    nor callcode() instructions...'.
+
+    Genuine cross-requirement reuse, per this requirement's own L6
+    record: for the statically-resolvable case (high-level
+    `new X{salt: ...}()`), Slither's NewContract IR exposes the deployed
+    contract as a real `Contract` object (`ir.contract_created`) --
+    already necessarily part of the compiled Tested Code (it couldn't
+    compile otherwise), so the 'within Tested Code' clause is trivially
+    satisfied for this shape. The same object plus its base contracts
+    (`.inheritance`) are then fed straight into
+    `find_selfdestruct_presence`/`find_delegatecall_presence` (both
+    req-1-level predicates, unmodified in behavior, just scoped to the
+    target's own code instead of a whole-unit scan) to check the
+    selfdestruct/delegatecall/callcode clause.
+
+    For the low-level shape (raw `create2` opcode in assembly, per
+    req-1-no-create2's own two-shape derivation), the deployed contract's
+    bytecode is an opaque runtime value -- its identity is NOT statically
+    resolvable from Tested Code at all, so NEITHER the 'within Tested
+    Code' clause NOR the selfdestruct/delegatecall/callcode clause can be
+    checked. This is reported as an explicit evidence gap, not silently
+    treated as passing or skipped.
+
+    'Fully compatible with the claims of the contract author' is a
+    semantic condition (L8), not attempted here.
+    """
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            for node in func.nodes:
+                for ir in node.irs:
+                    if type(ir).__name__ == "NewContract" and getattr(ir, "call_salt", None) is not None:
+                        target = ir.contract_created
+                        target_and_bases = [target] + list(target.inheritance)
+                        violations = (
+                            find_selfdestruct_presence(slither, req_id=req_id, contracts=target_and_bases)
+                            + find_delegatecall_presence(slither, req_id=req_id, contracts=target_and_bases)
+                        )
+                        if violations:
+                            for v in violations:
+                                findings.append({
+                                    "req_id": req_id,
+                                    "location": f"{contract.name}.{func.name} (CREATE2-deploys {target.name})",
+                                    "detail": f"deployed target violation: {v['detail']} in {v['location']}",
+                                })
+                        else:
+                            findings.append({
+                                "req_id": req_id,
+                                "location": f"{contract.name}.{func.name} (CREATE2-deploys {target.name})",
+                                "detail": f"deployed target {target.name} statically resolved, within Tested Code, no selfdestruct/delegatecall/callcode found",
+                            })
+                if node.type.name == "ASSEMBLY" and "create2" in _assembly_block_text(node):
+                    findings.append({
+                        "req_id": req_id,
+                        "location": f"{contract.name}.{func.name}",
+                        "detail": "assembly create2: deployed contract identity not statically resolvable from Tested Code -- cannot verify 'within Tested Code' or selfdestruct/delegatecall/callcode absence for this case (evidence gap, not a pass)",
+                    })
     return findings

@@ -2,5 +2,11 @@
   "req_id": "req-2-protect-create2",
   "classification": "DETERMINISTIC_TRIGGER_SEMANTIC_CONDITION",
   "classification_rationale": "Compound and notable: several sub-clauses (deployed contract MUST NOT use selfdestruct/delegatecall/callcode) can reuse req-1-self-destruct's and req-1-delegatecall's ALREADY-SCOPED predicates, just applied to the CREATE2-deployed target's code rather than the calling contract's own code -- a genuine cross-requirement reuse opportunity found while writing this record. 'Within the Tested Code' (deployment-completeness) and 'compatible with the claims of the contract author' remain semantic/evidence questions.",
-  "maturity": "DRAFT_TRANSLATION"
+  "maturity": "DRAFT_TRANSLATION",
+  "implementation_status": {
+    "status": "TRIGGER_AND_STATIC_TARGET_RESOLUTION_IMPLEMENTED_AND_TESTED_AUTHOR_CLAIMS_CONDITION_PENDING",
+    "code": "rtf/l5_predicates/predicates.py :: find_create2_deployed_target_violations() -- reuses find_selfdestruct_presence()/find_delegatecall_presence() (both extended with an optional `contracts` scoping parameter, default behavior unchanged) applied to the CREATE2-deployed target contract plus its base contracts",
+    "test": "rtf/l5_predicates/test_predicates.py :: test_create2_deployed_target_violations() -- target-with-selfdestruct, statically-clean target, assembly-create2 (unresolvable target), and no-CREATE2-at-all fixtures, verified 2026-08-06",
+    "note": "For the statically-resolvable new{salt:}() shape, both the 'within Tested Code' clause (trivially true -- the target must be part of the compiled unit to compile at all) and the selfdestruct/delegatecall/callcode clause are fully implemented and tested. For the assembly create2 shape, the deployed contract's identity is not statically resolvable from Tested Code at all; this predicate reports it as an explicit evidence gap rather than silently passing or skipping it. 'Fully compatible with the claims of the contract author' (the requirement's third clause) is not attempted -- genuinely semantic, requires L8. Implementing this predicate also surfaced and fixed a real dead-code bug in the already-committed find_create2_usage() (AR-007): its assembly-shape branch checked node.inline_asm, which Slither leaves unpopulated for a stock compile, so that branch could never fire; fixed via a new source_mapping.content fallback, shared by both predicates."
+  }
 }

@@ -65,10 +65,22 @@ def test_create2():
         }
     }
     """
+    assembly_positive = """
+    pragma solidity ^0.8.20;
+    contract C {
+        function deploy(bytes memory bytecode, bytes32 salt) public returns (address addr) {
+            assembly {
+                addr := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
+            }
+        }
+    }
+    """
     r_pos = P.find_create2_usage(_write_and_compile(positive))
     r_neg = P.find_create2_usage(_write_and_compile(negative))
+    r_asm = P.find_create2_usage(_write_and_compile(assembly_positive))
     check("create2: flags salted new{}()", len(r_pos) >= 1, r_pos)
     check("create2: does not flag plain new()", len(r_neg) == 0, r_neg)
+    check("create2: flags raw create2 opcode in assembly (previously dead code -- node.inline_asm was always None)", len(r_asm) >= 1, r_asm)
 
 
 def test_selfdestruct_presence_unconditional_on_protection():
@@ -623,6 +635,64 @@ def test_erc_interface_conformance():
     check("erc_conformance: does not fire on a contract with no ERC resemblance", len(r_unrelated) == 0, r_unrelated)
 
 
+def test_create2_deployed_target_violations():
+    target_has_selfdestruct = """
+    pragma solidity ^0.8.20;
+    contract Target {
+        function kill() public { selfdestruct(payable(msg.sender)); }
+    }
+    contract Deployer {
+        function deploy(bytes32 salt) public returns (address) {
+            Target t = new Target{salt: salt}();
+            return address(t);
+        }
+    }
+    """
+    target_clean = """
+    pragma solidity ^0.8.20;
+    contract Target {
+        uint public x;
+        function setX(uint v) public { x = v; }
+    }
+    contract Deployer {
+        function deploy(bytes32 salt) public returns (address) {
+            Target t = new Target{salt: salt}();
+            return address(t);
+        }
+    }
+    """
+    assembly_create2 = """
+    pragma solidity ^0.8.20;
+    contract Deployer {
+        function deploy(bytes memory bytecode, bytes32 salt) public returns (address addr) {
+            assembly {
+                addr := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
+            }
+        }
+    }
+    """
+    no_create2_at_all = """
+    pragma solidity ^0.8.20;
+    contract Target {}
+    contract Deployer {
+        function deploy() public returns (address) {
+            Target t = new Target();
+            return address(t);
+        }
+    }
+    """
+
+    r_bad = P.find_create2_deployed_target_violations(_write_and_compile(target_has_selfdestruct))
+    r_clean = P.find_create2_deployed_target_violations(_write_and_compile(target_clean))
+    r_asm = P.find_create2_deployed_target_violations(_write_and_compile(assembly_create2))
+    r_none = P.find_create2_deployed_target_violations(_write_and_compile(no_create2_at_all))
+
+    check("create2_target: flags selfdestruct in the CREATE2-deployed target contract", len(r_bad) == 1 and "selfdestruct" in r_bad[0]["detail"], r_bad)
+    check("create2_target: reports statically-clean target with no violation found", len(r_clean) == 1 and "no selfdestruct/delegatecall/callcode found" in r_clean[0]["detail"], r_clean)
+    check("create2_target: assembly create2 reported as an evidence gap, not a pass", len(r_asm) == 1 and "evidence gap" in r_asm[0]["detail"], r_asm)
+    check("create2_target: does not fire when CREATE2 is not used at all", len(r_none) == 0, r_none)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -652,6 +722,7 @@ def main() -> int:
         test_spdx_or_license_file,
         test_natspec_presence,
         test_erc_interface_conformance,
+        test_create2_deployed_target_violations,
     ]
     for t in tests:
         try:

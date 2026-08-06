@@ -7,6 +7,7 @@
   "implementation_status": {
     "status": "IMPLEMENTED_AND_TESTED",
     "code": "rtf/l5_predicates/predicates.py :: find_create2_usage()",
-    "test": "rtf/l5_predicates/test_predicates.py -- compiled against real positive/negative Solidity fixtures, verified 2026-08-06"
+    "test": "rtf/l5_predicates/test_predicates.py -- compiled against real positive/negative Solidity fixtures, verified 2026-08-06",
+    "note": "CORRECTION (see AR-007): this record's original 'IMPLEMENTED_AND_TESTED' status was only actually true for the high-level new{salt:...}() shape -- the original test never exercised the low-level assembly create2 shape, and that branch turned out to be dead code (checked node.inline_asm, which Slither leaves unpopulated for a stock compile, so it could never fire regardless of input). Found and fixed while implementing req-2-protect-create2 (which reuses this same node-text-extraction technique). Both shapes are now genuinely implemented and tested as of 2026-08-06."
   }
 }
