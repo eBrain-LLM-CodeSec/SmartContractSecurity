@@ -680,5 +680,29 @@
     ],
     "review_status": "independent_review_by_fresh_agent_no_mgpr_exposure",
     "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2023-07-pooltogether/H-02",
+    "req_id": "req-3-all-valid-inputs",
+    "relationship": "DIRECT",
+    "justification": "The requirement's normative text mandates that Tested Code 'validate inputs, and function correctly whether the input is as designed or malformed.' H-02 demonstrates the vault does neither for share amounts that grow beyond type(uint96).max: rather than validating the magnitude of `_shares` before acting on it or reverting when it exceeds the safe range, `Vault._burn` blindly narrows it with an unchecked `uint96(_shares)` cast, so the function silently 'burns type(uint96).max shares for the user, but transfers 2 * type(uint96).max underlying assets' -- a clear failure to function correctly on an out-of-design-range input rather than reject or safely handle it.",
+    "supporting_evidence": [
+      "A malicious user deposits, for example, two times the value of type(uint96).max underlying assets into the Vault",
+      "the Vault.sol contract only burns type(uint96).max shares for the user, but transfers 2 * type(uint96).max underlying assets to the malicious user"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_prior_rtf_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
+  },
+  {
+    "finding_id": "2023-07-pooltogether/H-04",
+    "req_id": "req-3-access-control",
+    "relationship": "DIRECT",
+    "justification": "The requirement mandates that 'Tested code that enables privileged access MUST implement appropriate access control mechanisms that provide the least privilege necessary for those interactions.' H-04 is a textbook violation: `mintYieldFee` mints Vault shares backed by the protocol's accrued yield fee -- clearly a privileged operation intended only for the configured `_yieldFeeRecipient` -- yet the finding states plainly 'the function is an external function and can be called by anyone since there is no access control,' letting any caller redirect the minted shares to an address of their own choosing.",
+    "supporting_evidence": [
+      "The function is an external function and can be called by anyone since there is no access control.",
+      "anyone can steal the available `yield fee` from the vault ... by `minting shares` to their own address or to any address of their choice"
+    ],
+    "review_status": "independent_review_by_fresh_agent_no_prior_rtf_exposure",
+    "frozen_at_framework_version": "0.1.0-track-a"
   }
 ]

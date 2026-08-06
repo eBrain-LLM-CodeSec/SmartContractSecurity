@@ -94,3 +94,72 @@ currently has **46** audit directories (the independent reviewer's own
 count of "39" reviewable ones excludes some without a usable `findings/`
 structure — not independently re-verified here, logged as a further open
 detail for Track B).
+
+## Extension: 2023-07-pooltogether re-screened against the full 81-requirement corpus (2026-08-06)
+
+The original pass above checked findings against only Track A's original
+6 selected requirements. This extension re-checked pooltogether's SAME 2
+real, graded findings (H-02, H-04) against the FULL 81-requirement
+corpus, using the identical mitigation pattern as the original pass: a
+fresh, non-forked subagent with no memory of this conversation (hence no
+exposure to this session's prior MGPR work OR to this session's own RTF
+translation choices in `rtf/track_a/`), instructed to read the finding
+writeups and all 81 requirements' `normative_text` in full before
+producing any judgment, and to only read `rtf/track_a/` afterward (for
+req_id spelling verification only).
+
+**Result: 2 new DIRECT records**, both manually spot-verified by this
+orchestrating session against the real finding files
+(`findings/H-02.md`, `findings/H-04.md`) before merging — every quoted
+excerpt in both new records was confirmed to appear verbatim in the real
+finding text:
+- `2023-07-pooltogether/H-02` → `req-3-all-valid-inputs` (DIRECT) —
+  flagged by the reviewer itself as the more borderline of the two calls
+  (a reasonable reviewer could argue PARTIAL instead, since "process all
+  inputs" is broad and the finding demonstrates one specific boundary
+  case rather than exhaustive input-validation failure); accepted as
+  DIRECT per the reviewer's own reasoning (a single clear counterexample
+  is sufficient to establish nonconformance with a MUST-level
+  requirement) but logged here as a genuine, not fully resolved judgment
+  call, not a clean-cut case.
+- `2023-07-pooltogether/H-04` → `req-3-access-control` (DIRECT) — a
+  clean match; the finding states outright that the vulnerable function
+  "can be called by anyone since there is no access control."
+
+The reviewer also explicitly considered and rejected several
+superficially-plausible matches (`req-2-overflow-underflow` and the
+overflow/underflow clause of `req-2-documented` for H-02 — correctly
+distinguishing a truncating-downcast bug from an arithmetic overflow/
+underflow bug, per this project's own AR-003 gotcha; `req-2-check-
+rounding` for H-02; `req-3-revocable-permisions`/`req-3-no-single-admin-
+eoa` as CONTEXTUAL for H-04, both explicitly conditioned on access
+control existing, which is precisely what's absent here) — a positive
+signal about review discipline, not just a summary of what it did match.
+
+**`correspondence_mapping.json` re-frozen**: now 59 records (35 DIRECT,
+19 PARTIAL, 5 CONTEXTUAL, 0 NONE-by-design), new hash in
+`correspondence_mapping.json.sha256`.
+
+**Confidence-downgrade caveat, per the plan's own mandate for
+`SUBSTANTIAL` exposure** (`EXPOSURE_DECLARATION.json`): a fresh,
+non-forked subagent is a real, meaningful mitigation against the
+specific cognitive-leakage risk this layer is designed to guard against
+(a translator's own prior exposure shaping which correspondences look
+plausible) — but it is **not** the plan's own stated standard of "true
+personnel separation" (a genuinely different human reviewer, in a
+different organizational role, with no shared instance/session lineage
+with the translator). Both this extension and the original 6-requirement
+pass rely on the SAME mitigation, at the SAME (weaker-than-ideal)
+strength. Per the plan's explicit fallback rule: **any recall-like
+metric computed from this mapping's `DIRECT` records should be reported
+with an explicit confidence downgrade**, not presented at face value
+alongside a metric that carries no such risk. This downgrade applies to
+all 35 DIRECT records currently in `correspondence_mapping.json`, not
+just the 2 added in this extension.
+
+**Scope, stated plainly**: this extension covers exactly ONE audit
+(2023-07-pooltogether) re-screened against the full corpus — it is NOT a
+full 81-requirement × full-EVMbench-corpus correspondence pass. The
+EVMbench corpus has 46 audit directories; extending this same treatment
+to the rest remains a real, separate, larger undertaking, tracked
+honestly as future work rather than implied complete by this extension.
