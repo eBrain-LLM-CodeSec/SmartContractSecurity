@@ -1,0 +1,63 @@
+{
+  "framework_version": "0.1.0-track-a",
+  "git_commit": "95c4f880cb5dc43565271a472bdb69f77af4ec5f",
+  "timestamp": "2026-08-06T15:36:35Z",
+  "freeze_items": {
+    "1_spec_snapshot": {
+      "path": "standards/ethtrust/ethtrust-sl.raw.html",
+      "sha256": "7b2cea3b2f19945a463dbf7ad2861494f5a4ab55c5a586e8703547afbcaf60a7"
+    },
+    "2_requirement_corpus": {
+      "path": "rtf/l1_corpus/requirement_corpus.json",
+      "sha256": "86b9182a536f5c21a5d046aab7333bc13cb460237d77d9fef4088e1f6d4e507e"
+    },
+    "3_context_bundles": {
+      "path": "rtf/l2_context_bundles",
+      "sha256": "0e75bb772ef81e3183d1157b5e8d1c5df0ca64bcc33496d90a2dba166ad0b430",
+      "file_count": 81
+    },
+    "4_applicability_classifications": {
+      "path": "rtf/track_a/l3_applicability",
+      "sha256": "b4b4d61bd6952aff0941b8f6ef7f188bec997364c919921917fd296a332d887d",
+      "file_count": 81
+    },
+    "5_analyzer_mappings": {
+      "path": "rtf/track_a/l4_analyzer_mappings",
+      "sha256": "6889908e55b0ac891213a31da04589fe086aa79e5ee8e28d703c8822975d71de",
+      "file_count": 22
+    },
+    "6_derivation_traces_s_level": {
+      "path": "rtf/track_a/l5_level_s_strategy",
+      "sha256": "7bfa3e4a0104ee444fd726e482ceefeb79c785710c39f051ec34bf156e9d6911",
+      "file_count": 22
+    },
+    "7_custom_predicates": {
+      "path": "rtf/l5_predicates/predicates.py",
+      "sha256": "46b87bf5c94b5fb1e4198b7f4edfe94a1e837f1cc7bac44e1d13d52cd64e8ee0"
+    },
+    "8_llm_prompt_schema_model": {
+      "path": "rtf/l8_llm_judgment_layer",
+      "sha256": "13902ffb47cc9816276835b8e65242194a09333b480293424b400f4f86859a90",
+      "prompt_version": "rtf-l8-v1"
+    },
+    "9_m_level_classifications": {
+      "path": "rtf/track_a/l6_level_m_extraction",
+      "sha256": "e17022cea34f32c132105c5ceb27354bb956f735af9faf3128b8e35534cd3871",
+      "file_count": 24
+    },
+    "10_q_level_review_schema": {
+      "path": "rtf/track_a/l7_level_q_evidence",
+      "sha256": "78934a707d443943c6305c1404ee4ff103794afbce572047ff8da6a05725db8c",
+      "file_count": 24,
+      "schema_sha256": "7d1f444c164d527fe3fadddeeccd63dbfabfa8c0d1d05b26697a0d647cd14ca7"
+    },
+    "11_evmbench_correspondence": {
+      "path": "rtf/l11_correspondence/correspondence_mapping.json",
+      "sha256": "7f1591e898c8f137dbee4b4f0b6819be2641bc29775c2ef1bba9c1580ba6d3e4"
+    },
+    "12_evaluation_metric_definitions": {
+      "path": "rtf/l12_evaluation/metrics.py",
+      "sha256": "eae9b4d54441bb7965753f092efc9928147d48641681257e032b5073e628246b"
+    }
+  }
+}
