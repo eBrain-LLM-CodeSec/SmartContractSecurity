@@ -630,6 +630,38 @@ GRAPH_NAVIGATION_EXPERIMENT.md` §15/§16/§18/§19/§20 were corrected in
 place with the full forensic timeline, not left inconsistent with this
 finding.
 
+**AR-024: PoolTogether resolved — confirmatory rerun succeeds.** AR-023's
+root-cause finding implied a direct test: raise the timeout and see if
+the same architecture actually completes. Asked to do exactly that
+("redo the experiment without a timeout... track its thinking traces and
+see where it diverged"), the same architecture — same model, same frozen
+prompt, same MCP tool set, only the harness timeout raised from 300s to
+900s (not literally unbounded; this session's standing $5 cap remained
+in force, spend was monitored live during the run as a safeguard) — was
+rerun. **Result: completed in 381.4s with `decision: FAIL`, matching the
+expected label exactly — the first complete, correct PoolTogether
+`Vault._burn` judgment from any live agent method in this project's
+history**, after three prior live attempts across two experiments all
+failed to conclude, purely on wall-clock grounds. 32 graph tool calls,
+zero true divergence (one shell command re-read the candidate's own
+already-revealed file). Real cost: $0.1423 (486K input tokens, 96.6%
+cached). **The decisive moment, located precisely in the reasoning
+trace**: at t=172.5s the agent tried `EXTERNAL_TARGETS` on `Vault._burn`
+for the first time across all three attempts, immediately reaching
+`TwabController.burn`, then went deeper into `_transferBalance`, then
+correctly judged this sufficient without needing the full path to
+`TwabLib.sol` (confirmed graph-reachable, never visited) — a
+well-calibrated stopping decision. The next-best-relation hint identified
+as a candidate fix was deliberately *not* implemented before this rerun,
+and it succeeded anyway, confirming that fix was correctly ranked
+secondary to simply sizing the timeout correctly. Open question this
+single success doesn't resolve: whether finding `EXTERNAL_TARGETS` at
+the right moment reflects reliable behavior or favorable run-to-run
+variation — a repeated-run stability test would be needed to tell.
+`AGENT_DRIVEN_GRAPH_NAVIGATION_EXPERIMENT.md`'s headline, results table,
+§15 (new "Attempt 3" narrative), §19, §20 updated in place. No production
+code changed. Spend: $0.14 this rerun, $3.24 of the $5.00 session cap.
+
 ---
 
 ## What has NOT been done

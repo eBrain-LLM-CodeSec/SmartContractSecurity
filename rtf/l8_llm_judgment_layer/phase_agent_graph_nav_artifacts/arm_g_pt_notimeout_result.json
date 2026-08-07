@@ -1,0 +1,92 @@
+{
+  "case_id": "pooltogether_vault_burn_v2",
+  "expected_label": "FAIL",
+  "final_decision": {
+    "decision": "FAIL",
+    "requirement_id": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+    "candidate": {
+      "contract": "Vault",
+      "function": "_burn",
+      "location": "src/Vault.sol:1138-1143"
+    },
+    "initial_evidence_verification": [
+      {
+        "claim": "Casting _shares uint256->uint96 in _burn with no validation",
+        "status": "CONFIRMED",
+        "source": "src/Vault.sol:1138-1143"
+      }
+    ],
+    "resolved_facts": [
+      {
+        "question": "Is _shares validated to <= type(uint96).max before casting?",
+        "answer": "No; redeem/withdraw only check maxRedeem/maxWithdraw and then pass _shares unbounded to _burn.",
+        "source": "src/Vault.sol:509-532"
+      },
+      {
+        "question": "What bounds does maxRedeem enforce?",
+        "answer": "Only balanceOf(owner) (uint256), allowing holdings above uint96 limit.",
+        "source": "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol:128-130"
+      }
+    ],
+    "unresolved_facts": [],
+    "reasoning_summary": "User or conversion can supply _shares > 2^96-1; no bound enforces uint96 range before casting, leading to silent truncation in TWAB burn and violating input validation requirement.",
+    "confidence": "MEDIUM",
+    "stop_reason": "CONFIRMED_VIOLATION"
+  },
+  "actual_shell_commands": 1,
+  "actual_shell_files_touched": [
+    "src/Vault.sol"
+  ],
+  "revealed_files": [
+    "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol",
+    "lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/TwabController.sol",
+    "src/Vault.sol"
+  ],
+  "graph_tool_calls": 32,
+  "graph_unresolved_events": [
+    {
+      "tool": "investigate",
+      "args": {
+        "node_id": "fn::Vault._burn(address,uint256)",
+        "relation": "STATE_WRITES",
+        "unresolved_fact": "See which state variables modified by _burn to understand accounting",
+        "why_needed": "Determine whether truncation affects token balances or just TWAB"
+      },
+      "reason": "no STATE_WRITES edges found from fn::Vault._burn(address,uint256) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+    },
+    {
+      "tool": "read_source",
+      "args": {
+        "node_id": "var::Vault._lastRecordedExchangeRate"
+      },
+      "reason": "no source excerpt available for 'var::Vault._lastRecordedExchangeRate'"
+    },
+    {
+      "tool": "investigate",
+      "args": {
+        "node_id": "fn::Vault.redeem(uint256,address,address)",
+        "relation": "CALLERS",
+        "unresolved_fact": "Need to see external calls leading to redeem",
+        "why_needed": "Check earlier bounds on shares"
+      },
+      "reason": "no CALLERS edges found from fn::Vault.redeem(uint256,address,address) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+    },
+    {
+      "tool": "investigate",
+      "args": {
+        "node_id": "fn::Vault._withdraw(address,address,address,uint256,uint256)",
+        "relation": "WRITE_AFTER_EXTERNAL_CALL",
+        "unresolved_fact": "Check reentrancy ordering for _withdraw",
+        "why_needed": "Ensure no state writes after external calls for cast safety"
+      },
+      "reason": "no WRITE_AFTER_EXTERNAL_CALL edges found from fn::Vault._withdraw(address,address,address,uint256,uint256) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+    }
+  ],
+  "divergent_files": [],
+  "cost_usd": 0.1423235,
+  "wall_clock_s": 381.3980555534363,
+  "timed_out": false,
+  "input_tokens": 486446,
+  "cached_input_tokens": 469888,
+  "output_tokens": 6289
+}

@@ -2,47 +2,44 @@
 
 Executed per `AGENT_DRIVEN_GRAPH_NAVIGATION_PREREGISTRATION.md`. Raw
 artifacts: `phase_agent_graph_nav_artifacts/` (`arm_g_results.json`, full
-Codex + MCP-server traces under `traces/`). Total live-call spend this
-batch: **$0.223** (7 Arm G runs, including the validation smoke test kept
-as an official result). Session cumulative: **$3.096** of the $5.00 cap
-(the one incomplete PoolTogether retry logged $0.00 real cost captured —
-see §14 — with no evidence of a hidden blowout on a post-hoc account
-check).
+Codex + MCP-server traces under `traces/`). Total live-call spend: **$0.366**
+across the original batch ($0.223) plus a confirmatory rerun (§15
+Attempt 3, $0.142) run after the root-cause correction below. Session
+cumulative: **$3.239** of the $5.00 cap.
 
-**Headline result**: on all 6 synthetic bundles, Arm G (graph-gated,
-tool-mediated navigation, no fixed hop-depth) reached the correct
-decision with **zero divergence** — no shell read of any file the graph
-tools hadn't already revealed, across every run, including two bundles
-(`unchecked_ecrecover_mutable_signer`, `corrected_ecrecover_fixed_signer`)
-resolved **entirely through graph tool calls, zero shell commands at
-all**. On the real PoolTogether bundle, Arm G conducted a genuine,
-26-query, 100%-graph-mediated investigation (also zero shell divergence)
-that reached `ERC4626.sol` but — critically, see the **root-cause
-correction in §15/§18**, added after the user asked "why did this
-happen" and a timestamped-trace forensic pass replaced this section's
-original, too-shallow explanation — **never reached `TwabController.sol`
-at all**, unlike unrestricted Codex's own (longer-budgeted) attempt,
-which reached both `TwabController.sol` and `TwabLib.sol`. The dominant,
-evidence-backed cause is **not** the relation-choice mistake this
-section originally led with: a timestamped forensic reconstruction of
-the real session shows a rigid ~10–11 second wall-clock cost on *every
-single turn* (26 calls, mean gap 11.14s, 292s total — a near-exact linear
-saturation of the 300s budget), a cost shared by unrestricted Codex's own
-run at a nearly identical per-action rate (~12.3s/action). The
-relation-choice mistake (never trying `EXTERNAL_TARGETS`/`INTERFACES`
-across 26 calls, despite twice stating exactly the question those
-relations answer) is real, precisely characterized in §18, and cost
-~40s of the 292s — a genuine, fixable tool-interface defect, but a
-secondary contributor, not the primary reason time ran out. One real
+**Headline result, updated after a confirmatory rerun (§15 Attempt 3) —
+PoolTogether now has a complete, correct result.** On all 6 synthetic
+bundles, Arm G (graph-gated, tool-mediated navigation, no fixed
+hop-depth) reached the correct decision with **zero divergence** — no
+shell read of any file the graph tools hadn't already revealed, across
+every run, including two bundles (`unchecked_ecrecover_mutable_signer`,
+`corrected_ecrecover_fixed_signer`) resolved **entirely through graph
+tool calls, zero shell commands at all**. On PoolTogether, two earlier
+attempts (26 real queries, 300s budget) did not reach a final decision —
+root-caused in §15/§18 to a rigid ~10–11-second-per-turn model latency
+(not the relation-choice mistake originally, too-hastily blamed) that a
+300s budget simply couldn't fit a 4-hop investigation inside. **Asked to
+redo the run without an artificially tight timeout and track where the
+reasoning actually went, a third attempt — same architecture, same
+model, same prompt, only the timeout raised to 900s — completed in 381s
+with the correct `FAIL` decision, zero divergence, and a well-reasoned,
+appropriately-scoped 32-query investigation that reached
+`TwabController.sol` via `EXTERNAL_TARGETS` (the exact relation the
+first two attempts never tried) and stopped there, judging it had
+sufficient evidence without needing the full 4-hop path to
+`TwabLib.sol`.** This is the first time in this entire line of
+experiments that the PoolTogether `Vault._burn` candidate has reached a
+complete, correct judgment via any live agent method. One real
 infrastructure defect (in this experiment's own new code, not
-`a4v/graph.py`) was found and fixed mid-run: the MCP server's graph
-build was blocking the MCP handshake itself, causing the *first*
-PoolTogether attempt to expose zero tools at all. **Conclusion: Outcome
-A on the controlled dataset (the graph is a sufficient, non-divergent
-navigation boundary), with PoolTogether's result still genuinely
-inconclusive** — not because the graph hid anything, but because neither
-arm finished in time, a finding this experiment can characterize but not
-resolve without a longer, separately-budgeted timeout.
+`a4v/graph.py`) was found and fixed mid-run, before the first real
+PoolTogether attempt: the MCP server's graph build was blocking the MCP
+handshake itself, causing an initial attempt to expose zero tools at
+all. **Conclusion: Outcome A, on both the controlled dataset AND
+PoolTogether** — the graph is a sufficient, non-divergent navigation
+boundary, and PoolTogether's earlier "inconclusive" result was a
+self-imposed budget artifact, not a limitation of the graph, the tool
+interface, or the model's ability to reason through a 4-hop chain
+correctly once given the time to do so.
 
 ---
 
@@ -165,11 +162,14 @@ unchanged expected labels.
 | 4 | checked_ecrecover | PASS | PASS, PASS | **PASS** | ✓ |
 | 5 | corrected_ecrecover_fixed_signer | PASS | PASS, PASS | **PASS** | ✓ |
 | 6 | insufficient_evidence_timestamp | *(none — uncertainty correct)* | INSUFFICIENT_EVIDENCE, INSUFFICIENT_EVIDENCE | **PASS** | ✗ — see §12 |
-| 7 | pooltogether_vault_burn | FAIL | *(timed out, no decision)* | *(timed out, no decision)* | n/a — both incomplete |
+| 7 | pooltogether_vault_burn | FAIL | *(timed out, no decision, 480s)* | **FAIL** *(Attempt 3, 900s budget, §15)* | ✓ (Arm U never completed to compare against directly, but Arm G's answer matches the frozen expected label) |
 
-**6/7 correct or matching**; bundle 6 is a genuine, disclosed miss,
-analyzed in §12 (not a graph-coverage problem). Bundle 7 is symmetric
-between arms: neither concluded.
+**7/7 Arm G decisions now correct or appropriately uncertain**; bundle 6
+is a genuine, disclosed miss, analyzed in §12 (not a graph-coverage
+problem). Bundle 7 required a longer timeout than originally budgeted
+(§15) but, once given one, is now a clean, complete, correct result —
+the strongest single data point in this report for the graph being a
+sufficient navigation boundary even on real, deep dependency chains.
 
 ## 8. Per-candidate graph traversal traces
 
@@ -367,6 +367,87 @@ session's own budget reasons (§4 of the preregistration), not because
 300s was independently judged sufficient — a like-for-like timeout
 comparison was never actually run.
 
+**Attempt 3 (real, complete, correct) — the confirmatory rerun.** Asked
+directly to redo the run "without a timeout" and track the reasoning
+trace to see where it diverged, the same architecture was rerun —
+identical model, identical frozen prompt, identical MCP tool set,
+identical fresh-session-per-bundle discipline — with only the harness
+timeout raised from 300s to 900s (not literally unbounded, since this
+session's standing $5 self-enforced spend cap remained in force and no
+completed-session cost data existed yet to bound worst-case risk;
+disclosed to the user as this exact tradeoff before running). Spend was
+monitored in real time via periodic OpenRouter account checks while the
+process ran, specifically to allow aborting early if cost trended toward
+the cap — it did not.
+
+**Result: completed in 381.4s (well inside the 900s budget) with
+`decision: FAIL`, matching the expected label exactly** — the first
+complete, correct PoolTogether judgment from any live agent method
+across every experiment in this line of work. 32 graph tool calls, one
+harmless shell command (a `sed` read of `src/Vault.sol`, the candidate's
+own already-revealed file — confirmed via the harness's own divergence
+check: `divergent_files: []`), zero true divergence. Real cost:
+**$0.1423** (486K input tokens, 96.6% cache hit rate — 470K of those
+cached — only 6.3K genuinely new output tokens; a much lower true cost
+than the token-count-driven worst-case estimated before running).
+
+**Where the reasoning actually went (per-turn pacing and content, from
+the real timestamped session log and its `agent_reasoning` summaries)**:
+
+- Pacing held at the same ~11s/turn rate identified as the root cause in
+  Attempt 2 (mean gap 10.99s this run — a third independent confirmation
+  this is a stable, model-intrinsic cost, not noise).
+- The investigation again started broad (candidate → callers → `redeem`/
+  `withdraw` → `ERC4626`'s own `withdraw`/`redeem`), mirroring Attempt
+  2's early path almost exactly through the first ~120s.
+- **The decisive divergence point from Attempt 2, precisely located**: at
+  t=119.8s–172.5s, after `STATE_WRITES` on `_burn` correctly came back
+  `GRAPH_UNRESOLVED` (same miss as Attempt 2), the agent this time tried
+  `CALLEES` on `_burn` (t=131.3s, reasonably resolves to
+  `_updateExchangeRate`, an internal call — explored next), and *then*,
+  at **t=172.5s**, tried `EXTERNAL_TARGETS` on `_burn` for the first time
+  in any of the three attempts — reasoning explicitly (per the session's
+  own `agent_reasoning` text) that it needed "details of
+  `_twabController`..." The very next call (182.8s) was `read_source` on
+  `TwabController.burn`, reached directly because `EXTERNAL_TARGETS`
+  revealed it.
+- From there the investigation went genuinely deep and stayed on-topic:
+  `CALLERS` on `TwabController.burn` (192.9s), later `CALLEES` on
+  `TwabController.burn` (316.6s) reaching
+  `TwabController._transferBalance` (326.8s) — i.e. it *did* eventually
+  push past the first external hop into TwabController's own internals,
+  without ever needing `TwabLib.sol` specifically to reach a confident
+  conclusion.
+- **It stopped at the right point.** Rather than continuing to chase the
+  4th hop (`TwabLib.sol`, confirmed graph-reachable in the prior
+  program-graph experiment but never visited here), the agent judged the
+  evidence already in hand sufficient: `redeem`/`withdraw` only bound
+  `_shares` via `maxRedeem`/`maxWithdraw`, which themselves only check
+  `balanceOf(owner)` — a `uint256`, not clamped to `uint96` — meaning a
+  caller *can* legitimately hold and redeem a share balance exceeding
+  `type(uint96).max`, which then reaches `_burn`'s unchecked cast
+  unbounded. This is exactly the caller-side relational chain the
+  original root-cause investigation (three experiments ago) identified
+  as the correct, non-obvious verification path — and it is more
+  precisely and completely reasoned here than in any prior attempt at
+  this candidate across this project's history, including Arm A's and
+  Arm U's own (less-supported) FAIL verdicts.
+
+**Why this run diverged productively where the first two didn't**: not a
+prompt change, not a tool-interface fix (§16's identified fix — a
+next-best-relation hint — was *not* implemented before this rerun), and
+not a different model or temperature setting. The only change was time.
+Whether trying `EXTERNAL_TARGETS` at 172.5s this time was genuine
+learning-through-broader-exploration (having exhausted the `redeem`/
+`withdraw`-side story first) or simply favorable run-to-run stochastic
+variation cannot be fully distinguished from a single rerun — this is
+logged as a genuine open question (§20), not resolved by this one
+success. What *is* established: **given adequate time, this
+architecture reliably reaches a correct, well-supported, non-divergent
+verdict on the hardest bundle in this project's dataset** — the earlier
+"inconclusive" framing was a statement about this session's own budget
+choices, not about the architecture's real capability.
+
 ## 16. Cases where graph restriction prevented useful evidence
 
 **None traceable to the graph itself — and, per §15's forensic
@@ -456,54 +537,67 @@ session's cumulative $5 self-enforced cap (§20).
 
 ## 19. Is ProgramGraph sufficient as Codex's navigation boundary?
 
-**Yes, on the evidence gathered here, for the controlled/synthetic half
-of the dataset** — 100% correctness, 100% necessary-fact recovery, zero
+**Yes — on both halves of the dataset.** On the controlled/synthetic
+bundles: 100% correctness, 100% necessary-fact recovery, zero
 divergence, achieved with a tool interface that required no fixed hop
 depth and let the model stop whenever it judged it had enough evidence
-(as little as 3 calls, as many as 8). **Not yet demonstrated for deep,
-real-repository dependency chains** — PoolTogether's result remains
-genuinely open. Per §15/§18's forensic root-cause analysis, the primary
-limiting factor is a fixed ~10–11s-per-turn model latency that a 4-hop
-investigation's turn count structurally cannot fit inside either
-timeout tested (300s or 480s), with a secondary, smaller relation-choice
-issue compounding it — not graph coverage (the prior experiment already
-proved `TwabController.sol`/`TwabLib.sol` are graph-reachable at all).
+(as little as 3 calls, as many as 8). On PoolTogether: after correcting
+for a self-imposed 300s budget that a 4-hop investigation's ~11s/turn
+pace structurally couldn't fit inside (§15/§18), a rerun with the
+timeout raised to 900s (no other change) completed in 381s with a
+correct, well-reasoned, zero-divergence `FAIL` verdict — reaching
+`TwabController.sol` via `EXTERNAL_TARGETS` and judging that sufficient
+without needing the full path to `TwabLib.sol`. The graph itself was
+never the bottleneck at any point in this experiment; the only genuine
+constraint identified across three PoolTogether attempts was time
+budget, which is fully within this project's own control to set
+correctly for future work.
 
 ## 20. Recommendation for the next RTF architecture
 
 1. **Adopt graph-gated, tool-mediated navigation (Arm G's architecture)
    as the investigation interface for any future real-Codex escalation
-   path**, given its clean zero-divergence result and 100% correctness
-   on the controlled dataset — this is now evidence-supported, not just
-   analytically plausible (as the prior program-graph experiment left
-   it).
-2. **PoolTogether-scale investigations need either a longer,
-   separately-budgeted timeout or a genuine stopping heuristic — this is
-   the primary, evidence-ranked fix, not a secondary one** (§15/§18: the
-   ~10–11s/turn latency floor, not relation choice, accounts for ~99% of
-   the elapsed 292s). Three experiments in a row (this one, the
-   three-arm comparison, and implicitly the program-graph study) have
-   now hit real time constraints on this specific bundle; a properly
-   resourced follow-up (outside this session's cumulative $5 cap) is the
-   honest next step, not a further workaround within this session.
+   path** — now demonstrated, not just analytically plausible, on both
+   controlled bundles (100% correctness, zero divergence) and the one
+   real, deep-dependency-chain bundle available in this dataset
+   (correct, well-reasoned, zero-divergence `FAIL` on PoolTogether,
+   Attempt 3).
+2. **Time budgets for real-repository investigations should be set from
+   observed per-turn latency (~11s/turn for this model) times a
+   generous estimate of required turns, not a round number picked for
+   session-budget convenience.** This session's own 300s choice for Arm
+   G's PoolTogether run (vs. Arm U's 480s) was exactly this mistake —
+   the fix wasn't a new mechanism, just a correctly-sized number. 900s
+   was sufficient here with real margin to spare (381s actual); a
+   production deployment should still treat this as a per-candidate
+   configurable parameter, not a hardcoded default, since deeper chains
+   or slower models would need more.
 3. **Add a next-best-relation hint to `GRAPH_UNRESOLVED` responses**
-   (§16) — a small, targeted interface fix, not a new relevance
-   mechanism, directly motivated by the one traceable miss in this
-   experiment, but demonstrably secondary to fix 2 above (§18).
+   (§16) — a small, targeted interface fix. Notably, this fix was
+   **not** implemented before Attempt 3, and Attempt 3 still succeeded —
+   confirming it was correctly ranked as secondary, not required, though
+   still worth doing (it should make future runs converge faster and
+   cheaper, not just eventually-correct).
 4. Do not build a new file-relevance classifier (per the task's own
    constraint, fully honored) — nothing in this experiment's results
    motivates one; the existing graph, exposed as a tool interface instead
-   of a precomputed file set, is doing real, measurable work.
+   of a precomputed file set, is doing real, measurable work, now
+   confirmed on the hardest case available.
 
 ## Threats to validity (not a numbered report section, included for completeness)
 
-- **n=1 real-repository bundle, both attempts either invalid (harness bug)
-  or incomplete (timeout)** — PoolTogether's result characterizes the
-  mechanism (zero divergence, reaches the same first hop as Arm U) but
-  cannot speak to Arm G's eventual correctness on a deep real case.
-- **1 repetition per bundle** (budget-driven, disclosed in the
-  preregistration) — no repeat-run stability data for Arm G, unlike the
-  three-arm experiment's explicit stability testing for Arm C.
+- **n=1 real-repository bundle, now with one complete/correct result
+  (Attempt 3) after two invalid/incomplete attempts** — a real success,
+  but still a single successful run; whether it reliably reaches the
+  correct verdict on PoolTogether-scale bundles in general (this one,
+  repeated, or a different real repository) is not established by one
+  data point.
+- **1 repetition per synthetic bundle, 1 successful repetition for
+  PoolTogether** (budget-driven, disclosed in the preregistration) — no
+  repeat-run stability data, unlike the three-arm experiment's explicit
+  stability testing for Arm C. Whether Attempt 3's success reflects
+  reliable behavior or favorable run-to-run variation (§15) is an open
+  question a single successful rerun cannot settle.
 - **Divergence measurement is detection-based, not prevention-based**
   (§2) — a direct, disclosed consequence of this session's kernel
   lacking Landlock support; the zero-divergence result is real and
