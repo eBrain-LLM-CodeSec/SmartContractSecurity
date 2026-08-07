@@ -414,6 +414,40 @@ verifier-vs-independent design comparison (item 8); RTF version 3
 freeze (item 10); and the ordered Tempo-then-PoolTogether rerun + final
 report (items 11-12).
 
+## Phase H root-cause investigation (user-requested deep dive, 13 more live calls, $0.18)
+
+At explicit user request, investigated WHY (not just "that") GPT
+produced `INSUFFICIENT_EVIDENCE` on 4 of 7 known-expectation cases —
+via pre-registered, single-variable ablations, not guessed hypotheses.
+Full report: `rtf/l8_llm_judgment_layer/PHASE_H_ROOT_CAUSE_ANALYSIS.md`.
+**Three independent root causes, not one:**
+1. Cases 2/4 (PASS-expected): a target-wide judgment QUESTION combined
+   with location-scoped evidence — logically, one clean example cannot
+   prove a universally-quantified requirement holds target-wide, though
+   it CAN disprove one. Confirmed causal: rewording only the question's
+   scope flipped both cases cleanly; an explicit "you may conclude
+   PASS" instruction did not.
+2. Case 3 (unchecked ecrecover, FAIL-expected): resolved — to PASS, the
+   OPPOSITE of the assumed answer — once told the value ecrecover's
+   result is compared against is confirmed non-zero. **This session's
+   own synthetic "expected: FAIL" label was underspecified**: the
+   predicate proves a check is absent (unconditional) but the real risk
+   is relational (conditional on the comparator's own range), which no
+   predicate establishes. The model's original hedge was arguably
+   correct, not a defect.
+3. Case 8 (PoolTogether, 30 ranked bundles): a real, volume-bounded
+   effect (confident FAIL holds through top-10 bundles, flips by
+   top-20) — confirmed INDEPENDENT of cause #1 via a decisive test (the
+   same question-scope fix that resolved cases 2/4 did NOT resolve
+   this). Exact mechanism left explicitly unresolved, not guessed.
+
+**Net finding:** zero of the four failures are "the LLM had sufficient,
+correctly-scoped evidence and reasoned to a wrong conclusion" — three
+are pipeline/question-design/test-design issues, the fourth is a real,
+still-open prompt-volume interaction. No production code was changed;
+recommended (not implemented) architectural responses are in the
+report's §7, each traced to its specific supporting finding. AR-018.
+
 ---
 
 ## What has NOT been done
