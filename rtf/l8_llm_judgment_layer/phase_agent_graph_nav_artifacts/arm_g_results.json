@@ -1,0 +1,480 @@
+{
+  "unsafe_narrowing_cast": {
+    "case_id": "unsafe_narrowing_cast",
+    "expected_label": "FAIL",
+    "final_decision": {
+      "decision": "FAIL",
+      "requirement_id": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+      "candidate": {
+        "contract": "Ledger",
+        "function": "record",
+        "location": "Ledger.sol:7"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "record narrows uint256 _amount to uint96 without validation",
+          "status": "CONFIRMED",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Does record cast a wider type to narrower without bounds check?",
+          "answer": "Yes, _amount uint256 is cast to uint96 directly into balances mapping.",
+          "source": "Ledger.sol:7-9"
+        },
+        {
+          "question": "Is record externally callable allowing arbitrary _amount?",
+          "answer": "Yes, function is external with no caller restrictions found.",
+          "source": "Ledger.sol:7"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "The external function directly casts user-supplied uint256 to uint96 for storage with no validation, permitting truncation of values above uint96 max, violating input validation requirements.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_VIOLATION"
+    },
+    "actual_shell_commands": 2,
+    "actual_shell_files_touched": [
+      "Ledger.sol"
+    ],
+    "revealed_files": [
+      "Ledger.sol"
+    ],
+    "graph_tool_calls": 4,
+    "graph_unresolved_events": [
+      {
+        "tool": "read_source",
+        "args": {
+          "node_id": "var::Ledger.balances"
+        },
+        "reason": "no source excerpt available for 'var::Ledger.balances'"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Ledger.record(address,uint256)",
+          "relation": "CALLERS",
+          "unresolved_fact": "see who can call record and with what data",
+          "why_needed": "assess whether inputs are externally controlled and validated"
+        },
+        "reason": "no CALLERS edges found from fn::Ledger.record(address,uint256) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      }
+    ],
+    "divergent_files": [],
+    "cost_usd": 0.030166250000000006,
+    "wall_clock_s": 78.18728566169739,
+    "timed_out": false,
+    "note": "kept from this experiment's own validation smoke test, ran under identical config to the rest of the batch"
+  },
+  "safe_narrowing_cast": {
+    "case_id": "safe_narrowing_cast",
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+      "candidate": {
+        "contract": "Ledger",
+        "function": "record",
+        "location": "Ledger.sol:7"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "Require bounds `_amount` to uint96 max before narrowing cast",
+          "status": "CONFIRMED",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "What type is the target storage slot?",
+          "answer": "balances is mapping(address => uint96)",
+          "source": "Ledger.sol:5"
+        },
+        {
+          "question": "Is `_amount` validated before narrowing cast?",
+          "answer": "Yes, require(_amount <= type(uint96).max) precedes uint96 cast",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "The only narrowing conversion guards `_amount` to the uint96 range before casting and storing, preventing truncation; no other input path bypasses this check.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "actual_shell_commands": 2,
+    "actual_shell_files_touched": [
+      "Ledger.sol"
+    ],
+    "revealed_files": [
+      "Ledger.sol"
+    ],
+    "graph_tool_calls": 3,
+    "graph_unresolved_events": [
+      {
+        "tool": "read_source",
+        "args": {
+          "node_id": "var::Ledger.balances"
+        },
+        "reason": "no source excerpt available for 'var::Ledger.balances'"
+      }
+    ],
+    "divergent_files": [],
+    "cost_usd": 0.029580750000000003,
+    "wall_clock_s": 71.25820875167847,
+    "timed_out": false
+  },
+  "unchecked_ecrecover_mutable_signer": {
+    "case_id": "unchecked_ecrecover_mutable_signer",
+    "expected_label": "FAIL",
+    "final_decision": {
+      "decision": "FAIL",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:13"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "ecrecover result not checked for nonzero before comparison",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:13-16"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "How is authorizedSigner set?",
+          "answer": "Only via constructor parameter _initialSigner with no zero validation.",
+          "source": "Auth.sol:8-11"
+        },
+        {
+          "question": "Does verify check signer != address(0)?",
+          "answer": "No; it compares ecrecover result directly to authorizedSigner.",
+          "source": "Auth.sol:13-16"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "verify uses ecrecover result directly, lacking nonzero signer check; authorizedSigner can be zero from constructor input, so malformed signatures returning address(0) are not rejected, violating proper signature verification.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_VIOLATION"
+    },
+    "actual_shell_commands": 0,
+    "actual_shell_files_touched": [],
+    "revealed_files": [
+      "Auth.sol"
+    ],
+    "graph_tool_calls": 8,
+    "graph_unresolved_events": [
+      {
+        "tool": "read_source",
+        "args": {
+          "node_id": "var::Auth.authorizedSigner"
+        },
+        "reason": "no source excerpt available for 'var::Auth.authorizedSigner'"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Auth.verify(bytes32,uint8,bytes32,bytes32)",
+          "relation": "CALLERS",
+          "unresolved_fact": "who calls verify",
+          "why_needed": "understand usage and signature check flow"
+        },
+        "reason": "no CALLERS edges found from fn::Auth.verify(bytes32,uint8,bytes32,bytes32) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Auth.verify(bytes32,uint8,bytes32,bytes32)",
+          "relation": "STATE_WRITES_TRANSITIVE",
+          "unresolved_fact": "whether verify affects state",
+          "why_needed": "scope of signature check impact"
+        },
+        "reason": "no STATE_WRITES_TRANSITIVE edges found from fn::Auth.verify(bytes32,uint8,bytes32,bytes32) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      }
+    ],
+    "divergent_files": [],
+    "cost_usd": 0.024043750000000003,
+    "wall_clock_s": 94.52832460403442,
+    "timed_out": false
+  },
+  "checked_ecrecover": {
+    "case_id": "checked_ecrecover",
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify(bytes32,uint8,bytes32,bytes32)",
+        "location": "Auth.sol:11"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "require(signer != address(0)) follows ecrecover",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:11-14"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is a zero-address ecrecover result rejected?",
+          "answer": "Yes, function reverts if signer == address(0).",
+          "source": "Auth.sol:12-13"
+        },
+        {
+          "question": "What is the signer compared against?",
+          "answer": "Signer is compared to state variable authorizedSigner.",
+          "source": "Auth.sol:13-14"
+        },
+        {
+          "question": "Who can set authorizedSigner?",
+          "answer": "Only the constructor sets authorizedSigner from _initialSigner; no other writers.",
+          "source": "Auth.sol:7-9"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "verify checks ecrecover output for nonzero and matches it to a single authorized signer that is immutable after deployment; no paths allow bypass or acceptance of zero-address signatures.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "actual_shell_commands": 2,
+    "actual_shell_files_touched": [
+      "Auth.sol"
+    ],
+    "revealed_files": [
+      "Auth.sol"
+    ],
+    "graph_tool_calls": 5,
+    "graph_unresolved_events": [
+      {
+        "tool": "read_source",
+        "args": {
+          "node_id": "var::Auth.authorizedSigner"
+        },
+        "reason": "no source excerpt available for 'var::Auth.authorizedSigner'"
+      }
+    ],
+    "divergent_files": [],
+    "cost_usd": 0.032333,
+    "wall_clock_s": 84.96787357330322,
+    "timed_out": false
+  },
+  "corrected_ecrecover_fixed_signer": {
+    "case_id": "corrected_ecrecover_fixed_signer",
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:12-15"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "verify lacks explicit signer != address(0) check after ecrecover",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:12-15"
+        },
+        {
+          "claim": "authorizedSigner may be zero",
+          "status": "REFUTED",
+          "source": "fn::Auth.constructor(address)"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "How is authorizedSigner initialized?",
+          "answer": "Set in constructor with non-zero require on _initialSigner",
+          "source": "Auth.sol:7-10"
+        },
+        {
+          "question": "Are there other writers to authorizedSigner?",
+          "answer": "No other writers beyond constructor",
+          "source": "fn::Auth.constructor(address)"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "ecrecover result is compared against authorizedSigner; although no explicit zero-address check, authorizedSigner is constrained to non-zero at construction with no other writers. Invalid signatures yield ecrecover = 0x0, making comparison false, preventing false acceptance. Requirement satisfied.",
+      "confidence": "MEDIUM",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "actual_shell_commands": 0,
+    "actual_shell_files_touched": [],
+    "revealed_files": [
+      "Auth.sol"
+    ],
+    "graph_tool_calls": 7,
+    "graph_unresolved_events": [
+      {
+        "tool": "read_source",
+        "args": {
+          "node_id": "var::Auth.authorizedSigner"
+        },
+        "reason": "no source excerpt available for 'var::Auth.authorizedSigner'"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Auth.constructor(address)",
+          "relation": "CALLERS",
+          "unresolved_fact": "See how constructor is used/deployed and what argument is provided",
+          "why_needed": "Check if any call path allows zero address or later mutation"
+        },
+        "reason": "no CALLERS edges found from fn::Auth.constructor(address) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Auth.verify(bytes32,uint8,bytes32,bytes32)",
+          "relation": "CALLERS",
+          "unresolved_fact": "Identify functions invoking verify",
+          "why_needed": "Assess usage context for signature verification"
+        },
+        "reason": "no CALLERS edges found from fn::Auth.verify(bytes32,uint8,bytes32,bytes32) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      }
+    ],
+    "divergent_files": [],
+    "cost_usd": 0.024334750000000002,
+    "wall_clock_s": 85.26721382141113,
+    "timed_out": false
+  },
+  "insufficient_evidence_timestamp": {
+    "case_id": "insufficient_evidence_timestamp",
+    "expected_label": null,
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Don't Misuse Block Data",
+      "candidate": {
+        "contract": "RewardStream",
+        "function": "updateReward",
+        "location": "RewardStream.sol:20-24"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "Reward accrual uses elapsed block.timestamp scaled by rewardRatePerSecond",
+          "status": "CONFIRMED",
+          "source": "RewardStream.sol:20-24"
+        },
+        {
+          "claim": "rewardRatePerSecond is admin-configurable without upper bound",
+          "status": "CONFIRMED",
+          "source": "RewardStream.sol:15-18"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Who can set rewardRatePerSecond and are there bounds?",
+          "answer": "Only admin via setRewardRate; no bounds enforced",
+          "source": "RewardStream.sol:15-18"
+        },
+        {
+          "question": "How is block.timestamp used in updateReward?",
+          "answer": "Used as a clock to compute elapsed time since lastUpdate and linearly accrue rewards",
+          "source": "RewardStream.sol:20-24"
+        }
+      ],
+      "unresolved_facts": [
+        {
+          "question": "Magnitude of rewardRatePerSecond relative to TVL and economic impact of a few-second timestamp skew",
+          "reason": "Not derivable from available code or graph evidence"
+        }
+      ],
+      "reasoning_summary": "Timestamp is used solely as a wall-clock to accrue rewards; miner influence is limited to small timestamp skews that linearly shift accrual for all users. No MEV-enabling ordering advantage or selective payout is evident from the reachable code.",
+      "confidence": "MEDIUM",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "actual_shell_commands": 3,
+    "actual_shell_files_touched": [
+      "RewardStream.sol"
+    ],
+    "revealed_files": [
+      "RewardStream.sol"
+    ],
+    "graph_tool_calls": 7,
+    "graph_unresolved_events": [
+      {
+        "tool": "read_source",
+        "args": {
+          "node_id": "var::RewardStream.rewardRatePerSecond"
+        },
+        "reason": "no source excerpt available for 'var::RewardStream.rewardRatePerSecond'"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::RewardStream.updateReward()",
+          "relation": "CALLERS",
+          "unresolved_fact": "who can call updateReward",
+          "why_needed": "assess if timestamp manipulation exploitable externally"
+        },
+        "reason": "no CALLERS edges found from fn::RewardStream.updateReward() -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      }
+    ],
+    "divergent_files": [],
+    "cost_usd": 0.04293525000000001,
+    "wall_clock_s": 123.61284923553467,
+    "timed_out": false
+  },
+  "pooltogether_vault_burn": {
+    "case_id": "pooltogether_vault_burn",
+    "expected_label": "FAIL",
+    "final_decision": null,
+    "actual_shell_commands": 0,
+    "actual_shell_files_touched": [],
+    "revealed_files": [
+      "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol",
+      "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol",
+      "src/Vault.sol"
+    ],
+    "graph_tool_calls": 26,
+    "graph_unresolved_events": [
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Vault.redeem(uint256,address,address)",
+          "relation": "CALLERS",
+          "unresolved_fact": "Identify external callers of redeem",
+          "why_needed": "Determine if user-controlled _shares could exceed uint96"
+        },
+        "reason": "no CALLERS edges found from fn::Vault.redeem(uint256,address,address) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Vault.withdraw(uint256,address,address)",
+          "relation": "CALLERS",
+          "unresolved_fact": "Identify callers supplying _assets or _shares",
+          "why_needed": "Check if external inputs limited"
+        },
+        "reason": "no CALLERS edges found from fn::Vault.withdraw(uint256,address,address) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Vault._burn(address,uint256)",
+          "relation": "STATE_WRITES",
+          "unresolved_fact": "Check twabController state constraints",
+          "why_needed": "See if burn enforces uint96 via twabController"
+        },
+        "reason": "no STATE_WRITES edges found from fn::Vault._burn(address,uint256) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      },
+      {
+        "tool": "investigate",
+        "args": {
+          "node_id": "fn::Vault._mint(address,uint256)",
+          "relation": "STATE_WRITES",
+          "unresolved_fact": "Check twabController mint cast width",
+          "why_needed": "Compare with burn cast to uint96"
+        },
+        "reason": "no STATE_WRITES edges found from fn::Vault._mint(address,uint256) -- either genuinely none exist (e.g. a leaf function with no callers) or the construct is not represented in the graph (see PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md's capability matrix)"
+      }
+    ],
+    "divergent_files": [],
+    "cost_usd": 0.0,
+    "wall_clock_s": 300.01009368896484,
+    "timed_out": true
+  }
+}

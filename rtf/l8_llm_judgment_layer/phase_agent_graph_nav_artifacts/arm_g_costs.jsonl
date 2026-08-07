@@ -1,0 +1,7 @@
+{"case_id": "safe_narrowing_cast", "cost_usd": 0.029580750000000003}
+{"case_id": "unchecked_ecrecover_mutable_signer", "cost_usd": 0.024043750000000003}
+{"case_id": "checked_ecrecover", "cost_usd": 0.032333}
+{"case_id": "corrected_ecrecover_fixed_signer", "cost_usd": 0.024334750000000002}
+{"case_id": "insufficient_evidence_timestamp", "cost_usd": 0.04293525000000001}
+{"case_id": "pooltogether_vault_burn", "cost_usd": 0.039517750000000004}
+{"case_id": "pooltogether_vault_burn", "cost_usd": 0.0}

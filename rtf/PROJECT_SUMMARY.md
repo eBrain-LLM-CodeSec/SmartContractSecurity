@@ -553,6 +553,57 @@ new relevance classifier — extend hop depth or targeted deeper expansion
 first if the real-repository gap needs closing.** No production code
 changed. AR-021.
 
+## Agent-driven graph navigation (user-requested, $0.22 this batch, $3.10 session total)
+
+Directly tests the architecture AR-021 recommended: Codex decides what
+fact it needs, the `ProgramGraph` decides what structurally-connected
+code it may see — no fixed G1/G2/G3/G4 precomputation, exposed instead
+as three MCP tools (`show_candidate`/`investigate`/`read_source`).
+Full report:
+`rtf/l8_llm_judgment_layer/AGENT_DRIVEN_GRAPH_NAVIGATION_EXPERIMENT.md`;
+preregistration: `AGENT_DRIVEN_GRAPH_NAVIGATION_PREREGISTRATION.md`.
+
+**A real infrastructure constraint was discovered before any live run**:
+Codex's own OS-level sandbox (Landlock+seccomp) does not run on this
+session's login node at all — confirmed at zero LLM cost via `codex
+sandbox linux`, which panics (kernel 4.18 predates Landlock's 5.13
+introduction). Every prior live Codex call in this whole line of work
+used `--dangerously-bypass-approvals-and-sandbox`; this was the first
+time a restricted sandbox mode was tested, and it fails independent of
+this experiment's own design. **Adaptation, disclosed rather than
+hidden**: enforcement shifted from filesystem-enforced prevention to
+harness-authoritative detection — a separate MCP server process is the
+sanctioned reveal path, and any shell read of a file the graph tools
+never revealed is logged as a measured divergence event.
+
+**Result: zero divergence across all 7 bundles** — no shell read ever
+touched a file the graph tools hadn't already revealed, even with full
+technical shell access available the whole time. On all 6 synthetic
+bundles, Arm G reached the correct decision (5/6 matching the genuine-
+uncertainty control's expected hedge — one real, disclosed miss, a
+judgment-layer issue unrelated to graph coverage: the model named the
+correct unresolved fact in its own output, then rationalized past it to
+a confident PASS anyway). **Two bundles (the matched relational
+ecrecover pair) were resolved entirely through graph tool calls, zero
+shell commands at all**, via a new `WRITERS_OF_STATE` relation (not
+present in `BundleBuilder`'s own API) added specifically to answer "can
+this value change" questions. On PoolTogether, a real infrastructure bug
+in this experiment's own new code (not `a4v/graph.py`) was found and
+fixed mid-run — the MCP server blocked its own handshake on a 9.4-second
+Slither compile, causing a first attempt to expose zero tools at all
+(Codex correctly, honestly reported `INSUFFICIENT_EVIDENCE` given no
+tools were available). After the fix, a real 26-query, fully graph-
+mediated PoolTogether investigation reached the same first-hop
+dependency as unrestricted Codex but again did not conclude within the
+time budget — the third live experiment in a row to hit this same
+wall-clock limit on this specific bundle, never on evidence
+unavailability. **Conclusion: adopt graph-gated, tool-mediated
+navigation for any future real-Codex escalation path — the graph is a
+sufficient, non-divergent boundary for controlled/localized candidates;
+PoolTogether-scale investigations need a separately-budgeted longer
+timeout, not a further within-session workaround.** No production code
+changed. AR-022.
+
 ---
 
 ## What has NOT been done
