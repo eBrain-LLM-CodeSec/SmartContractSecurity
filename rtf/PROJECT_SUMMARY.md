@@ -482,6 +482,42 @@ the bundle has unresolved facts) are recommended before re-testing. No
 production code changed — all new modules are isolated under
 `rtf/l8_llm_judgment_layer/bundle_agent_experiment/`. AR-019.
 
+## Three-arm follow-up: bounded LLM vs. fake ReAct vs. REAL Codex CLI (user-requested, $0.26 this batch, $2.74 session total)
+
+Directly tested whether AR-019's negative result was about repository
+investigation itself or about the hand-built harness, by adding **Arm C:
+the actual `codex-cli 0.104.0` binary** (this project's own pinned
+production version), installed and run standalone on this login node
+(confirmed feasible — no SLURM/Singularity job needed), pointed directly
+at OpenRouter using the exact invocation pattern this project's own
+worker pipeline already uses in production. Full report:
+`rtf/l8_llm_judgment_layer/THREE_ARM_LLM_REACT_CODEX_COMPARISON.md`;
+preregistration: `THREE_ARM_BUNDLE_INVESTIGATION_PREREGISTRATION.md`.
+
+**Result: real Codex got 12/12 correct** across all 6 synthetic bundles ×
+2 repetitions — including both directions of the matched relational-fact
+pair (bundles 3/5) that fake-ReAct got wrong via fabrication — with 0
+false PASS, 0 false FAIL, 0 protocol violations, and 0
+citation-provenance failures (checked mechanically against the harness's
+own authoritative tool-call trace, not the model's self-report). On the
+one real-repository bundle (PoolTogether `Vault._burn`), it pursued a
+genuinely deep, 0%-divergent investigation (39 real tool calls tracing
+`Vault._burn` → `redeem`/`maxRedeem` → ERC4626's own bound logic →
+`TwabController`/`TwabLib`'s internal balance representation — deeper
+than either other arm ever reached) but did not conclude within the
+480s time budget; its true correctness/cost on real code remains
+genuinely unknown, reported as an open gap, not papered over. **AR-019's
+broad caution against agentic investigation is revised: the fabrication
+failure mode was specific to the fake-ReAct harness's protocol, not an
+inherent property of giving an LLM repository tools** — real Codex,
+given the identical investigation contract, did not exhibit it at all on
+this dataset. Recommendation: a selective-escalation architecture
+(bounded LLM by default, real-Codex escalation when a bundle has
+unresolved facts) is now evidence-supported, provided the escalation
+path adds an *enforced*, not merely instructed, action/time budget (Arm C
+did not self-limit to its stated 8-action budget on the one bundle large
+enough to test this). No production code changed. AR-020.
+
 ---
 
 ## What has NOT been done

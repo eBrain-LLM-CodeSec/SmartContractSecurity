@@ -1,0 +1,720 @@
+{
+  "unsafe_narrowing_cast_r0": {
+    "case_id": "unsafe_narrowing_cast",
+    "repetition": 0,
+    "expected_label": "FAIL",
+    "final_decision": {
+      "decision": "FAIL",
+      "requirement_id": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+      "candidate": {
+        "contract": "Ledger",
+        "function": "record",
+        "location": "Ledger.sol:7-9"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "record casts uint256 _amount to uint96 without validation, risking truncation above type(uint96).max",
+          "status": "CONFIRMED",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is there any bounds check on _amount before narrowing to uint96?",
+          "answer": "No validation; _amount is directly cast to uint96 and assigned, so values above 2^96-1 truncate silently.",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "record accepts a uint256 amount but immediately casts it to uint96 without any bounds check, so malformed/oversized inputs are not validated and get silently truncated, violating the input validation requirement.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_VIOLATION"
+    },
+    "reasoning_text": "Recording uses unchecked uint256\u2192uint96 cast that truncates oversized inputs with no validation.\n\n```json\n{\n  \"decision\": \"FAIL\",\n  \"requirement_id\": \"Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.\",\n  \"candidate\": {\"contract\": \"Ledger\", \"function\": \"record\", \"location\": \"Ledger.sol:7-9\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"record casts uint256 _amount to uint96 without validation, risking truncation above type(uint96).max\", \"status\": \"CONFIRMED\", \"source\": \"Ledger.sol:7-9\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Is there any bounds check on _amount before narrowing to uint96?\", \"answer\": \"No validation; _amount is directly cast to uint96 and assigned, so values above 2^96-1 truncate silently.\", \"source\": \"Ledger.sol:7-9\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"record accepts a uint256 amount but immediately casts it to uint96 without any bounds check, so malformed/oversized inputs are not validated and get silently truncated, violating the input validation requirement.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_VIOLATION\"\n}\n```",
+    "actual_tool_calls": 3,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc \"sed -n '1,240p' Ledger.sol\"",
+      "/usr/bin/bash -lc 'nl -ba Ledger.sol'"
+    ],
+    "actual_files_touched": [
+      "Ledger.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 32833,
+    "cached_input_tokens": 29696,
+    "output_tokens": 1169,
+    "cost_usd": 0.01932325,
+    "wall_clock_s": 41.87450432777405,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "unsafe_narrowing_cast_r1": {
+    "case_id": "unsafe_narrowing_cast",
+    "repetition": 1,
+    "expected_label": "FAIL",
+    "final_decision": {
+      "decision": "FAIL",
+      "requirement_id": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+      "candidate": {
+        "contract": "Ledger",
+        "function": "record",
+        "location": "Ledger.sol:7-8"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "Ledger.record casts _amount from uint256 to uint96 without validation, risking truncation above type(uint96).max",
+          "status": "CONFIRMED",
+          "source": "Ledger.sol:7-8"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is _amount validated or bounded before casting to uint96?",
+          "answer": "No checks; values above uint96 max are silently truncated when assigned to balances",
+          "source": "Ledger.sol:7-8"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "The record function writes balances[_account] = uint96(_amount) without any bounds check, so inputs exceeding the uint96 range are truncated rather than rejected, violating input validation expectations.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_VIOLATION"
+    },
+    "reasoning_text": "```json\n{\n  \"decision\": \"FAIL\",\n  \"requirement_id\": \"Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.\",\n  \"candidate\": {\"contract\": \"Ledger\", \"function\": \"record\", \"location\": \"Ledger.sol:7-8\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"Ledger.record casts _amount from uint256 to uint96 without validation, risking truncation above type(uint96).max\", \"status\": \"CONFIRMED\", \"source\": \"Ledger.sol:7-8\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Is _amount validated or bounded before casting to uint96?\", \"answer\": \"No checks; values above uint96 max are silently truncated when assigned to balances\", \"source\": \"Ledger.sol:7-8\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"The record function writes balances[_account] = uint96(_amount) without any bounds check, so inputs exceeding the uint96 range are truncated rather than rejected, violating input validation expectations.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_VIOLATION\"\n}\n```",
+    "actual_tool_calls": 2,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc 'cat Ledger.sol'"
+    ],
+    "actual_files_touched": [
+      "Ledger.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 24351,
+    "cached_input_tokens": 21504,
+    "output_tokens": 741,
+    "cost_usd": 0.013656750000000002,
+    "wall_clock_s": 31.858216524124146,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "safe_narrowing_cast_r0": {
+    "case_id": "safe_narrowing_cast",
+    "repetition": 0,
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Process All Inputs",
+      "candidate": {
+        "contract": "Ledger",
+        "function": "record",
+        "location": "Ledger.sol:7-9"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "record requires _amount <= type(uint96).max immediately before casting to uint96",
+          "status": "CONFIRMED",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is _amount constrained to uint96 range before narrowing cast?",
+          "answer": "Yes; require enforces _amount <= type(uint96).max prior to uint96(_amount)",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "The only narrowing conversion of _amount to uint96 is preceded by a require that enforces _amount is within uint96 bounds, preventing truncation; no other unvalidated inputs affect the cast.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "reasoning_text": "**Summary**\n- Checked `Ledger.record` cast: bound check enforces `uint96` max before narrowing.\n\n```json\n{\n  \"decision\": \"PASS\",\n  \"requirement_id\": \"Process All Inputs\",\n  \"candidate\": {\"contract\": \"Ledger\", \"function\": \"record\", \"location\": \"Ledger.sol:7-9\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"record requires _amount <= type(uint96).max immediately before casting to uint96\", \"status\": \"CONFIRMED\", \"source\": \"Ledger.sol:7-9\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Is _amount constrained to uint96 range before narrowing cast?\", \"answer\": \"Yes; require enforces _amount <= type(uint96).max prior to uint96(_amount)\", \"source\": \"Ledger.sol:7-9\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"The only narrowing conversion of _amount to uint96 is preceded by a require that enforces _amount is within uint96 bounds, preventing truncation; no other unvalidated inputs affect the cast.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_SATISFACTION\"\n}\n```",
+    "actual_tool_calls": 2,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc 'cat Ledger.sol'"
+    ],
+    "actual_files_touched": [
+      "Ledger.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 24415,
+    "cached_input_tokens": 21504,
+    "output_tokens": 966,
+    "cost_usd": 0.01598675,
+    "wall_clock_s": 32.259976387023926,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "safe_narrowing_cast_r1": {
+    "case_id": "safe_narrowing_cast",
+    "repetition": 1,
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+      "candidate": {
+        "contract": "Ledger",
+        "function": "record",
+        "location": "Ledger.sol:6-10"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "record narrows uint256 _amount to uint96 with require(_amount <= type(uint96).max) immediately before cast",
+          "status": "CONFIRMED",
+          "source": "Ledger.sol:6-10"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is the narrowing conversion guarded by a bound check on the same value?",
+          "answer": "Yes, the function requires _amount <= type(uint96).max before casting to uint96",
+          "source": "Ledger.sol:6-10"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "The only operation is casting external uint256 input _amount to uint96 for storage. An explicit require enforces _amount does not exceed uint96 maximum immediately before the cast, preventing overflow or truncation. No other paths modify the value before casting, so the input validation covers the narrowing operation.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "reasoning_text": "```json\n{\n  \"decision\": \"PASS\",\n  \"requirement_id\": \"Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.\",\n  \"candidate\": {\"contract\": \"Ledger\", \"function\": \"record\", \"location\": \"Ledger.sol:6-10\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"record narrows uint256 _amount to uint96 with require(_amount <= type(uint96).max) immediately before cast\", \"status\": \"CONFIRMED\", \"source\": \"Ledger.sol:6-10\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Is the narrowing conversion guarded by a bound check on the same value?\", \"answer\": \"Yes, the function requires _amount <= type(uint96).max before casting to uint96\", \"source\": \"Ledger.sol:6-10\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"The only operation is casting external uint256 input _amount to uint96 for storage. An explicit require enforces _amount does not exceed uint96 maximum immediately before the cast, preventing overflow or truncation. No other paths modify the value before casting, so the input validation covers the narrowing operation.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_SATISFACTION\"\n}\n```",
+    "actual_tool_calls": 2,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc \"sed -n '1,240p' Ledger.sol\""
+    ],
+    "actual_files_touched": [
+      "Ledger.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 24452,
+    "cached_input_tokens": 21504,
+    "output_tokens": 666,
+    "cost_usd": 0.013033,
+    "wall_clock_s": 31.7598717212677,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "unchecked_ecrecover_mutable_signer_r0": {
+    "case_id": "unchecked_ecrecover_mutable_signer",
+    "repetition": 0,
+    "expected_label": "FAIL",
+    "final_decision": {
+      "decision": "FAIL",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:13-16"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "ecrecover result is unchecked for zero-address before comparison",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:13-16"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Can authorizedSigner be the zero address?",
+          "answer": "Yes; constructor accepts any _initialSigner and setAuthorizedSigner allows owner to set zero.",
+          "source": "Auth.sol:8-11; AuthAdmin.sol:7-11"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "verify accepts any ecrecover result and compares it to authorizedSigner without rejecting address(0). authorizedSigner is owner-controlled and may be set to zero at deployment or later. With authorizedSigner==0x0, invalid signatures yielding address(0) succeed, so signature verification is improper.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_VIOLATION"
+    },
+    "reasoning_text": "**Findings**\n- `Auth.verify` compares `ecrecover` result directly to `authorizedSigner` with no zero-address guard (`Auth.sol:13-16`). \n- `authorizedSigner` can be zero both at deployment (`_initialSigner`) and later via `setAuthorizedSigner` with no non-zero check (`Auth.sol:8-11`, `AuthAdmin.sol:7-11`). \n- If `authorizedSigner == address(0)`, any invalid signature (returning `address(0)`) passes, violating proper signature verification.\n\n```json\n{\n  \"decision\": \"FAIL\",\n  \"requirement_id\": \"Proper Signature Verification\",\n  \"candidate\": {\"contract\": \"Auth\", \"function\": \"verify\", \"location\": \"Auth.sol:13-16\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"ecrecover result is unchecked for zero-address before comparison\", \"status\": \"CONFIRMED\", \"source\": \"Auth.sol:13-16\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Can authorizedSigner be the zero address?\", \"answer\": \"Yes; constructor accepts any _initialSigner and setAuthorizedSigner allows owner to set zero.\", \"source\": \"Auth.sol:8-11; AuthAdmin.sol:7-11\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"verify accepts any ecrecover result and compares it to authorizedSigner without rejecting address(0). authorizedSigner is owner-controlled and may be set to zero at deployment or later. With authorizedSigner==0x0, invalid signatures yielding address(0) succeed, so signature verification is improper.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_VIOLATION\"\n}\n```",
+    "actual_tool_calls": 4,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc \"sed -n '1,200p' Auth.sol\"",
+      "/usr/bin/bash -lc \"sed -n '1,200p' AuthAdmin.sol\"",
+      "/usr/bin/bash -lc 'nl -ba Auth.sol'"
+    ],
+    "actual_files_touched": [
+      "Auth.sol",
+      "AuthAdmin.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 40875,
+    "cached_input_tokens": 32000,
+    "output_tokens": 1133,
+    "cost_usd": 0.026423750000000003,
+    "wall_clock_s": 52.23609256744385,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "unchecked_ecrecover_mutable_signer_r1": {
+    "case_id": "unchecked_ecrecover_mutable_signer",
+    "repetition": 1,
+    "expected_label": "FAIL",
+    "final_decision": {
+      "decision": "FAIL",
+      "requirement_id": "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain.",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:13-15"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "verify uses ecrecover without checking signer != address(0)",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:13-15"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Can authorizedSigner be initialized to zero?",
+          "answer": "Yes, constructor accepts _initialSigner without zero check.",
+          "source": "Auth.sol:8-11"
+        },
+        {
+          "question": "Can authorizedSigner later be set to zero?",
+          "answer": "Yes, owner-accessible setAuthorizedSigner allows any address including zero.",
+          "source": "AuthAdmin.sol:9-12"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "verify returns true when ecrecover yields address(0); authorizedSigner can be set to address(0) via constructor or setAuthorizedSigner, so malformed signatures recoverable as zero will be accepted, breaking signature authenticity guarantees.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_VIOLATION"
+    },
+    "reasoning_text": "A zero `authorizedSigner` is allowed (constructor or owner setter), so `verify` will return true on `ecrecover` zero for any malformed signature, violating proper signature verification.\n\n```json\n{\n  \"decision\": \"FAIL\",\n  \"requirement_id\": \"Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain.\",\n  \"candidate\": {\"contract\": \"Auth\", \"function\": \"verify\", \"location\": \"Auth.sol:13-15\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"verify uses ecrecover without checking signer != address(0)\", \"status\": \"CONFIRMED\", \"source\": \"Auth.sol:13-15\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Can authorizedSigner be initialized to zero?\", \"answer\": \"Yes, constructor accepts _initialSigner without zero check.\", \"source\": \"Auth.sol:8-11\"},\n    {\"question\": \"Can authorizedSigner later be set to zero?\", \"answer\": \"Yes, owner-accessible setAuthorizedSigner allows any address including zero.\", \"source\": \"AuthAdmin.sol:9-12\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"verify returns true when ecrecover yields address(0); authorizedSigner can be set to address(0) via constructor or setAuthorizedSigner, so malformed signatures recoverable as zero will be accepted, breaking signature authenticity guarantees.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_VIOLATION\"\n}\n```",
+    "actual_tool_calls": 3,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc \"sed -n '1,200p' Auth.sol\"",
+      "/usr/bin/bash -lc \"sed -n '1,200p' AuthAdmin.sol\""
+    ],
+    "actual_files_touched": [
+      "Auth.sol",
+      "AuthAdmin.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 32243,
+    "cached_input_tokens": 29184,
+    "output_tokens": 1809,
+    "cost_usd": 0.02556175,
+    "wall_clock_s": 47.88525676727295,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "checked_ecrecover_r0": {
+    "case_id": "checked_ecrecover",
+    "repetition": 0,
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain.",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.verify"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "verify rejects zero-address ecrecover result via require immediately after call",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:11-14"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is the ecrecover result checked for the zero address before use?",
+          "answer": "Yes, require(signer != address(0), \"invalid signature\") guards the comparison to authorizedSigner.",
+          "source": "Auth.sol:11-14"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "At the candidate location the ecrecover output is validated with a zero-address check before comparing it to the authorized signer, ensuring malformed signatures cannot succeed; no further gaps identified.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "reasoning_text": "```json\n{\n  \"decision\": \"PASS\",\n  \"requirement_id\": \"Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain.\",\n  \"candidate\": {\"contract\": \"Auth\", \"function\": \"verify\", \"location\": \"Auth.verify\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"verify rejects zero-address ecrecover result via require immediately after call\", \"status\": \"CONFIRMED\", \"source\": \"Auth.sol:11-14\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Is the ecrecover result checked for the zero address before use?\", \"answer\": \"Yes, require(signer != address(0), \\\"invalid signature\\\") guards the comparison to authorizedSigner.\", \"source\": \"Auth.sol:11-14\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"At the candidate location the ecrecover output is validated with a zero-address check before comparing it to the authorized signer, ensuring malformed signatures cannot succeed; no further gaps identified.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_SATISFACTION\"\n}\n```",
+    "actual_tool_calls": 3,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc 'cat AGENTS.md'",
+      "/usr/bin/bash -lc \"sed -n '1,200p' Auth.sol\""
+    ],
+    "actual_files_touched": [
+      "AGENTS.md",
+      "Auth.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 31896,
+    "cached_input_tokens": 28928,
+    "output_tokens": 1040,
+    "cost_usd": 0.017726000000000002,
+    "wall_clock_s": 41.919708013534546,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "checked_ecrecover_r1": {
+    "case_id": "checked_ecrecover",
+    "repetition": 1,
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:12-16"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "require(signer != address(0)) immediately follows ecrecover result",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:13-15"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is the ecrecover result checked for zero before use?",
+          "answer": "Yes, the function requires signer != address(0) immediately after ecrecover and before comparing to authorizedSigner.",
+          "source": "Auth.sol:13-15"
+        },
+        {
+          "question": "Is signature validity tied to the expected signer?",
+          "answer": "Yes, the recovered signer is compared to authorizedSigner and returns true only when they match.",
+          "source": "Auth.sol:13-16"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "At Auth.verify the ecrecover output is checked against zero to reject invalid signatures and then compared to the configured authorizedSigner, ensuring only valid signatures from that signer pass; this satisfies the requirement for proper off-chain signature verification at the candidate location.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "reasoning_text": "```json\n{\n  \"decision\": \"PASS\",\n  \"requirement_id\": \"Proper Signature Verification\",\n  \"candidate\": {\"contract\": \"Auth\", \"function\": \"verify\", \"location\": \"Auth.sol:12-16\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"require(signer != address(0)) immediately follows ecrecover result\", \"status\": \"CONFIRMED\", \"source\": \"Auth.sol:13-15\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Is the ecrecover result checked for zero before use?\", \"answer\": \"Yes, the function requires signer != address(0) immediately after ecrecover and before comparing to authorizedSigner.\", \"source\": \"Auth.sol:13-15\"},\n    {\"question\": \"Is signature validity tied to the expected signer?\", \"answer\": \"Yes, the recovered signer is compared to authorizedSigner and returns true only when they match.\", \"source\": \"Auth.sol:13-16\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"At Auth.verify the ecrecover output is checked against zero to reject invalid signatures and then compared to the configured authorizedSigner, ensuring only valid signatures from that signer pass; this satisfies the requirement for proper off-chain signature verification at the candidate location.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_SATISFACTION\"\n}\n```",
+    "actual_tool_calls": 2,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc \"sed -n '1,200p' Auth.sol\""
+    ],
+    "actual_files_touched": [
+      "Auth.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 23789,
+    "cached_input_tokens": 20992,
+    "output_tokens": 928,
+    "cost_usd": 0.01540025,
+    "wall_clock_s": 31.259033918380737,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "corrected_ecrecover_fixed_signer_r0": {
+    "case_id": "corrected_ecrecover_fixed_signer",
+    "repetition": 0,
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain.",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:12-15"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "verify uses ecrecover without checking signer != address(0)",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:12-14"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Can authorizedSigner be, or become, the zero address?",
+          "answer": "No; constructor requires nonzero and authorizedSigner is immutable thereafter.",
+          "source": "Auth.sol:5-10"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "Although ecrecover failures yield address(0) and the verify function does not reject zero explicitly, authorizedSigner is enforced nonzero at construction and immutable, so address(0) can never be an authorized signer. A zero result therefore cannot satisfy the comparison, leaving signature verification sound at this location.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "reasoning_text": "- Reviewed `Auth.verify` implementation and constructor to trace signer handling.\n\n```json\n{\n  \"decision\": \"PASS\",\n  \"requirement_id\": \"Proper Signature Verification Tested Code MUST properly verify signatures to ensure authenticity of messages that were signed off-chain.\",\n  \"candidate\": {\"contract\": \"Auth\", \"function\": \"verify\", \"location\": \"Auth.sol:12-15\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"verify uses ecrecover without checking signer != address(0)\", \"status\": \"CONFIRMED\", \"source\": \"Auth.sol:12-14\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Can authorizedSigner be, or become, the zero address?\", \"answer\": \"No; constructor requires nonzero and authorizedSigner is immutable thereafter.\", \"source\": \"Auth.sol:5-10\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"Although ecrecover failures yield address(0) and the verify function does not reject zero explicitly, authorizedSigner is enforced nonzero at construction and immutable, so address(0) can never be an authorized signer. A zero result therefore cannot satisfy the comparison, leaving signature verification sound at this location.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_SATISFACTION\"\n}\n```",
+    "actual_tool_calls": 3,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc 'cat AGENTS.md'",
+      "/usr/bin/bash -lc \"sed -n '1,200p' Auth.sol\""
+    ],
+    "actual_files_touched": [
+      "AGENTS.md",
+      "Auth.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 32043,
+    "cached_input_tokens": 29056,
+    "output_tokens": 989,
+    "cost_usd": 0.01725575,
+    "wall_clock_s": 42.723872900009155,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "corrected_ecrecover_fixed_signer_r1": {
+    "case_id": "corrected_ecrecover_fixed_signer",
+    "repetition": 1,
+    "expected_label": "PASS",
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:12-15"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "verify uses ecrecover without an explicit signer != address(0) check",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:12-15"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Can authorizedSigner ever be the zero address?",
+          "answer": "No; constructor requires non-zero and authorizedSigner is immutable",
+          "source": "Auth.sol:6-11"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "verify compares the ecrecover result directly to authorizedSigner; although there is no explicit zero-address check on the recovered signer, authorizedSigner is enforced non-zero in the constructor and immutable thereafter, so a zero return from ecrecover cannot satisfy the comparison and invalid signatures fail. This meets the requirement for proper signature verification at the candidate location.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "reasoning_text": "```json\n{\n  \"decision\": \"PASS\",\n  \"requirement_id\": \"Proper Signature Verification\",\n  \"candidate\": {\"contract\": \"Auth\", \"function\": \"verify\", \"location\": \"Auth.sol:12-15\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"verify uses ecrecover without an explicit signer != address(0) check\", \"status\": \"CONFIRMED\", \"source\": \"Auth.sol:12-15\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Can authorizedSigner ever be the zero address?\", \"answer\": \"No; constructor requires non-zero and authorizedSigner is immutable\", \"source\": \"Auth.sol:6-11\"}\n  ],\n  \"unresolved_facts\": [],\n  \"reasoning_summary\": \"verify compares the ecrecover result directly to authorizedSigner; although there is no explicit zero-address check on the recovered signer, authorizedSigner is enforced non-zero in the constructor and immutable thereafter, so a zero return from ecrecover cannot satisfy the comparison and invalid signatures fail. This meets the requirement for proper signature verification at the candidate location.\",\n  \"confidence\": \"HIGH\",\n  \"stop_reason\": \"CONFIRMED_SATISFACTION\"\n}\n```",
+    "actual_tool_calls": 2,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc \"sed -n '1,200p' Auth.sol\""
+    ],
+    "actual_files_touched": [
+      "Auth.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 23913,
+    "cached_input_tokens": 21120,
+    "output_tokens": 908,
+    "cost_usd": 0.015211250000000003,
+    "wall_clock_s": 31.009164333343506,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "insufficient_evidence_timestamp_r0": {
+    "case_id": "insufficient_evidence_timestamp",
+    "repetition": 0,
+    "expected_label": null,
+    "final_decision": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_id": "Don't Misuse Block Data",
+      "candidate": {
+        "contract": "RewardStream",
+        "function": "updateReward",
+        "location": "RewardStream.sol:17-23"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "Reward accrual scales by elapsed block.timestamp multiplied by rewardRatePerSecond",
+          "status": "CONFIRMED",
+          "source": "RewardStream.sol:19-23"
+        },
+        {
+          "claim": "rewardRatePerSecond is admin-configurable via setRewardRate with no upper bound",
+          "status": "CONFIRMED",
+          "source": "RewardStream.sol:13-17"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "How is reward accrual computed in updateReward?",
+          "answer": "Uses elapsed = block.timestamp - lastUpdate; accRewardPerShare increments by elapsed * rewardRatePerSecond; lastUpdate set to current block.timestamp.",
+          "source": "RewardStream.sol:19-23"
+        },
+        {
+          "question": "Who controls rewardRatePerSecond and are there bounds?",
+          "answer": "Only admin can set rewardRatePerSecond via setRewardRate; no cap or validation on the rate.",
+          "source": "RewardStream.sol:13-17"
+        }
+      ],
+      "unresolved_facts": [
+        {
+          "question": "Is the potential block.timestamp skew economically material given expected rewardRatePerSecond and protocol value?",
+          "attempted_investigation": "No additional contracts or configuration present in repository to determine deployed rate or economic scale.",
+          "reason": "Repository lacks usage context or value parameters needed to assess materiality."
+        }
+      ],
+      "reasoning_summary": "Timestamp-based accrual is confirmed, and reward rate is admin-set without bounds, so a block producer could slightly skew rewards by manipulating timestamp within consensus limits. However, without any repository evidence about expected rewardRatePerSecond magnitude or total value at stake, the economic significance of such skew\u2014and thus whether it constitutes an MEV-relevant vulnerability\u2014cannot be established.",
+      "confidence": "LOW",
+      "stop_reason": "MISSING_EVIDENCE"
+    },
+    "reasoning_text": "```json\n{\n  \"decision\": \"INSUFFICIENT_EVIDENCE\",\n  \"requirement_id\": \"Don't Misuse Block Data\",\n  \"candidate\": {\"contract\": \"RewardStream\", \"function\": \"updateReward\", \"location\": \"RewardStream.sol:17-23\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"Reward accrual scales by elapsed block.timestamp multiplied by rewardRatePerSecond\", \"status\": \"CONFIRMED\", \"source\": \"RewardStream.sol:19-23\"},\n    {\"claim\": \"rewardRatePerSecond is admin-configurable via setRewardRate with no upper bound\", \"status\": \"CONFIRMED\", \"source\": \"RewardStream.sol:13-17\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"How is reward accrual computed in updateReward?\", \"answer\": \"Uses elapsed = block.timestamp - lastUpdate; accRewardPerShare increments by elapsed * rewardRatePerSecond; lastUpdate set to current block.timestamp.\", \"source\": \"RewardStream.sol:19-23\"},\n    {\"question\": \"Who controls rewardRatePerSecond and are there bounds?\", \"answer\": \"Only admin can set rewardRatePerSecond via setRewardRate; no cap or validation on the rate.\", \"source\": \"RewardStream.sol:13-17\"}\n  ],\n  \"unresolved_facts\": [\n    {\"question\": \"Is the potential block.timestamp skew economically material given expected rewardRatePerSecond and protocol value?\", \"attempted_investigation\": \"No additional contracts or configuration present in repository to determine deployed rate or economic scale.\", \"reason\": \"Repository lacks usage context or value parameters needed to assess materiality.\"}\n  ],\n  \"reasoning_summary\": \"Timestamp-based accrual is confirmed, and reward rate is admin-set without bounds, so a block producer could slightly skew rewards by manipulating timestamp within consensus limits. However, without any repository evidence about expected rewardRatePerSecond magnitude or total value at stake, the economic significance of such skew\u2014and thus whether it constitutes an MEV-relevant vulnerability\u2014cannot be established.\",\n  \"confidence\": \"LOW\",\n  \"stop_reason\": \"MISSING_EVIDENCE\"\n}\n```",
+    "actual_tool_calls": 3,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc 'cat AGENTS.md'",
+      "/usr/bin/bash -lc 'cat RewardStream.sol'"
+    ],
+    "actual_files_touched": [
+      "AGENTS.md",
+      "RewardStream.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 32687,
+    "cached_input_tokens": 29696,
+    "output_tokens": 2415,
+    "cost_usd": 0.031600750000000004,
+    "wall_clock_s": 54.53470993041992,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "insufficient_evidence_timestamp_r1": {
+    "case_id": "insufficient_evidence_timestamp",
+    "repetition": 1,
+    "expected_label": null,
+    "final_decision": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_id": "Don't Misuse Block Data Block numbers and timestamps used in Tested Code MUST NOT introduce vulnerabilities to MEV or similar attacks.",
+      "candidate": {
+        "contract": "RewardStream",
+        "function": "updateReward",
+        "location": "RewardStream.sol:20-23"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "updateReward accrues rewards using elapsed block.timestamp multiplied by rewardRatePerSecond",
+          "status": "CONFIRMED",
+          "source": "RewardStream.sol:20-23"
+        },
+        {
+          "claim": "rewardRatePerSecond is admin-configurable via setRewardRate with no upper bound",
+          "status": "CONFIRMED",
+          "source": "RewardStream.sol:15-18"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is reward accrual directly dependent on block.timestamp elapsed time?",
+          "answer": "Yes, elapsed is computed from block.timestamp and added to accRewardPerShare with rewardRatePerSecond.",
+          "source": "RewardStream.sol:20-23"
+        },
+        {
+          "question": "Who controls rewardRatePerSecond and is it bounded?",
+          "answer": "Only admin may set rewardRatePerSecond and no bound is enforced on the value.",
+          "source": "RewardStream.sol:15-18"
+        }
+      ],
+      "unresolved_facts": [
+        {
+          "question": "Is the potential timestamp skew economically material given expected rewardRatePerSecond and protocol TVL?",
+          "reason": "Repository provides no information on deployed rates or value at risk, so materiality of timestamp manipulation cannot be assessed."
+        }
+      ],
+      "reasoning_summary": "Block.timestamp drives reward accrual, and admin can set an unbounded reward rate, but the contract lacks context on expected rate magnitude or value at risk. Without economic parameters, impact of feasible timestamp manipulation cannot be determined, preventing a conclusive MEV risk judgment.",
+      "confidence": "MEDIUM",
+      "stop_reason": "MISSING_EVIDENCE"
+    },
+    "reasoning_text": "```json\n{\n  \"decision\": \"INSUFFICIENT_EVIDENCE\",\n  \"requirement_id\": \"Don't Misuse Block Data Block numbers and timestamps used in Tested Code MUST NOT introduce vulnerabilities to MEV or similar attacks.\",\n  \"candidate\": {\"contract\": \"RewardStream\", \"function\": \"updateReward\", \"location\": \"RewardStream.sol:20-23\"},\n  \"initial_evidence_verification\": [\n    {\"claim\": \"updateReward accrues rewards using elapsed block.timestamp multiplied by rewardRatePerSecond\", \"status\": \"CONFIRMED\", \"source\": \"RewardStream.sol:20-23\"},\n    {\"claim\": \"rewardRatePerSecond is admin-configurable via setRewardRate with no upper bound\", \"status\": \"CONFIRMED\", \"source\": \"RewardStream.sol:15-18\"}\n  ],\n  \"resolved_facts\": [\n    {\"question\": \"Is reward accrual directly dependent on block.timestamp elapsed time?\", \"answer\": \"Yes, elapsed is computed from block.timestamp and added to accRewardPerShare with rewardRatePerSecond.\", \"source\": \"RewardStream.sol:20-23\"},\n    {\"question\": \"Who controls rewardRatePerSecond and is it bounded?\", \"answer\": \"Only admin may set rewardRatePerSecond and no bound is enforced on the value.\", \"source\": \"RewardStream.sol:15-18\"}\n  ],\n  \"unresolved_facts\": [\n    {\"question\": \"Is the potential timestamp skew economically material given expected rewardRatePerSecond and protocol TVL?\", \"reason\": \"Repository provides no information on deployed rates or value at risk, so materiality of timestamp manipulation cannot be assessed.\"}\n  ],\n  \"reasoning_summary\": \"Block.timestamp drives reward accrual, and admin can set an unbounded reward rate, but the contract lacks context on expected rate magnitude or value at risk. Without economic parameters, impact of feasible timestamp manipulation cannot be determined, preventing a conclusive MEV risk judgment.\",\n  \"confidence\": \"MEDIUM\",\n  \"stop_reason\": \"MISSING_EVIDENCE\"\n}\n```",
+    "actual_tool_calls": 2,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc \"sed -n '1,240p' RewardStream.sol\""
+    ],
+    "actual_files_touched": [
+      "RewardStream.sol"
+    ],
+    "repository_commit": null,
+    "input_tokens": 24351,
+    "cached_input_tokens": 21504,
+    "output_tokens": 1715,
+    "cost_usd": 0.02339675,
+    "wall_clock_s": 36.11700630187988,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "pooltogether_vault_burn_r0": {
+    "case_id": "pooltogether_vault_burn",
+    "repetition": 0,
+    "expected_label": "FAIL",
+    "final_decision": null,
+    "reasoning_text": "",
+    "actual_tool_calls": 39,
+    "actual_commands": [
+      "/usr/bin/bash -lc ls",
+      "/usr/bin/bash -lc 'find .. -name AGENTS.md -maxdepth 3'",
+      "/usr/bin/bash -lc 'rg \"contract Vault\" -n src'",
+      "/usr/bin/bash -lc 'grep -R \"contract Vault\" -n src'",
+      "/usr/bin/bash -lc \"sed -n '1,260p' src/Vault.sol\"",
+      "/usr/bin/bash -lc \"sed -n '260,620p' src/Vault.sol\"",
+      "/usr/bin/bash -lc \"sed -n '620,1180p' src/Vault.sol\"",
+      "/usr/bin/bash -lc 'grep -R \"_burn(address\" -n -B2 -A2 src/Vault.sol'",
+      "/usr/bin/bash -lc 'grep -n \"function maxRedeem\" -n src/Vault.sol'",
+      "/usr/bin/bash -lc 'grep -n \"function _beforeMint\" -n src/Vault.sol'",
+      "/usr/bin/bash -lc \"sed -n '900,1045p' src/Vault.sol\"",
+      "/usr/bin/bash -lc 'grep -n \"maxWithdraw\" -n src/Vault.sol'",
+      "/usr/bin/bash -lc \"sed -n '1,260p' lib/v5-twab-controller/TwabController.sol\"",
+      "/usr/bin/bash -lc 'ls lib'",
+      "/usr/bin/bash -lc 'ls lib/pt-v5-twab-controller'",
+      "/usr/bin/bash -lc \"find lib -maxdepth 3 -type f -name 'TwabController.sol'\"",
+      "/usr/bin/bash -lc 'find lib -maxdepth 4 -type f | head'",
+      "/usr/bin/bash -lc \"find lib -maxdepth 5 -type f -name '*Twab*'\"",
+      "/usr/bin/bash -lc \"sed -n '1,200p' lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/TwabController.sol\"",
+      "/usr/bin/bash -lc 'grep -n \"function mint\" -n lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/TwabController.sol | head'",
+      "/usr/bin/bash -lc \"sed -n '440,520p' lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/TwabController.sol\"",
+      "/usr/bin/bash -lc 'grep -n \"maxRedeem\" -n src/Vault.sol'",
+      "/usr/bin/bash -lc 'grep -n \"contract ERC4626\" -n lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol'",
+      "/usr/bin/bash -lc 'grep -n \"maxRedeem(address\" -n lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol'",
+      "/usr/bin/bash -lc \"sed -n '120,170p' lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol\"",
+      "/usr/bin/bash -lc \"rg \\\"_burn\\\\(\\\" src/Vault.sol\"",
+      "/usr/bin/bash -lc 'grep -n \"_liquidatableBalanceOf\" -n src/Vault.sol'",
+      "/usr/bin/bash -lc \"sed -n '820,910p' src/Vault.sol\"",
+      "/usr/bin/bash -lc \"sed -n '1180,1340p' src/Vault.sol\"",
+      "/usr/bin/bash -lc \"sed -n '200,360p' lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/libraries/TwabLib.sol\"",
+      "/usr/bin/bash -lc \"sed -n '320,420p' lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/TwabController.sol\"",
+      "/usr/bin/bash -lc 'grep -R \"_burn(.*_shares\" -n src/Vault.sol'",
+      "/usr/bin/bash -lc 'grep -n \"struct AccountDetails\" -n lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/libraries/TwabLib.sol'",
+      "/usr/bin/bash -lc \"sed -n '40,120p' lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/libraries/TwabLib.sol\"",
+      "/usr/bin/bash -lc \"nl -ba src/Vault.sol | sed -n '480,560p'\"",
+      "/usr/bin/bash -lc \"nl -ba src/Vault.sol | sed -n '1120,1165p'\"",
+      "/usr/bin/bash -lc \"sed -n '520,720p' lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/TwabController.sol\"",
+      "/usr/bin/bash -lc \"nl -ba src/Vault.sol | sed -n '330,370p'\"",
+      "/usr/bin/bash -lc \"nl -ba lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/libraries/TwabLib.sol | sed -n '60,110p'\""
+    ],
+    "actual_files_touched": [
+      "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol",
+      "lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/TwabController.sol",
+      "lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src/libraries/TwabLib.sol",
+      "lib/v5-twab-controller/TwabController.sol",
+      "src/Vault.sol"
+    ],
+    "repository_commit": "86709c35c1d49007253f6eb4ee3bb60e4a62e9ca",
+    "input_tokens": 0,
+    "cached_input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0.0,
+    "wall_clock_s": 480.0086569786072,
+    "timed_out": true,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  }
+}

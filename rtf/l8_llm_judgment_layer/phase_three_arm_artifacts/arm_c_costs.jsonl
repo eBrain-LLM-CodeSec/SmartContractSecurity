@@ -1,0 +1,13 @@
+{"case_id": "unsafe_narrowing_cast", "repetition": 0, "cost_usd": 0.01932325}
+{"case_id": "unsafe_narrowing_cast", "repetition": 1, "cost_usd": 0.013656750000000002}
+{"case_id": "safe_narrowing_cast", "repetition": 0, "cost_usd": 0.01598675}
+{"case_id": "safe_narrowing_cast", "repetition": 1, "cost_usd": 0.013033}
+{"case_id": "unchecked_ecrecover_mutable_signer", "repetition": 0, "cost_usd": 0.026423750000000003}
+{"case_id": "unchecked_ecrecover_mutable_signer", "repetition": 1, "cost_usd": 0.02556175}
+{"case_id": "checked_ecrecover", "repetition": 0, "cost_usd": 0.017726000000000002}
+{"case_id": "checked_ecrecover", "repetition": 1, "cost_usd": 0.01540025}
+{"case_id": "corrected_ecrecover_fixed_signer", "repetition": 0, "cost_usd": 0.01725575}
+{"case_id": "corrected_ecrecover_fixed_signer", "repetition": 1, "cost_usd": 0.015211250000000003}
+{"case_id": "insufficient_evidence_timestamp", "repetition": 0, "cost_usd": 0.031600750000000004}
+{"case_id": "insufficient_evidence_timestamp", "repetition": 1, "cost_usd": 0.02339675}
+{"case_id": "pooltogether_vault_burn", "repetition": 0, "cost_usd": 0.0}
