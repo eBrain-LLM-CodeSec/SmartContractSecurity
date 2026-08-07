@@ -593,8 +593,7 @@ fixed mid-run — the MCP server blocked its own handshake on a 9.4-second
 Slither compile, causing a first attempt to expose zero tools at all
 (Codex correctly, honestly reported `INSUFFICIENT_EVIDENCE` given no
 tools were available). After the fix, a real 26-query, fully graph-
-mediated PoolTogether investigation reached the same first-hop
-dependency as unrestricted Codex but again did not conclude within the
+mediated PoolTogether investigation again did not conclude within the
 time budget — the third live experiment in a row to hit this same
 wall-clock limit on this specific bundle, never on evidence
 unavailability. **Conclusion: adopt graph-gated, tool-mediated
@@ -603,6 +602,33 @@ sufficient, non-divergent boundary for controlled/localized candidates;
 PoolTogether-scale investigations need a separately-budgeted longer
 timeout, not a further within-session workaround.** No production code
 changed. AR-022.
+
+**Root-cause correction (AR-023), made when asked "why did this happen
+— root cause, not symptoms."** AR-022's own report initially attributed
+PoolTogether's non-completion mainly to a relation-choice mistake
+(asking `STATE_WRITES`/`CALLERS` instead of `EXTERNAL_TARGETS`). That
+was the first plausible explanation found, not one verified against
+the evidence. Pulling the real timestamped session log (not the
+harness's own unstamped event trace) showed every one of the 26 tool
+calls spaced **10.1–11.1 seconds apart with clockwork regularity**
+(mean 11.14s; 26 × 11.14 ≈ 290s ≈ the observed 292s cutoff) — individual
+tool executions are near-instant, so this is entirely the model's own
+per-turn reasoning latency, not MCP overhead, and it matches unrestricted
+Codex's own ~12.3s/action rate from the three-arm experiment almost
+exactly. **The dominant cause is this shared per-turn latency floor
+combined with the turn count a 4-hop chain requires (~290 of 292s,
+~99%) — the relation-choice mistake, while real (confirmed: it never
+tried `EXTERNAL_TARGETS`/`INTERFACES` even once in 26 calls, despite
+twice asking exactly the question those relations answer), cost only
+~40s (~14%) and was not the reason time ran out.** A further correction:
+Arm G therefore did *not* reach `TwabController.sol` at all in this run
+(only `Vault.sol`/`ERC4626.sol`/`ERC20.sol`) — materially less far than
+unrestricted Codex's own (longer, 480s-budgeted) attempt, which did
+reach `TwabController.sol` and `TwabLib.sol`; the original report's "same
+first-hop dependency" phrasing overstated Arm G's progress. `AGENT_DRIVEN_
+GRAPH_NAVIGATION_EXPERIMENT.md` §15/§16/§18/§19/§20 were corrected in
+place with the full forensic timeline, not left inconsistent with this
+finding.
 
 ---
 

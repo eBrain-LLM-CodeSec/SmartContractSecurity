@@ -1,0 +1,32 @@
+   t(s)  call
+   13.5  mcp__rtf-graph-navigation__show_candidate  {}
+   33.5  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault._burn(address,uint256)","relation":"CALLERS","unresolved_fact":"Find where _burn called to see inp
+   43.7  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::Vault._withdraw(address,address,address,uint256,uint256)"}
+   53.9  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::ERC4626._withdraw(address,address,address,uint256,uint256)"}
+   64.4  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault._burn(address,uint256)","relation":"CALLERS","unresolved_fact":"Check any other callers of _burn",
+   75.0  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault._withdraw(address,address,address,uint256,uint256)","relation":"CALLERS","unresolved_fact":"Identi
+   85.2  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::Vault.withdraw(uint256,address,address)"}
+   95.6  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::Vault.redeem(uint256,address,address)"}
+  105.7  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::ERC4626.withdraw(uint256,address,address)"}
+  116.0  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::ERC4626.redeem(uint256,address,address)"}
+  126.4  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault._withdraw(address,address,address,uint256,uint256)","relation":"CALLEES","unresolved_fact":"Check 
+  136.6  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault.redeem(uint256,address,address)","relation":"CALLEES","unresolved_fact":"Check if redeem bounds sh
+  146.8  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault.withdraw(uint256,address,address)","relation":"CALLEES","unresolved_fact":"Check if withdraw bound
+  157.7  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::Vault._convertToShares(uint256,Math.Rounding)"}
+  168.1  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::Vault._convertToAssets(uint256,Math.Rounding)"}
+  178.6  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::ERC4626.maxWithdraw(address)"}
+  200.0  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::ERC4626.maxRedeem(address)"}
+  210.1  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault.redeem(uint256,address,address)","relation":"CALLERS","unresolved_fact":"Identify external callers
+  220.2  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault.withdraw(uint256,address,address)","relation":"CALLERS","unresolved_fact":"Identify callers supply
+  230.4  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault._burn(address,uint256)","relation":"STATE_WRITES","unresolved_fact":"Check twabController state co
+  240.7  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault._mint(address,uint256)","relation":"CALLERS","unresolved_fact":"Find where shares minted and if li
+  251.0  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::Vault._deposit(address,address,uint256,uint256)"}
+  261.2  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault._mint(address,uint256)","relation":"CALLEES","unresolved_fact":"Inspect mint implementation for ui
+  271.4  mcp__rtf-graph-navigation__investigate  {"node_id":"fn::Vault._mint(address,uint256)","relation":"STATE_WRITES","unresolved_fact":"Check twabController mint cas
+  281.7  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::Vault._updateExchangeRate()"}
+  292.0  mcp__rtf-graph-navigation__read_source  {"node_id":"fn::Vault._mint(address,uint256)"}
+
+total calls: 26
+mean gap: 11.14s  min: 10.11s  max: 21.41s
+last call at: 292.0s
+sum(mean_gap * n_calls) approx 278.4s  (compare to observed session length)

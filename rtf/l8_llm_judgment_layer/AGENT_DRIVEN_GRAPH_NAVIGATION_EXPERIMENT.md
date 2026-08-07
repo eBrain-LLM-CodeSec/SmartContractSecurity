@@ -17,12 +17,26 @@ tools hadn't already revealed, across every run, including two bundles
 resolved **entirely through graph tool calls, zero shell commands at
 all**. On the real PoolTogether bundle, Arm G conducted a genuine,
 26-query, 100%-graph-mediated investigation (also zero shell divergence)
-that reached the same first-hop dependencies (`ERC4626.sol`) as
-unrestricted Codex, but — like unrestricted Codex's own attempt in the
-three-arm experiment — **did not reach a final decision within the time
-budget**. One real infrastructure defect (in this experiment's own new
-code, not `a4v/graph.py`) was found and fixed mid-run: the MCP server's
-graph build was blocking the MCP handshake itself, causing the *first*
+that reached `ERC4626.sol` but — critically, see the **root-cause
+correction in §15/§18**, added after the user asked "why did this
+happen" and a timestamped-trace forensic pass replaced this section's
+original, too-shallow explanation — **never reached `TwabController.sol`
+at all**, unlike unrestricted Codex's own (longer-budgeted) attempt,
+which reached both `TwabController.sol` and `TwabLib.sol`. The dominant,
+evidence-backed cause is **not** the relation-choice mistake this
+section originally led with: a timestamped forensic reconstruction of
+the real session shows a rigid ~10–11 second wall-clock cost on *every
+single turn* (26 calls, mean gap 11.14s, 292s total — a near-exact linear
+saturation of the 300s budget), a cost shared by unrestricted Codex's own
+run at a nearly identical per-action rate (~12.3s/action). The
+relation-choice mistake (never trying `EXTERNAL_TARGETS`/`INTERFACES`
+across 26 calls, despite twice stating exactly the question those
+relations answer) is real, precisely characterized in §18, and cost
+~40s of the 292s — a genuine, fixable tool-interface defect, but a
+secondary contributor, not the primary reason time ran out. One real
+infrastructure defect (in this experiment's own new code, not
+`a4v/graph.py`) was found and fixed mid-run: the MCP server's graph
+build was blocking the MCP handshake itself, causing the *first*
 PoolTogether attempt to expose zero tools at all. **Conclusion: Outcome
 A on the controlled dataset (the graph is a sufficient, non-divergent
 navigation boundary), with PoolTogether's result still genuinely
@@ -270,47 +284,124 @@ an outsized hidden cost, but an exact figure isn't available.
 
 ## 15. PoolTogether deep-dive
 
-Two attempts, one infrastructure failure and one genuine result:
+Two attempts, one infrastructure failure and one genuine result.
 
 **Attempt 1 (invalid, §4)**: MCP server handshake blocked by the
 synchronous graph build → zero tools exposed → Codex correctly, honestly
 reported `INSUFFICIENT_EVIDENCE` given no tools were available. Not a
 real test of anything; discarded, not counted in §6–7's comparison.
 
-**Attempt 2 (real, post-fix)**: 26 real graph tool calls, zero shell
-commands, zero divergence. Reached `Vault.sol`, `ERC4626.sol`,
-`ERC20.sol` — the same first-hop external dependency Arm U's own
-unrestricted trace reached (and, per the prior program-graph experiment,
-exactly what G1 already captures). Did **not** reach `TwabController.sol`
-or `TwabLib.sol` — not because the graph lacks the relation (confirmed in
-the prior experiment: `TwabController.sol` is 1 hop away via
-`EXTERNAL_TARGETS`, `TwabLib.sol` 4 hops via `CALLS`/library resolution),
-but because the agent asked `CALLERS` on `redeem`/`withdraw` (correctly
-told "none — these are external entry points") and `STATE_WRITES` on
-`_burn`/`_mint` (correctly told "none — direct storage isn't written
-here") instead of `EXTERNAL_TARGETS`, the relation that actually reaches
-`TwabController`. Timed out at 300s before correcting course or reaching
-a final decision — the identical outcome shape as Arm U's own attempt
-(no decision, real evidence of substantive, on-target effort), just via
-a different, cleanly-logged mechanism.
+**Attempt 2 (real, post-fix) — root cause of non-completion, forensically
+reconstructed, not guessed.** This section originally attributed the
+timeout primarily to a relation-choice mistake. That explanation was too
+shallow — it was the first plausible-looking cause found, not verified
+against the actual evidence available. Asked directly "why did this
+happen, root cause not symptoms," the full timestamped session log
+(`.codex/sessions/.../rollout-*.jsonl`, not just the harness's own
+parsed event stream, which has no timestamps) was pulled and every
+tool-call timestamp extracted. The result is unambiguous:
+
+```
+  13.5s  show_candidate
+  33.5s  investigate CALLERS (_burn)              [+20.0s]
+  43.7s  read_source (Vault._withdraw)            [+10.2s]
+  53.9s  read_source (ERC4626._withdraw)          [+10.2s]
+  64.4s  investigate CALLERS (_burn, again)       [+10.5s]
+  75.0s  investigate CALLERS (_withdraw)          [+10.6s]
+  85.2s  read_source (Vault.withdraw)             [+10.2s]
+  95.6s  read_source (Vault.redeem)                [+10.4s]
+ 105.7s  read_source (ERC4626.withdraw)            [+10.1s]
+ 116.0s  read_source (ERC4626.redeem)              [+10.3s]
+ 126.4s  investigate CALLEES (_withdraw)           [+10.4s]
+ 136.6s  investigate CALLEES (redeem)              [+10.2s]
+ 146.8s  investigate CALLEES (withdraw)            [+10.2s]
+ 157.7s  read_source (_convertToShares)            [+10.9s]
+ 168.1s  read_source (_convertToAssets)            [+10.4s]
+ 178.6s  read_source (ERC4626.maxWithdraw)         [+10.5s]
+ 200.0s  read_source (ERC4626.maxRedeem)           [+21.4s, one outlier]
+ 210.1s  investigate CALLERS (redeem)              [+10.1s]  → GRAPH_UNRESOLVED
+ 220.2s  investigate CALLERS (withdraw)            [+10.1s]  → GRAPH_UNRESOLVED
+ 230.4s  investigate STATE_WRITES (_burn)          [+10.2s]  → GRAPH_UNRESOLVED
+ 240.7s  investigate CALLERS (_mint)               [+10.3s]
+ 251.0s  read_source (_deposit)                    [+10.3s]
+ 261.2s  investigate CALLEES (_mint)                [+10.2s]
+ 271.4s  investigate STATE_WRITES (_mint)           [+10.2s]  → GRAPH_UNRESOLVED
+ 281.7s  read_source (_updateExchangeRate)          [+10.3s]
+ 292.0s  read_source (_mint)                        [+10.3s]  ← 300s timeout hits shortly after
+```
+
+**26 calls, mean gap 11.14s, min 10.1s, max 21.4s (one outlier). 26 ×
+11.14 ≈ 290s ≈ the observed 292s cutoff — a near-exact linear
+saturation of the timeout by a fixed per-turn cost.** Individual
+tool-call *execution* is near-instant (call and its result frequently
+share the same timestamp in the raw log) — the ~10.2s gap between calls
+is entirely the model's own reasoning/generation latency between turns,
+not MCP round-trip overhead or graph-query computation. This is not
+unique to the graph-gated architecture: Arm U's own unrestricted
+PoolTogether run in the three-arm experiment paced at ~12.3s/action
+(480s ÷ 39 actions) — essentially the same per-turn cost. **The dominant,
+verified root cause of both arms' PoolTogether incompleteness is this
+shared ~10–12-second-per-turn latency floor combined with the sheer
+number of turns a 4-hop causal chain requires** (even a flawless run
+needs on the order of 15–25 well-targeted turns to reach and verify a
+4-hop fact, ≈165–275s at this pace — leaving little to no margin in
+either the 300s or 480s budgets tested) — **not primarily the specific
+relation mistake**, which is real (§18) but accounts for only ~4 of 26
+calls (~40s, ~14% of the elapsed time), not the ~290s actually spent.
+
+**A second, more precise correction**: the trace shows the agent never
+tried `EXTERNAL_TARGETS` or `INTERFACES` even once across all 26 calls —
+it consistently reached for `CALLERS`/`CALLEES`/`STATE_WRITES` instead,
+including twice asking exactly the right *question* ("check twabController
+state constraints" at 230.4s; "check twabController mint cast width" at
+271.4s) but supplying the wrong relation parameter both times. Because of
+this, **Arm G never reached `TwabController.sol` or `TwabLib.sol` at
+all** in this run — it did not "reach the same first-hop dependency as
+unrestricted Codex and then stall," as this section originally
+(inaccurately) implied; it reached only `Vault.sol`/`ERC4626.sol`/
+`ERC20.sol`, strictly less far than Arm U's own attempt, which did reach
+`TwabController.sol` and `TwabLib.sol` within its longer 480s budget.
+Part of this gap is a genuine confound this experiment introduced: Arm
+G's timeout (300s) was set shorter than Arm U's (480s) for this
+session's own budget reasons (§4 of the preregistration), not because
+300s was independently judged sufficient — a like-for-like timeout
+comparison was never actually run.
 
 ## 16. Cases where graph restriction prevented useful evidence
 
-**None traceable to the graph itself.** The one case where Arm G reached
-less evidence than Arm U on PoolTogether (§10, §15) is a **relation-
-choice** issue — the agent picked a plausible-sounding but semantically
-wrong relation name (`STATE_WRITES` instead of `EXTERNAL_TARGETS`) for
-"does this external call affect state I care about," and the tool
-honestly told it "no" rather than either resolving the true intent or
-suggesting the right relation. This is squarely **Outcome C** from the
-task's own interpretation taxonomy (§15 of the task instructions):
-*"Arm G misses important evidence even though it is structurally
-representable... the agent/tool interface is the problem, not graph
-coverage."* A natural, narrow fix (not implemented here, per this
+**None traceable to the graph itself — and, per §15's forensic
+correction, this is a smaller effect than originally described, not the
+primary explanation for PoolTogether's non-completion.** The graph does
+represent the path to `TwabController.sol` (`EXTERNAL_TARGETS`, 1 hop,
+confirmed in the prior program-graph experiment) and `TwabLib.sol`
+(4 hops); Arm G simply never asked for it. Two, not one, contributing
+tool-interface issues are visible in the trace:
+
+1. **Relation-name ambiguity**: `CALLEES` (internal/library `CALLS`
+   edges only) reads, to a model, like it should cover "what does this
+   function call" in general — the agent used it repeatedly for exactly
+   that general intent and never reached for the differently-named
+   `EXTERNAL_TARGETS`/`INTERFACES` even once in 26 calls, including twice
+   stating the TwabController-specific question those relations exist to
+   answer.
+2. **No redirect on a semantically-close miss**: `investigate`'s
+   `GRAPH_UNRESOLVED` response for a `STATE_WRITES`/`CALLERS` miss states
+   only that no such edge exists, not that a different relation
+   (`EXTERNAL_TARGETS`) might answer the same underlying question.
+
+This is squarely **Outcome C** from the task's own interpretation
+taxonomy (§15 of the task instructions): *"Arm G misses important
+evidence even though it is structurally representable... the agent/tool
+interface is the problem, not graph coverage."* Confirmed, but
+quantified honestly: this cost ~40s of the 292s actually spent (~14%) —
+the ~10–12s/turn latency floor documented in §15 is the larger,
+dominant factor, and would very plausibly have caused a timeout even had
+the agent asked for `EXTERNAL_TARGETS` correctly from its very first
+attempt at 33.5s. A natural, narrow fix (not implemented here, per this
 experiment's own scope): have `investigate`'s error message for a
-`STATE_WRITES`/`STATE_READS` miss suggest `EXTERNAL_TARGETS` as a
-next-best relation to try when the queried function makes an external
-call, rather than a bare "no results."
+`STATE_WRITES`/`STATE_READS`/`CALLERS`/`CALLEES` miss suggest
+`EXTERNAL_TARGETS` as a next-best relation to try when the queried
+function makes an external call, rather than a bare "no results."
 
 ## 17. Cases where graph restriction prevented irrelevant exploration
 
@@ -326,15 +417,42 @@ temptation toward unrelated exploration (e.g., a monorepo with several
 plausible-looking but irrelevant vulnerability classes nearby) would be
 needed to actually test this half of the hypothesis.
 
-## 18. Root-cause analysis of the one Arm G failure
+## 18. Root-cause analysis of Arm G's two incomplete/incorrect outcomes
 
-`insufficient_evidence_timestamp`'s false PASS (§12): traced to the
+**`insufficient_evidence_timestamp`'s false PASS (§12)**: traced to the
 model's own final-answer synthesis, not to any tool response, evidence
 gap, or graph limitation — the correct unresolved fact was recovered and
 explicitly named in the model's own output, then not acted on. No graph
 or harness change would have prevented this; it is a judgment-layer
 issue in the same family already documented for the underlying model in
 `PHASE_H_ROOT_CAUSE_ANALYSIS.md`.
+
+**PoolTogether's non-completion**: root-caused in full in §15, via a
+timestamped forensic reconstruction of the real session log (not the
+harness's own unstamped event log), performed specifically because the
+first, symptom-level explanation ("wrong relation choice") did not hold
+up as the primary cause once checked against the evidence. Summary of
+the causal chain, ranked by contribution:
+
+1. **Dominant (≈290 of 292s)**: a fixed ~10–11 second model reasoning/
+   generation latency on every single turn, shared by Arm U's own
+   PoolTogether attempt at a nearly identical per-action rate — a
+   property of this model's turn-taking cost at this reasoning effort
+   level, not of the graph-gated architecture, MCP protocol overhead, or
+   graph-query computation (individual tool executions are near-instant).
+2. **Secondary (≈40 of 292s)**: relation-name ambiguity (`CALLEES` read
+   as general-purpose; `EXTERNAL_TARGETS`/`INTERFACES` never attempted)
+   compounded by `GRAPH_UNRESOLVED` not suggesting a next-best relation —
+   real, fixable, but not the reason the 300s budget was exhausted.
+3. **Confound, not a cause**: Arm G's timeout (300s) was set shorter
+   than Arm U's (480s) for this session's own cumulative-budget reasons,
+   not because 300s was independently validated as sufficient — the two
+   arms were never actually compared under equal time budgets.
+
+No single fix among 1–3 is obviously sufficient on its own: fixing 2
+alone likely still hits the wall described in 1; a longer timeout
+addresses 1 but was explicitly not attempted here to respect this
+session's cumulative $5 self-enforced cap (§20).
 
 ## 19. Is ProgramGraph sufficient as Codex's navigation boundary?
 
@@ -344,9 +462,12 @@ divergence, achieved with a tool interface that required no fixed hop
 depth and let the model stop whenever it judged it had enough evidence
 (as little as 3 calls, as many as 8). **Not yet demonstrated for deep,
 real-repository dependency chains** — PoolTogether's result remains
-genuinely open, limited by wall-clock budget and one relation-choice
-issue, not by graph coverage (the prior experiment already proved
-`TwabController.sol`/`TwabLib.sol` are graph-reachable at all).
+genuinely open. Per §15/§18's forensic root-cause analysis, the primary
+limiting factor is a fixed ~10–11s-per-turn model latency that a 4-hop
+investigation's turn count structurally cannot fit inside either
+timeout tested (300s or 480s), with a secondary, smaller relation-choice
+issue compounding it — not graph coverage (the prior experiment already
+proved `TwabController.sol`/`TwabLib.sol` are graph-reachable at all).
 
 ## 20. Recommendation for the next RTF architecture
 
@@ -356,18 +477,20 @@ issue, not by graph coverage (the prior experiment already proved
    on the controlled dataset — this is now evidence-supported, not just
    analytically plausible (as the prior program-graph experiment left
    it).
-2. **Add a next-best-relation hint to `GRAPH_UNRESOLVED` responses**
+2. **PoolTogether-scale investigations need either a longer,
+   separately-budgeted timeout or a genuine stopping heuristic — this is
+   the primary, evidence-ranked fix, not a secondary one** (§15/§18: the
+   ~10–11s/turn latency floor, not relation choice, accounts for ~99% of
+   the elapsed 292s). Three experiments in a row (this one, the
+   three-arm comparison, and implicitly the program-graph study) have
+   now hit real time constraints on this specific bundle; a properly
+   resourced follow-up (outside this session's cumulative $5 cap) is the
+   honest next step, not a further workaround within this session.
+3. **Add a next-best-relation hint to `GRAPH_UNRESOLVED` responses**
    (§16) — a small, targeted interface fix, not a new relevance
    mechanism, directly motivated by the one traceable miss in this
-   experiment.
-3. **PoolTogether-scale investigations need either a longer,
-   separately-budgeted timeout or a genuine stopping heuristic** — three
-   experiments in a row (this one, the three-arm comparison, and
-   implicitly the program-graph study) have now hit real time
-   constraints on this specific bundle; a properly resourced follow-up
-   (outside this session's cumulative $5 cap) is the honest next step,
-   not a further workaround within this session.
-3. Do not build a new file-relevance classifier (per the task's own
+   experiment, but demonstrably secondary to fix 2 above (§18).
+4. Do not build a new file-relevance classifier (per the task's own
    constraint, fully honored) — nothing in this experiment's results
    motivates one; the existing graph, exposed as a tool interface instead
    of a precomputed file set, is doing real, measurable work.
