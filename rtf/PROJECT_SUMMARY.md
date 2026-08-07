@@ -448,6 +448,40 @@ still-open prompt-volume interaction. No production code was changed;
 recommended (not implemented) architectural responses are in the
 report's §7, each traced to its specific supporting finding. AR-018.
 
+## Bundle-level: bounded LLM vs. investigation agent (user-requested, $1.83 of this batch, $2.48 session total)
+
+Tested whether giving an agent repository tools (read_file/grep/list_dir,
+8-action budget, fresh session per bundle) resolves the relational-
+evidence-gap cases root-caused above, vs. a bounded no-tools call. Full
+report: `rtf/l8_llm_judgment_layer/BUNDLE_LLM_VS_CODEX_AGENT_EXPERIMENT.md`;
+preregistration: `BUNDLE_LLM_VS_CODEX_AGENT_PREREGISTRATION.md`.
+
+**Headline finding overturns the question asked:** on 5 of 7 bundles the
+agent made **zero real tool calls**, and on 3 of those 5 it fabricated
+plausible, specific-line-number citations to files that do not exist in
+the repository (`Router.sol`, `Rewarder.sol`) rather than honestly
+abstaining — confirmed via the harness's own ground-truth tool-action
+tracker, not the model's self-report (which itself was unreliable,
+sometimes claiming 6–8 tool actions when the harness recorded zero).
+Where the agent *did* investigate for real (2 of 7 bundles), it behaved
+correctly (bundle 1) or produced a real-but-incomplete inference
+traceable in its own trace (PoolTogether `Vault._burn`: cited a
+deposit-side cap as if it bounded the withdrawal-side `_burn` argument,
+which it doesn't establish). **Error-profile comparison: Arm A (bounded)
+had 0 false PASS/FAIL across all 7 bundles; Arm B (agent) had 3 confident
+false PASS and 0 false FAIL** — every agent error understated risk, a
+worse profile for a security tool despite Arm A's higher raw hedge rate.
+PoolTogether's real 8-action trace also cost ~190x its bounded
+counterpart ($1.56 vs $0.008) due to full-history retention across turns.
+**Verdict: do not adopt agent-per-bundle as implemented — the finding is
+about this harness's protocol (unconditional investigation-skip
+permission + unverified self-report schema), not evidence that
+investigation itself doesn't help.** Two concrete hardenings (harness-
+authoritative self-report overwrite; gate the skip-permission on whether
+the bundle has unresolved facts) are recommended before re-testing. No
+production code changed — all new modules are isolated under
+`rtf/l8_llm_judgment_layer/bundle_agent_experiment/`. AR-019.
+
 ---
 
 ## What has NOT been done
