@@ -518,6 +518,41 @@ path adds an *enforced*, not merely instructed, action/time budget (Arm C
 did not self-limit to its stated 8-action budget on the one bundle large
 enough to test this). No production code changed. AR-020.
 
+## Program-graph relevance-boundary feasibility study (user-requested, $0.13 this batch, $2.87 session total)
+
+Directly follows from AR-020's open question: can an *enforced* budget for
+a real-Codex escalation path come from structural information RTF/
+Agent4Vul already has, rather than a new relevance classifier? Tested
+whether the EXISTING `a4v.graph.ProgramGraph`/`a4v.slice.BundleBuilder`
+(confirmed, via repo-wide grep, that **RTF itself never uses this
+infrastructure today** — it's the sibling MGPR/Auditor system's) can
+bound Codex's filesystem access to a candidate's relevant files without
+hiding evidence it needs. Full report:
+`rtf/l8_llm_judgment_layer/PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md`;
+preregistration: `PROGRAM_GRAPH_RELEVANCE_BOUNDARY_PREREGISTRATION.md`.
+
+**Result: G1 (1-hop graph neighborhood) achieves 100% necessary-file
+recall, exact match, on all 6 controlled synthetic bundles** — confirmed
+both analytically against Arm C's already-recorded traces and via a live,
+filesystem-enforced G1-restricted Codex rerun (6/6 correct, matching
+every unrestricted decision). **On the one real-repository bundle
+(PoolTogether `Vault._burn`), G1/G2/adaptive-G3 all plateau at 75%
+necessary-file recall (3 of 4 files) with >99% repository-size
+reduction** — the missing file (`TwabLib.sol`) is confirmed, via direct
+hop-by-hop graph traversal, to sit at exactly **4 hops**, a `GRAPH_DEPTH`
+limitation (the causal chain exists in the graph), not a missing relation
+or an unrepresentable construct. **A real, previously-undocumented bug
+was found and verified in `ProgramGraph.build()`**: no dedup guard around
+function-node creation means an inherited-but-not-overridden function's
+`contract` attribute gets silently overwritten by the last (most-derived)
+contract that reprocesses it, plus a spurious duplicate `DECLARES` edge —
+not fixed here (explicit "audit, don't fix" scope), worked around only in
+this experiment's own node-resolution code. **Conclusion: the existing
+graph is sufficient for controlled/localized candidates; do not build a
+new relevance classifier — extend hop depth or targeted deeper expansion
+first if the real-repository gap needs closing.** No production code
+changed. AR-021.
+
 ---
 
 ## What has NOT been done

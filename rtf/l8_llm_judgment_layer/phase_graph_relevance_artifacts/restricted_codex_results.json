@@ -1,0 +1,273 @@
+{
+  "unsafe_narrowing_cast": {
+    "case_id": "unsafe_narrowing_cast",
+    "expected_label": "FAIL",
+    "g1_files": [
+      "Ledger.sol"
+    ],
+    "final_decision": {
+      "decision": "FAIL",
+      "requirement_id": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+      "candidate": {
+        "contract": "Ledger",
+        "function": "record",
+        "location": "Ledger.sol:7-8"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "record casts uint256 _amount to uint96 without validation, risking truncation of values above uint96 max",
+          "status": "CONFIRMED",
+          "source": "Ledger.sol:7-8"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is any bound or validation applied to _amount before narrowing cast to uint96?",
+          "answer": "No checks exist; _amount is directly cast to uint96 and stored.",
+          "source": "Ledger.sol:7-8"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "record accepts a uint256 _amount but immediately casts it to uint96 without any bounds check, so inputs above uint96 max are truncated rather than rejected, violating the requirement to validate inputs and handle malformed values correctly.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_VIOLATION"
+    },
+    "actual_tool_calls": 2,
+    "actual_files_touched": [
+      "Ledger.sol"
+    ],
+    "cost_usd": 0.015456750000000002,
+    "wall_clock_s": 31.520490169525146,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "safe_narrowing_cast": {
+    "case_id": "safe_narrowing_cast",
+    "expected_label": "PASS",
+    "g1_files": [
+      "Ledger.sol"
+    ],
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Process All Inputs Tested Code MUST validate inputs, and function correctly whether the input is as designed or malformed.",
+      "candidate": {
+        "contract": "Ledger",
+        "function": "record",
+        "location": "Ledger.sol:7-9"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "require(_amount <= type(uint96).max) guards the uint96 cast in record",
+          "status": "CONFIRMED",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is the uint256 to uint96 cast of _amount preceded by a bound check on the same value?",
+          "answer": "Yes; record requires _amount <= type(uint96).max before casting to uint96, preventing overflow or truncation.",
+          "source": "Ledger.sol:7-9"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "The candidate narrowing cast of _amount to uint96 is directly preceded by a require that constrains _amount to the uint96 range, ensuring malformed large inputs revert and preventing truncation; no other pathways bypass this check in record.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "actual_tool_calls": 5,
+    "actual_files_touched": [
+      "AGENTS.md",
+      "Ledger.sol"
+    ],
+    "cost_usd": 0.02257675,
+    "wall_clock_s": 67.26126909255981,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "checked_ecrecover": {
+    "case_id": "checked_ecrecover",
+    "expected_label": "PASS",
+    "g1_files": [
+      "Auth.sol"
+    ],
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:10-16"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "Function verifies ecrecover result is non-zero before use",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:11-16"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Is the ecrecover result checked for zero before comparison?",
+          "answer": "Yes, require(signer != address(0), \"invalid signature\") enforces non-zero before comparison to authorizedSigner.",
+          "source": "Auth.sol:11-16"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "Auth.verify recovers a signer from provided digest and parameters, immediately rejects zero-address results, and only returns true when the recovered address equals the stored authorized signer, satisfying the requirement for proper signature verification at this location.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "actual_tool_calls": 2,
+    "actual_files_touched": [
+      "Auth.sol"
+    ],
+    "cost_usd": 0.014551500000000002,
+    "wall_clock_s": 32.607386112213135,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "corrected_ecrecover_fixed_signer": {
+    "case_id": "corrected_ecrecover_fixed_signer",
+    "expected_label": "PASS",
+    "g1_files": [
+      "Auth.sol"
+    ],
+    "final_decision": {
+      "decision": "PASS",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:11-15"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "verify lacks signer!=0 check after ecrecover, risking zero-address acceptance",
+          "status": "REFUTED",
+          "source": "Auth.sol:7-14"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Can authorizedSigner be zero?",
+          "answer": "No; constructor rejects address(0) before setting authorizedSigner",
+          "source": "Auth.sol:7-10"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "In verify the recovered signer is compared directly to authorizedSigner. authorizedSigner is guaranteed nonzero by the constructor require, so any invalid signature producing address(0) will not match and verification fails. No path allows zero as the authorized signer, satisfying the requirement.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_SATISFACTION"
+    },
+    "actual_tool_calls": 3,
+    "actual_files_touched": [
+      "Auth.sol"
+    ],
+    "cost_usd": 0.01523025,
+    "wall_clock_s": 41.27587938308716,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "insufficient_evidence_timestamp": {
+    "case_id": "insufficient_evidence_timestamp",
+    "expected_label": null,
+    "g1_files": [
+      "RewardStream.sol"
+    ],
+    "final_decision": {
+      "decision": "INSUFFICIENT_EVIDENCE",
+      "requirement_id": "Don't Misuse Block Data",
+      "candidate": {
+        "contract": "RewardStream",
+        "function": "updateReward",
+        "location": "RewardStream.sol:20"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "Reward accrual scales by elapsed block.timestamp * rewardRatePerSecond",
+          "status": "CONFIRMED",
+          "source": "RewardStream.sol:20-22"
+        },
+        {
+          "claim": "rewardRatePerSecond is admin-configurable without an upper bound via setRewardRate",
+          "status": "CONFIRMED",
+          "source": "RewardStream.sol:15-17"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "How is elapsed time computed in updateReward?",
+          "answer": "Elapsed equals current block.timestamp minus lastUpdate; reward accumulation uses this difference directly.",
+          "source": "RewardStream.sol:20-22"
+        },
+        {
+          "question": "What limits exist on rewardRatePerSecond?",
+          "answer": "Only admin access control; no bounding or validation of the rate value.",
+          "source": "RewardStream.sol:15-17"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "updateReward uses block.timestamp to scale rewards, and the rate is set arbitrarily by admin, but there is no information on economic magnitude or additional reward claim logic to determine whether realistic timestamp skew creates exploitable MEV. Without further protocol context, the impact of miner-level timestamp manipulation remains unclear.",
+      "confidence": "LOW",
+      "stop_reason": "MISSING_EVIDENCE"
+    },
+    "actual_tool_calls": 2,
+    "actual_files_touched": [
+      "RewardStream.sol"
+    ],
+    "cost_usd": 0.02074325,
+    "wall_clock_s": 35.31428551673889,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  },
+  "unchecked_ecrecover_mutable_signer": {
+    "case_id": "unchecked_ecrecover_mutable_signer",
+    "expected_label": "FAIL",
+    "g1_files": [
+      "Auth.sol",
+      "AuthAdmin.sol"
+    ],
+    "final_decision": {
+      "decision": "FAIL",
+      "requirement_id": "Proper Signature Verification",
+      "candidate": {
+        "contract": "Auth",
+        "function": "verify",
+        "location": "Auth.sol:11-15"
+      },
+      "initial_evidence_verification": [
+        {
+          "claim": "ecrecover result is not checked against zero before comparison",
+          "status": "CONFIRMED",
+          "source": "Auth.sol:12-14"
+        }
+      ],
+      "resolved_facts": [
+        {
+          "question": "Can authorizedSigner be set to the zero address?",
+          "answer": "Yes; constructor and setAuthorizedSigner allow any address with no non-zero check, so authorizedSigner may be zero.",
+          "source": "Auth.sol:7-14; AuthAdmin.sol:8-13"
+        }
+      ],
+      "unresolved_facts": [],
+      "reasoning_summary": "verify compares ecrecover result directly to authorizedSigner without rejecting the zero address. authorizedSigner can be zero because neither initialization nor setAuthorizedSigner enforces non-zero. If authorizedSigner is zero, any malformed or unsigned message producing ecrecover == address(0) passes verification, so signature verification is not properly enforced.",
+      "confidence": "HIGH",
+      "stop_reason": "CONFIRMED_VIOLATION"
+    },
+    "actual_tool_calls": 3,
+    "actual_files_touched": [
+      "Auth.sol",
+      "AuthAdmin.sol"
+    ],
+    "cost_usd": 0.019576000000000003,
+    "wall_clock_s": 53.64424133300781,
+    "timed_out": false,
+    "protocol_violation": null,
+    "citation_provenance_failures": []
+  }
+}
