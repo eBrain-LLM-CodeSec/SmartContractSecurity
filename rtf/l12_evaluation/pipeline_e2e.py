@@ -221,9 +221,28 @@ def run_pipeline_e2e(
         )
 
         remaps = _collect_remappings(project_root)
+        # `case_id` doubles as the scratch-artifact path (ghome/gview dirs,
+        # gout.txt, gstream.jsonl, graph_trace.jsonl -- see
+        # arm_g_codex.run_arm_g_bundle, which unconditionally rm-trees/
+        # unlinks any pre-existing path with this case_id before writing).
+        # Must include the entry file, not just (audit_id, req_id): a real,
+        # confirmed-live bug found by forensic inspection AFTER this
+        # session's own liquid-ron validation run completed -- the same
+        # req_id (e.g. "req-3-event-on-state-change") legitimately escalates
+        # across MULTIPLE different scope entries in one audit, and
+        # (audit_id, req_id) alone collided across all of them, silently
+        # overwriting every earlier entry's raw Codex session transcript
+        # with the last one's. Did NOT affect that run's actual counted
+        # results (each entry's ArmGResult was captured in memory and
+        # persisted into ITS OWN stage.json before the next entry could
+        # overwrite the shared scratch path) -- this is a forensic-replay/
+        # observability gap, not a correctness defect, but one that would
+        # compound badly on audits with far more scope entries and req_id
+        # repetition (e.g. arbitrum-foundation's 39, sequence's 47).
+        entry_slug = entry_sol_file.stem
         codex_result = run_arm_g_bundle(
             codex_bin=codex_bin, python_bin=python_bin, mcp_server_script=mcp_server_script,
-            api_key=api_key, model=codex_model, case_id=f"{audit_id}__{req_id}",
+            api_key=api_key, model=codex_model, case_id=f"{audit_id}__{entry_slug}__{req_id}",
             entry_file=entry_sol_file, repo_root=project_root, candidate_location=candidate_location,
             solc_path_dir=solc_path_dir, solc_remaps=remaps, prompt=prompt,
             scratch_root=scratch_root, timeout_s=codex_timeout_s,
