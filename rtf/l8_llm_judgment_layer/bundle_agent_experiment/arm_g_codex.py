@@ -131,6 +131,12 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
         "GRAPH_CANDIDATE_LOCATION": candidate_location,
         "GRAPH_TRACE_LOG_PATH": str(trace_log_path),
         "GRAPH_SOLC_PATH_DIR": solc_path_dir,
+        # A freshly-created scratch dir with no `foundry.toml` reachable
+        # anywhere up its tree -- matches compile_helper.compile_
+        # evmbench_target's proven neutral-cwd Foundry-autodetection guard.
+        # See graph_mcp_server.py's GRAPH_SOLC_CWD docstring for why this
+        # matters (a confirmed-live compile divergence on canto).
+        "GRAPH_SOLC_CWD": str(investigation_dir),
     }
     if solc_remaps:
         mcp_env["GRAPH_SOLC_REMAPS"] = ":".join(solc_remaps)

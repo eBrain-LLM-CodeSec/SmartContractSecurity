@@ -154,6 +154,30 @@ class ProgramGraph:
         partial graph.
         """
         compiled = _compile(target, solc_remaps=solc_remaps, extra_kwargs=extra_kwargs)
+        return cls._from_compiled(compiled)
+
+    @classmethod
+    def from_slither(cls, slither: "Slither") -> "ProgramGraph":
+        """Build the graph from an ALREADY-COMPILED Slither object, with no
+        second compile invocation.
+
+        Exists specifically so a caller that already compiled a target
+        through its own trusted path (e.g. RTF's
+        `compile_helper.compile_evmbench_target`, which applies the
+        neutral-cwd Foundry-autodetection guard `_compile` below does not)
+        can build a graph over the EXACT SAME compiled artifact, instead of
+        triggering a second, potentially differently-configured compile of
+        the same source. A confirmed-live real bug motivated this: RTF's L12
+        pipeline used to call `ProgramGraph.build(entry_file, ...)` as a
+        second compile after `compile_evmbench_target` had already compiled
+        the same file, and the second compile (missing the neutral cwd) hit
+        a real "stack too deep" `BuildFailed` that the first compile never
+        hit, on `2024-01-canto`'s `LendingLedger.sol`.
+        """
+        return cls._from_compiled(CompileResult(slither=slither, contracts=list(slither.contracts)))
+
+    @classmethod
+    def _from_compiled(cls, compiled: "CompileResult") -> "ProgramGraph":
         g = nx.MultiDiGraph()
         # Tracks fids that have received their FULL declaration processing
         # (node attrs + read/write/call/modifier edges) -- deliberately

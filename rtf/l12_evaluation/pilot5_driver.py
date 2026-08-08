@@ -17,6 +17,8 @@ scope.txt-listed file as an entry point" -- mechanical, not cherry-picked.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import time
 import traceback
@@ -37,8 +39,57 @@ CODEX_BIN = Path("/scratch/md5344/.claude/jobs/318205ae/tmp/codex_bin/codex")
 PYTHON_BIN = REPO_ROOT / ".venv/bin/python3"
 MCP_SERVER = REPO_ROOT / "rtf/l8_llm_judgment_layer/bundle_agent_experiment/graph_mcp_server.py"
 API_KEY = Path("/scratch/md5344/evmbench/run/task5_secrets/openrouter.key").read_text().strip()
-SOLC_PATH_DIR = "/scratch/md5344/.claude/jobs/318205ae/tmp/solc_bin_0817"
 CODEX_MODEL = "openai/gpt-5.1-codex-max"
+
+_SOLC_SELECT_ARTIFACTS = Path.home() / ".solc-select" / "artifacts"
+_SOLC_BIN_DIR_CACHE: dict[str, str] = {}
+
+
+def _solc_bin_dir_for(version: str, scratch_root: Path) -> str:
+    """A directory containing exactly one `solc` binary, pinned to
+    `version`, for `GRAPH_SOLC_PATH_DIR` (the graph-navigation MCP server's
+    own PATH override -- see graph_mcp_server.py's docstring).
+
+    Deliberately NOT solc-select's own `use` command: that mutates
+    machine-global state (gotcha #3 in HANDOFF_NEXT_SESSION.md -- never
+    safe across concurrent/differently-versioned compiles), which is
+    exactly why this mechanism exists as a separate PATH-prepend instead.
+
+    Replaces a real, confirmed bug: this used to be one hardcoded
+    module-level constant (`SOLC_PATH_DIR`, pointed at a directory
+    misleadingly named `solc_bin_0817` whose `solc` symlink actually
+    resolves to a mislabeled 0.8.20 binary) reused for EVERY audit
+    regardless of that audit's own `entry_solc_version` -- it only
+    happened to be correct for `2025-01-liquid-ron` (needs 0.8.20) by
+    coincidence. For any audit needing a different version (canto/
+    arbitrum-foundation need 0.8.17, vultisig needs 0.7.6/0.8.24, sequence
+    needs 0.8.28), the graph-navigation compile the live Codex
+    investigation actually queries would have silently used the wrong
+    compiler version -- a real "inconsistent compilation paths/settings"
+    defect, not a hypothetical one.
+    """
+    if version in _SOLC_BIN_DIR_CACHE:
+        return _SOLC_BIN_DIR_CACHE[version]
+    artifact = _SOLC_SELECT_ARTIFACTS / f"solc-{version}" / f"solc-{version}"
+    if not artifact.exists():
+        raise RuntimeError(
+            f"solc {version} is not installed via solc-select (expected {artifact}); "
+            f"run `solc-select install {version}` before this audit can compile"
+        )
+    real_version = subprocess.run([str(artifact), "--version"], capture_output=True, text=True, check=True).stdout
+    if f"Version: {version}" not in real_version:
+        raise RuntimeError(
+            f"solc-select artifact at {artifact} does not actually report version {version} "
+            f"(reported: {real_version.strip()!r}) -- refusing to use a mislabeled binary"
+        )
+    bin_dir = scratch_root.parent / f"solc_bin_{version.replace('.', '')}"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    link = bin_dir / "solc"
+    if link.exists() or link.is_symlink():
+        link.unlink()
+    link.symlink_to(artifact)
+    _SOLC_BIN_DIR_CACHE[version] = str(bin_dir)
+    return str(bin_dir)
 
 
 def _solc_version_for(rel_path: str, default_version: str, path_prefix_overrides: dict[str, str]) -> str:
@@ -65,12 +116,20 @@ def run_one_audit(
     per_audit_codex_ceiling_usd: float,
     default_solc_version: str,
     path_prefix_overrides: dict[str, str] | None = None,
+    l8_cache_dir: Path | None = None,
 ) -> dict:
     path_prefix_overrides = path_prefix_overrides or {}
     from a4v.llm import ChatClient
     from rtf.l8_llm_judgment_layer.judgment_layer import LLMJudgmentLayer
 
-    l8_cache_dir = Path("/scratch/md5344/.claude/jobs/318205ae/tmp/pilot5_l8_cache")
+    # Defaults to a directory alongside THIS run's own scratch_root, not a
+    # hardcoded path into a different, arbitrary prior job's ephemeral tmp
+    # (a real fragility: that job's scratch has no lifetime guarantee and
+    # has nothing to do with this run's reproducibility). Callers that
+    # deliberately want to reuse a prior run's L8 cache (cache hits, no
+    # new spend, for judgments whose prompt/bundle content is unchanged)
+    # may still pass one explicitly.
+    l8_cache_dir = l8_cache_dir or (scratch_root.parent / "pilot5_l8_cache")
     chat_client = ChatClient(
         base_url="https://openrouter.ai/api/v1", api_key=API_KEY, model=CODEX_MODEL,
         cache_dir=l8_cache_dir, token_log_path=l8_cache_dir / "tokens.jsonl",
@@ -140,13 +199,14 @@ def run_one_audit(
             continue
 
         entry_solc_version = _solc_version_for(rel_path, default_solc_version, path_prefix_overrides)
+        entry_solc_path_dir = _solc_bin_dir_for(entry_solc_version, scratch_root)
         t0 = time.time()
         try:
             artifacts = run_pipeline_e2e(
                 audit_id=audit_id, entry_sol_file=entry_file, project_root=repo_root,
                 solc_version=entry_solc_version, judgment_layer=judgment_layer,
                 codex_bin=CODEX_BIN, python_bin=PYTHON_BIN, mcp_server_script=MCP_SERVER,
-                api_key=API_KEY, codex_model=CODEX_MODEL, solc_path_dir=SOLC_PATH_DIR,
+                api_key=API_KEY, codex_model=CODEX_MODEL, solc_path_dir=entry_solc_path_dir,
                 scratch_root=scratch_root, escalation_enabled=True, codex_timeout_s=900,
                 cost_ceiling_usd=remaining_ceiling,
             )
@@ -200,6 +260,7 @@ def run_one_audit(
             "fail_count": len(fail_details),
             "fail_details": fail_details,
             "escalation_skip_reasons": artifacts.escalation_skip_reasons,
+            "codex_outcome_reasons": artifacts.codex_outcome_reasons,
             "conformance_by_req": {k: (v.conformance_state.value if v.conformance_state else None)
                                     for k, v in artifacts.run.routed.items()},
         })
@@ -250,7 +311,12 @@ if __name__ == "__main__":
     path_prefix_overrides = json.loads(overrides_json)
 
     scope_files = [l.strip() for l in scope_file.read_text().splitlines() if l.strip()]
-    scratch_root = Path(f"/scratch/md5344/.claude/jobs/318205ae/tmp/pilot5_scratch/{audit_id}")
+    # Scoped to THIS run's own job tmp (falls back to the historical
+    # job-318205ae location only if invoked outside a job context) --
+    # a hardcoded fixed job's tmp dir here has no lifetime guarantee and
+    # is not this run's own scratch space to write into.
+    _job_dir = os.environ.get("CLAUDE_JOB_DIR", "/scratch/md5344/.claude/jobs/318205ae")
+    scratch_root = Path(f"{_job_dir}/tmp/pilot5_scratch/{audit_id}")
 
     run_one_audit(audit_id, repo_root, scope_files, scratch_root, artifacts_dir, ceiling,
                   default_solc_version, path_prefix_overrides)

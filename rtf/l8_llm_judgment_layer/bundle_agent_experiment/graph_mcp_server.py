@@ -29,6 +29,18 @@ Env vars (set by the harness when registering this server per bundle):
   GRAPH_CANDIDATE_LOCATION -- RTF's "Contract.function" location string
   GRAPH_TRACE_LOG_PATH   -- append-only JSONL of every tool call + result (harness-authoritative)
   GRAPH_SOLC_PATH_DIR    -- directory containing a `solc` binary to prepend to PATH before compiling
+  GRAPH_SOLC_CWD         -- optional: cwd to compile with, matching
+                            `compile_helper.compile_evmbench_target`'s
+                            neutral-cwd Foundry-autodetection guard (a
+                            directory with no `foundry.toml` reachable from
+                            it). Without this, `ProgramGraph.build`'s
+                            underlying compile is at risk of the same
+                            "stack too deep" divergence confirmed live on
+                            canto's LendingLedger.sol when the deterministic
+                            L5 compile (neutral cwd) and this graph compile
+                            (no cwd override) picked up Foundry autodetection
+                            differently. Falls back to the process's own cwd
+                            if unset, matching prior behavior exactly.
 """
 from __future__ import annotations
 
@@ -61,6 +73,7 @@ REPO_ROOT = Path(os.environ["GRAPH_REPO_ROOT"]).resolve()
 INVESTIGATION_DIR = Path(os.environ["GRAPH_INVESTIGATION_DIR"])
 CANDIDATE_LOCATION = os.environ["GRAPH_CANDIDATE_LOCATION"]
 TRACE_LOG_PATH = Path(os.environ["GRAPH_TRACE_LOG_PATH"])
+SOLC_CWD = os.environ.get("GRAPH_SOLC_CWD") or None
 
 INVESTIGATION_DIR.mkdir(parents=True, exist_ok=True)
 TRACE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -82,7 +95,8 @@ _pg_cache: ProgramGraph | None = None
 def _get_graph() -> ProgramGraph:
     global _pg_cache
     if _pg_cache is None:
-        _pg_cache = ProgramGraph.build(ENTRY_FILE, solc_remaps=REMAPS)
+        extra_kwargs = {"cwd": SOLC_CWD} if SOLC_CWD else None
+        _pg_cache = ProgramGraph.build(ENTRY_FILE, solc_remaps=REMAPS, extra_kwargs=extra_kwargs)
     return _pg_cache
 
 

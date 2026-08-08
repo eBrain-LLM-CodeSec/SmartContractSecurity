@@ -53,6 +53,19 @@ class StageMetrics:
     requirements_considered: int = 0
     requirements_applicable: int = 0
     evidence_bundles_generated: int = 0  # requirements with >=1 evidence item
+    # Bounded-L8 judgment attempts: every evidence-backed requirement this
+    # loop hands to `judge_result` is "attempted"; "succeeded" means the L8
+    # call itself returned a real response (no exception, no `"error"` key
+    # in the raw output -- see `judge_with_l8.judge_result`'s own per-
+    # requirement isolation); "failed" is the rest (network/schema/API
+    # error, degraded to ENVIRONMENT_FAILURE). Added specifically so a
+    # systemic wiring bug (e.g. a wrong ChatClient type, which judge_result
+    # silently converts to ENVIRONMENT_FAILURE per requirement) is visible
+    # as a spike in judgments_failed rather than only showing up as an
+    # oddly-clean all-INSUFFICIENT_EVIDENCE run.
+    judgments_attempted: int = 0
+    judgments_succeeded: int = 0
+    judgments_failed: int = 0
     bundles_judged_without_codex: int = 0
     bundles_escalated_to_codex: int = 0
     codex_investigations_completed: int = 0
@@ -71,6 +84,7 @@ class PipelineArtifacts:
     raw_l8_judgments: dict  # req_id -> raw judge_with_l8 output
     codex_results: dict  # req_id -> ArmGResult (only escalated reqs)
     escalation_skip_reasons: dict  # req_id -> reason string, for requirements that should have escalated but didn't (cost ceiling)
+    codex_outcome_reasons: dict  # req_id -> machine-readable reason (codex_timeout/codex_no_decision/codex_unknown_decision:<x>), only set when Codex's own outcome wasn't a genuine parsed decision -- see codex_bridge.resolve_conformance_from_arm_g
     total_codex_cost_usd: float
 
 
@@ -126,6 +140,7 @@ def run_pipeline_e2e(
     raw_l8_judgments: dict = {}
     codex_results: dict[str, ArmGResult] = {}
     escalation_skip_reasons: dict[str, str] = {}
+    codex_outcome_reasons: dict[str, str] = {}
     total_codex_cost = 0.0
     pg: ProgramGraph | None = None  # built lazily, once, only if an escalation actually happens
 
@@ -142,6 +157,11 @@ def run_pipeline_e2e(
         new_routed[req_id] = updated
         if raw is not None:
             raw_l8_judgments[req_id] = raw
+        metrics.judgments_attempted += 1
+        if raw is not None and "error" not in raw:
+            metrics.judgments_succeeded += 1
+        else:
+            metrics.judgments_failed += 1
 
         confidence = (raw or {}).get("first_pass", {}).get("confidence") if raw else None
         should_escalate = escalation_enabled and decide_escalation(updated.conformance_state, confidence)
@@ -167,8 +187,24 @@ def run_pipeline_e2e(
 
         try:
             if pg is None:
-                remaps = _collect_remappings(project_root)
-                pg = ProgramGraph.build(entry_sol_file, solc_remaps=remaps)
+                # Reuse the EXACT SAME compiled Slither object `run_rtf`
+                # already produced via `compile_evmbench_target` (neutral
+                # cwd, Foundry-autodetection-safe) instead of triggering a
+                # second, independently-configured compile of the same
+                # file. A second `ProgramGraph.build(entry_sol_file, ...)`
+                # call here used to compile through `a4v.graph._compile`
+                # directly (no neutral cwd), which let crytic-compile's
+                # Foundry auto-detection fire differently and produced a
+                # real, confirmed-live "stack too deep" BuildFailed on
+                # canto's LendingLedger.sol that the first compile never
+                # hit -- see ProgramGraph.from_slither's docstring.
+                if ctx.slither is None:
+                    raise RuntimeError(
+                        f"no compiled Slither object available (compile_error={compile_error!r}); "
+                        "cannot build a navigation graph for a target whose deterministic compile "
+                        "already failed"
+                    )
+                pg = ProgramGraph.from_slither(ctx.slither)
             resolve_seed_node(pg, candidate_location)  # raises explicitly if unresolved/ambiguous -- fail loud, don't guess
         except Exception as e:  # noqa: BLE001 -- one requirement's graph-resolution failure must not abort the run
             escalation_skip_reasons[req_id] = f"graph_resolution_failed: {type(e).__name__}: {e}"
@@ -201,6 +237,14 @@ def run_pipeline_e2e(
             metrics.codex_investigations_completed += 1
 
         outcome = resolve_conformance_from_arm_g(codex_result.final_decision, codex_result.timed_out)
+        if outcome.reason is not None:
+            # A non-None reason means this ISN'T a genuine parsed Codex
+            # decision (codex_timeout / codex_no_decision / codex_unknown_
+            # decision:<x>) -- record it so a bare INCONCLUSIVE in the
+            # final result is never indistinguishable from one Codex
+            # actually reasoned to, per codex_bridge.resolve_conformance_
+            # from_arm_g's own documented requirement.
+            codex_outcome_reasons[req_id] = outcome.reason
         new_routed[req_id] = RoutedRequirementResult(
             req_id=req_id, applicability_state=updated.applicability_state,
             operational_status=updated.operational_status,
@@ -215,5 +259,6 @@ def run_pipeline_e2e(
     return PipelineArtifacts(
         run=final_run, stage_metrics=metrics, raw_l8_judgments=raw_l8_judgments,
         codex_results=codex_results, escalation_skip_reasons=escalation_skip_reasons,
+        codex_outcome_reasons=codex_outcome_reasons,
         total_codex_cost_usd=total_codex_cost,
     )
