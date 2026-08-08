@@ -1,13 +1,10 @@
 # RTF + Graph-Gated Codex: 5-Audit End-to-End Pilot — Preregistration
 
-**Status at time of writing: DRAFT, not yet frozen.** Section 4 (pre-pilot
-integration fixes) is confirmed for the parts completed and tested so
-far; section 3's escalation-bridge/`audit.md`-generator/grader-script
-build is in progress in a background construction pass at the time this
-draft was started, and this document will be updated with its confirmed
-file paths, exact escalation-rule code, and smoke-test result before the
-freeze hash is taken. **Do not treat this document as frozen until the
-"FROZEN" marker and hash appear at the bottom.**
+**Status: FROZEN.** All integration readiness work (SS4) is complete,
+independently verified, and committed. See the freeze marker and hash at
+the bottom of this document. No further changes to predicates, prompts,
+graph relations, models, escalation rule, or timeout may be made for any
+of the 5 audits below once the pilot run begins (SS7).
 
 ## 0. Research question
 
@@ -221,13 +218,115 @@ and DetectGrader has scored it (user spec section 13).
   timeout handling**: confirmed intact in `arm_g_codex.py`, validated
   live across AR-022/023/024.
 
-### 4.2 Escalation-bridge / report-generator / grader-script build
+### 4.2 Escalation-bridge / report-generator / grader-script build (confirmed, commit `03bc7ac`)
 
-*[PENDING — this section will be filled in with exact file paths, the
-literal escalation-rule function, the `context_bundle_text` wiring
-finding, and the smoke-test result once the in-progress construction
-pass reports back. The document is not frozen until this section is
-complete.]*
+Built and verified (code independently re-read, all 571 tests
+independently re-run, smoke-test artifacts independently inspected —
+not accepted on report alone):
+
+- `rtf/l8_llm_judgment_layer/graph_navigation.py` — `resolve_seed_node`/
+  `node_file`/`files_for_nodes` promoted out of the experiment folder.
+  `graph_mcp_server.py`'s `_get_seed()` had independently reimplemented
+  the same prefix-match/ambiguity check inline (a real drift risk,
+  confirmed and closed by this promotion — both it and
+  `graph_relevance.py` now import from the shared module).
+- `rtf/l12_evaluation/escalation.py` — the exact frozen rule (SS2.5):
+  ```python
+  def decide_escalation(conformance_state, confidence) -> bool:
+      if conformance_state is None:
+          return False
+      if conformance_state in {ConformanceState.INSUFFICIENT_EVIDENCE, ConformanceState.INCONCLUSIVE}:
+          return True
+      return confidence == "LOW"
+  ```
+- `rtf/l12_evaluation/codex_bridge.py` — `build_codex_prompt_inputs()`
+  (the 5 Arm G prompt inputs) and `resolve_conformance_from_arm_g()`
+  (`ArmGResult` → `ConformanceState`, with `codex_timeout`/
+  `codex_no_decision` reasons preserved explicitly, never silently
+  collapsed into a bare `INCONCLUSIVE`).
+- `rtf/l12_evaluation/pipeline_e2e.py` — `run_pipeline_e2e()`, the
+  orchestrator: `run_rtf()` → bounded L8 → escalation rule → graph
+  resolution → `run_arm_g_bundle()` → merged `ConformanceState`. Builds
+  `ProgramGraph` once per run, reused across candidates. Stage metrics
+  (SS user-spec section 11) tracked per run. Cost ceiling enforced
+  incrementally (checked before each new escalation, against the sum of
+  already-*completed* Codex calls' real `cost_usd` in this run — not a
+  live OpenRouter balance poll; documented limitation, SS4.3).
+- `rtf/l12_evaluation/report_generator.py` — `generate_audit_md()`, one
+  freeform-prose section per FAIL requirement (style matches the real,
+  already-graded PoolTogether `audit.md`).
+- `rtf/l12_evaluation/run_grader.py` — generic, parameterized
+  `run_grader(audit_id, agent_output_path, judge_model)`, reusing the
+  exact `openai/gpt-4o`-via-OpenRouter wiring the task10 one-off script
+  used, replacing it as the pilot's grading entrypoint.
+
+**`context_bundle_text` (SS2.5's open question): confirmed WIRED, not a
+gap.** L2 context bundles are real, populated JSON files at
+`rtf/l2_context_bundles/<req_id>.json` (80+ files confirmed present),
+already loaded by `judge_with_l8.judge_result`. The bridge renders them
+via `judgment_layer.render_context_bundle_text()` — a pure refactor
+extraction of `build_judgment_prompt`'s existing inline rendering (diff
+independently reviewed: byte-identical output, no behavior change) — so
+Codex sees the exact same context L8's own bounded call saw.
+
+### 4.3 Known limitations carried into this pilot (disclosed, not fixed)
+
+1. **Requirement- vs. candidate-level granularity mismatch.** The wired
+   L1–L8 pipeline resolves evidence at requirement granularity; one
+   requirement's evidence can span multiple distinct code locations.
+   `pipeline_e2e.py` uses the single highest-ranked location (by the
+   same deterministic `rank_evidence` scoring L8's own prompt uses) as
+   the graph-navigation seed, while Codex still receives the full ranked
+   evidence bundle (all locations) as context. True per-candidate
+   escalation (one investigation per distinct location, not per
+   requirement) is a larger change than "fix implementation defects"
+   covers and is out of scope for this pilot.
+2. **Non-function-shaped evidence locations have no graph-resolution
+   path.** Confirmed live during the smoke test: a compiler-version
+   requirement's evidence location (`"compiler config"`, not
+   `"Contract.function"`) cannot resolve against `ProgramGraph` at all.
+   Handled gracefully (escalation is skipped, the bounded verdict is
+   kept, logged in `escalation_skip_reasons`) rather than crashing the
+   run — but it means requirements whose evidence isn't function-shaped
+   can never reach Codex investigation in this pilot, regardless of
+   whether escalation would otherwise be warranted.
+3. **Cost-ceiling enforcement is per-completed-call, not live-balance-
+   based.** A single in-flight Codex call's real cost is only known
+   after it returns; the ceiling check happens before each *new*
+   escalation, not as a hard cap mid-call. A single very expensive
+   in-flight investigation could still push total spend somewhat past
+   the nominal ceiling before the next check fires. Monitored manually
+   during the pilot run as an additional safeguard, per SS2.9.
+4. **`compile_evmbench_target` mutates the machine-global `solc-select`
+   version as a side effect** (pre-existing behavior, not introduced by
+   this pilot's new code) — confirmed to have pinned the shared
+   solc-select install to a stale version after the smoke test, breaking
+   an unrelated test until manually reset. The pilot run will re-check
+   `solc-select`'s global version before and after each audit as a
+   result.
+
+### 4.4 Smoke-test summary (real PoolTogether `Vault.sol`, not a
+synthetic fixture; independently re-verified, not accepted on report
+alone)
+
+3 requirements exercised: two hit escalation-skip paths gracefully
+(genuine overload ambiguity in vendored OpenZeppelin code, correctly
+refused rather than guessed — confirming task #72's ambiguity-refusal
+holds end-to-end, not just in isolated unit tests; and a non-function-
+shaped location, correctly skipped per SS4.3.2). One (`req-1-use-c-e-i`)
+exercised the full happy path: bounded L8 → escalated → 20 graph
+queries, 233s Codex investigation → `FAIL` → `audit.md` generated → real
+`DetectGrader` run via `run_grader.py` against the real
+`2023-07-pooltogether` entry, scoring **0/2** — expected, since this
+finding (a Checks-Effects-Interactions issue in `Vault.setLiquidationPair`)
+is not H-02 or H-04; this proves the grading wiring works end-to-end, not
+that RTF found the real ground-truth bugs. Total real spend for the
+entire construction + smoke-test pass: **~$0.16**, confirmed against
+OpenRouter's `usage_daily` (~$0.17 for the day at time of review, current
+against the newly-set $10/$20 caps). Full test suite (`tests/` +
+`rtf/`'s own test files): **571 passed, 7 skipped, 0 failed**, run
+independently by the reviewing session, not accepted on the construction
+pass's own report.
 
 ## 5. Evaluation metrics (per user spec section 14)
 
@@ -265,6 +364,22 @@ mid-run — fixes belong to the next version.
 
 ---
 
-**FREEZE STATUS: NOT YET FROZEN.** Awaiting SS4.2. No pipeline run
-against any of the 5 selected audits may begin until this document is
-updated, reviewed, and a freeze hash recorded below.
+## FREEZE MARKER
+
+All sections above are frozen as of the commit and hash below. Per SS7
+(user spec section 17), no predicate changes, no prompt changes, no
+graph relation additions, no model changes, no special cases, no
+audit-specific timeout changes, and no manual candidate injection are
+permitted for any of the 5 audits once the pilot run begins. Defects
+found during the run are logged (SS9 stage tracking, failure taxonomy
+SS6), not fixed mid-run — fixes belong to the next framework version.
+
+- **Frozen at commit:** `03bc7ac` (glue code) + this document's own
+  commit (recorded in git log immediately following this freeze)
+- **SHA-256 of this file's content at freeze time:** computed and
+  recorded in the freeze commit message, per this project's established
+  pattern of hash-locking frozen artifacts (see `standards/ethtrust/metadata.json`)
+- **Frozen by:** this session, following explicit user authorization for
+  all pre-pilot fixes (a4v/graph.py) and budget ($10 soft / $20 hard cap)
+- **Ground truth for all 5 audits below remains unread as of this
+  freeze**, per SS3.
