@@ -155,6 +155,13 @@ class ProgramGraph:
         """
         compiled = _compile(target, solc_remaps=solc_remaps, extra_kwargs=extra_kwargs)
         g = nx.MultiDiGraph()
+        # Tracks fids that have received their FULL declaration processing
+        # (node attrs + read/write/call/modifier edges) -- deliberately
+        # separate from "fid in g", since a callee can already have a partial
+        # stub node (see the internal/high-level call handling below, which
+        # adds a bare node for a not-yet-visited callee) before its own
+        # declaring contract's loop iteration reaches it.
+        processed_function_ids: set[str] = set()
 
         for contract in compiled.contracts:
             cid = _node_id_contract(contract)
@@ -188,14 +195,31 @@ class ProgramGraph:
                 if function.is_constructor and function.visibility == "internal":
                     continue
                 fid = _node_id_function(function)
+                if fid in processed_function_ids:
+                    # Inherited-but-not-overridden: the same Function object
+                    # (and thus the same fid, since canonical_name already
+                    # embeds the true declaring contract) is revisited once
+                    # per contract that inherits it without overriding. Only
+                    # its first full-processing pass should create the node/
+                    # DECLARES edge -- otherwise a later derived-contract
+                    # iteration silently overwrites `contract` with the wrong
+                    # (non-declaring) name and adds a spurious duplicate
+                    # DECLARES edge. (Checking `fid in g` instead would wrongly
+                    # also skip functions that already have a partial stub
+                    # node from an earlier caller's internal/high-level-call
+                    # edge below, before their own declaration is reached.)
+                    continue
+                processed_function_ids.add(fid)
+                declarer = function.contract_declarer if function.contract_declarer else contract
+                declarer_cid = _node_id_contract(declarer)
                 g.add_node(fid, kind=FUNCTION, name=function.name,
                             canonical_name=function.canonical_name,
-                            contract=contract.name,
+                            contract=declarer.name,
                             visibility=function.visibility,
                             file=str(function.source_mapping.filename.absolute) if function.source_mapping else None,
                             lines=_lines(function),
                             view=function.view, pure=function.pure)
-                g.add_edge(cid, fid, kind=DECLARES)
+                g.add_edge(declarer_cid, fid, kind=DECLARES)
 
                 for modifier in function.modifiers:
                     mid = _node_id_modifier(modifier)

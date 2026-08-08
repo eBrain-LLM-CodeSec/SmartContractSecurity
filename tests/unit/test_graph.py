@@ -9,7 +9,7 @@ import pytest
 from a4v.graph import (
     ProgramGraph,
     CONTRACT, FUNCTION, MODIFIER, STATEVAR,
-    CALLS, INHERITS, USES_MODIFIER, STATE_READ, STATE_WRITE, STATE_WRITE_TRANSITIVE,
+    CALLS, DECLARES, INHERITS, USES_MODIFIER, STATE_READ, STATE_WRITE, STATE_WRITE_TRANSITIVE,
     EXTERNAL_CALL, WRITE_AFTER_EXTERNAL_CALL,
 )
 
@@ -19,6 +19,7 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 VAULT_SOL = FIXTURES / "multi_contract" / "Vault.sol"
 LIB_DELEGATE_SOL = FIXTURES / "state_write_transitive" / "LibDelegate.sol"
 RESTRICTED_SOL = FIXTURES / "modifier_source" / "Restricted.sol"
+AUTH_ADMIN_SOL = FIXTURES / "inherited_function" / "AuthAdmin.sol"
 
 
 @pytest.fixture(scope="module")
@@ -157,6 +158,51 @@ def test_modifier_declared_via_contract_and_via_function_both_get_file(restricte
     mid = "mod::Restricted.restricted()"
     assert mid in restricted_graph.graph.nodes
     assert restricted_graph.graph.nodes[mid]["file"]
+
+
+# --- Gap D: inherited-but-not-overridden function node corruption ----------
+
+
+@pytest.fixture(scope="module")
+def auth_admin_graph() -> ProgramGraph:
+    return ProgramGraph.build(AUTH_ADMIN_SOL)
+
+
+def test_inherited_function_keeps_declaring_contract_attribute(auth_admin_graph):
+    """AuthAdmin inherits Auth.verify() without overriding it. The node's
+    `contract` attribute must still read the true declarer "Auth", not the
+    derived contract "AuthAdmin" -- the bug this regresses: the function loop
+    had no `if fid in g` guard, so re-encountering the inherited function
+    while iterating AuthAdmin's own `contract.functions` silently overwrote
+    `contract` to the last-processed (most-derived) contract's name, even
+    though the node id itself ("fn::Auth.verify(...)") already correctly
+    encodes the true declarer via canonical_name."""
+    verify = "fn::Auth.verify(bytes32,uint8,bytes32,bytes32)"
+    assert verify in auth_admin_graph.graph.nodes
+    assert auth_admin_graph.graph.nodes[verify]["contract"] == "Auth"
+
+
+def test_inherited_function_gets_exactly_one_declares_edge(auth_admin_graph):
+    """Only Auth (the true declarer) may have a DECLARES edge to verify() --
+    AuthAdmin inheriting it without overriding must not add a second,
+    spurious DECLARES edge from AuthAdmin."""
+    verify = "fn::Auth.verify(bytes32,uint8,bytes32,bytes32)"
+    declarers = [u for u, v, d in auth_admin_graph.graph.edges(data=True)
+                 if d.get("kind") == DECLARES and v == verify]
+    assert declarers == ["contract::Auth"]
+
+
+def test_derived_contracts_own_function_unaffected(auth_admin_graph):
+    """AuthAdmin's own, non-inherited function (setAuthorizedSigner) must
+    still be built normally -- the `if fid in g` guard must only skip
+    re-processing of an already-seen fid, never suppress genuinely new
+    functions declared directly by a derived contract."""
+    set_signer = "fn::AuthAdmin.setAuthorizedSigner(address)"
+    assert set_signer in auth_admin_graph.graph.nodes
+    assert auth_admin_graph.graph.nodes[set_signer]["contract"] == "AuthAdmin"
+    declarers = [u for u, v, d in auth_admin_graph.graph.edges(data=True)
+                 if d.get("kind") == DECLARES and v == set_signer]
+    assert declarers == ["contract::AuthAdmin"]
 
 
 def test_no_partial_graph_on_build_failure(tmp_path):
