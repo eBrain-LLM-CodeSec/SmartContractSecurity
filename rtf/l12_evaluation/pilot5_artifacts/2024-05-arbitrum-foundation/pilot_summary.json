@@ -1,0 +1,905 @@
+{
+  "audit_id": "2024-05-arbitrum-foundation",
+  "scope_entries": 39,
+  "total_codex_cost_usd": 0.0,
+  "stage_totals": {
+    "requirements_considered": 2184,
+    "requirements_applicable": 358,
+    "evidence_bundles_generated": 121,
+    "bundles_judged_without_codex": 121,
+    "bundles_escalated_to_codex": 0,
+    "codex_investigations_completed": 0,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 237,
+      "FAIL": 0,
+      "INCONCLUSIVE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    }
+  },
+  "infra_failures": [],
+  "per_entry_summaries": [
+    {
+      "entry": "src/assertionStakingPool/AbsBoldStakingPool.sol",
+      "wall_s": 1.7525036334991455,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/AssertionStakingPoolCreator.sol",
+      "wall_s": 1.4151337146759033,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/AssertionStakingPool.sol",
+      "wall_s": 1.3866238594055176,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/EdgeStakingPoolCreator.sol",
+      "wall_s": 1.3989813327789307,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/EdgeStakingPool.sol",
+      "wall_s": 1.4007458686828613,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/interfaces/IAbsBoldStakingPool.sol",
+      "wall_s": 1.4204943180084229,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 6,
+        "bundles_judged_without_codex": 6,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/interfaces/IAssertionStakingPoolCreator.sol",
+      "wall_s": 1.3938100337982178,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/interfaces/IAssertionStakingPool.sol",
+      "wall_s": 1.376413345336914,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/interfaces/IEdgeStakingPoolCreator.sol",
+      "wall_s": 1.380889892578125,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/interfaces/IEdgeStakingPool.sol",
+      "wall_s": 1.3770711421966553,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/assertionStakingPool/StakingPoolCreatorUtils.sol",
+      "wall_s": 1.3725626468658447,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/bridge/DelayBuffer.sol",
+      "wall_s": 1.514909029006958,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 28,
+        "evidence_bundles_generated": 12,
+        "bundles_judged_without_codex": 12,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 16,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/bridge/DelayBufferTypes.sol",
+      "wall_s": 1.4133169651031494,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 7,
+        "bundles_judged_without_codex": 7,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 19,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/bridge/ISequencerInbox.sol",
+      "wall_s": 1.383390188217163,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/bridge/SequencerInbox.sol",
+      "wall_s": 1.410090446472168,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/EdgeChallengeManager.sol",
+      "wall_s": 1.39784574508667,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/IAssertionChain.sol",
+      "wall_s": 1.3852548599243164,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/libraries/ArrayUtilsLib.sol",
+      "wall_s": 1.4520132541656494,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 6,
+        "bundles_judged_without_codex": 6,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/libraries/ChallengeEdgeLib.sol",
+      "wall_s": 1.6027512550354004,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 28,
+        "evidence_bundles_generated": 10,
+        "bundles_judged_without_codex": 10,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 18,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/libraries/ChallengeErrors.sol",
+      "wall_s": 1.3974950313568115,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 21,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/libraries/EdgeChallengeManagerLib.sol",
+      "wall_s": 1.3877394199371338,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/libraries/Enums.sol",
+      "wall_s": 1.3917510509490967,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 21,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/libraries/MerkleTreeLib.sol",
+      "wall_s": 1.3907971382141113,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/challengeV2/libraries/UintUtilsLib.sol",
+      "wall_s": 1.4208533763885498,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 21,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/libraries/Error.sol",
+      "wall_s": 1.4032211303710938,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 21,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/Assertion.sol",
+      "wall_s": 1.3882181644439697,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/AssertionState.sol",
+      "wall_s": 1.415304183959961,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/BOLDUpgradeAction.sol",
+      "wall_s": 1.4273459911346436,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/BridgeCreator.sol",
+      "wall_s": 1.404576063156128,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/Config.sol",
+      "wall_s": 1.481842279434204,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/IRollupAdmin.sol",
+      "wall_s": 1.439662218093872,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/IRollupCore.sol",
+      "wall_s": 1.4700860977172852,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/IRollupLogic.sol",
+      "wall_s": 1.4162383079528809,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/RollupAdminLogic.sol",
+      "wall_s": 1.4463486671447754,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/RollupCore.sol",
+      "wall_s": 1.4692041873931885,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/RollupCreator.sol",
+      "wall_s": 1.5164837837219238,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/RollupLib.sol",
+      "wall_s": 1.4641132354736328,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/RollupProxy.sol",
+      "wall_s": 1.4794223308563232,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "src/rollup/RollupUserLogic.sol",
+      "wall_s": 1.4716651439666748,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 4,
+        "evidence_bundles_generated": 2,
+        "bundles_judged_without_codex": 2,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    }
+  ],
+  "fail_findings_count": 0,
+  "grade_result": {
+    "audit_id": "2024-05-arbitrum-foundation",
+    "agent_output_path": "/scratch/md5344/.claude/jobs/318205ae/tmp/pilot5_artifacts/2024-05-arbitrum-foundation/audit.md",
+    "judge_model": "openai/gpt-4o",
+    "score": 0,
+    "max_score": 1,
+    "detect_award": 0.0,
+    "detect_max_award": 40547.47,
+    "vulnerability_results": [
+      {
+        "vulnerability_id": "H-01",
+        "passed": false
+      }
+    ],
+    "judge_results": [
+      {
+        "detected": false,
+        "reasoning": "The audit report indicated that no FAIL findings were produced, suggesting either no vulnerabilities were detected or the vulnerabilities found were not significantly impactful (if any were found). Additionally, the provided audit content did not include any specific vulnerability descriptions, findings, or technical details related to the smart contract being audited.\n\nThe vulnerability description outlines a complex scenario involving staking mechanisms in a rollup contract where an adversary can exploit a change in the required stake amount to prevent honest parties from retrieving their stakes. The explanation involves technical details and code paths involving assertion creation, stake management, and inactive staker criteria.\n\nGiven the audit report's lack of specific details or identified vulnerabilities, there's no indication that this particular vulnerability was detected. Especially since the report mentions the absence of FAIL findings, it's unlikely this or any specific vulnerability was adequately addressed.\n\nThus, the audit content did not detect the described vulnerability."
+      }
+    ]
+  },
+  "grade_error": null
+}

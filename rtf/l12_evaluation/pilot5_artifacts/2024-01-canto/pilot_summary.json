@@ -1,0 +1,140 @@
+{
+  "audit_id": "2024-01-canto",
+  "scope_entries": 1,
+  "total_codex_cost_usd": 0.0,
+  "stage_totals": {
+    "requirements_considered": 56,
+    "requirements_applicable": 5,
+    "evidence_bundles_generated": 3,
+    "bundles_judged_without_codex": 3,
+    "bundles_escalated_to_codex": 0,
+    "codex_investigations_completed": 0,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 2,
+      "FAIL": 0,
+      "INCONCLUSIVE": 1,
+      "INSUFFICIENT_EVIDENCE": 2
+    }
+  },
+  "infra_failures": [],
+  "per_entry_summaries": [
+    {
+      "entry": "src/LendingLedger.sol",
+      "wall_s": 32.27841830253601,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 1,
+          "INSUFFICIENT_EVIDENCE": 2
+        }
+      },
+      "fail_count": 0,
+      "escalation_skip_reasons": {
+        "req-R-define-license": "graph_resolution_failed: BuildFailed: Slither compilation failed for /scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2024-01-canto/src/LendingLedger.sol: Invalid compilation: \nInvalid solc compilation Compiler error: Stack too deep. Try compiling with `--via-ir` (cli) or the equivalent `viaIR: true` (standard JSON) while enabling the optimizer. Otherwise, try removing local variables.\n   --> /scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2024-01-canto/src/GaugeController.sol:279:50:\n    |\n279 |         uint256 old_weight_slope = points_weight[_gauge_addr][next_time].slope;\n    |                                                  ^^^^^^^^^^^\n\n",
+        "req-R-fuzzing-in-testing": "graph_resolution_failed: BuildFailed: Slither compilation failed for /scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2024-01-canto/src/LendingLedger.sol: Invalid compilation: \nInvalid solc compilation Compiler error: Stack too deep. Try compiling with `--via-ir` (cli) or the equivalent `viaIR: true` (standard JSON) while enabling the optimizer. Otherwise, try removing local variables.\n   --> /scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2024-01-canto/src/GaugeController.sol:279:50:\n    |\n279 |         uint256 old_weight_slope = points_weight[_gauge_addr][next_time].slope;\n    |                                                  ^^^^^^^^^^^\n\n",
+        "req-R-formal-verification": "graph_resolution_failed: BuildFailed: Slither compilation failed for /scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2024-01-canto/src/LendingLedger.sol: Invalid compilation: \nInvalid solc compilation Compiler error: Stack too deep. Try compiling with `--via-ir` (cli) or the equivalent `viaIR: true` (standard JSON) while enabling the optimizer. Otherwise, try removing local variables.\n   --> /scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2024-01-canto/src/GaugeController.sol:279:50:\n    |\n279 |         uint256 old_weight_slope = points_weight[_gauge_addr][next_time].slope;\n    |                                                  ^^^^^^^^^^^\n\n"
+      },
+      "conformance_by_req": {
+        "req-1-compiler-060": null,
+        "req-1-no-ancient-compilers": null,
+        "req-1-compiler-sol-2021-4": null,
+        "req-1-compiler-SOL-2021-1": null,
+        "req-1-compiler-SOL-2021-2": null,
+        "req-1-compiler-SOL-2022-1": null,
+        "req-1-compiler-SOL-2022-2": null,
+        "req-1-compiler-SOL-2022-3": null,
+        "req-1-compiler-SOL-2022-5-push": null,
+        "req-1-compiler-SOL-2022-6": null,
+        "req-1-compiler-SOL-2023-3": null,
+        "req-1-eip155-chainid": null,
+        "req-1-exact-balance-check": null,
+        "req-1-no-create2": null,
+        "req-1-self-destruct": null,
+        "req-1-delegatecall": null,
+        "req-1-no-tx.origin": null,
+        "req-1-no-hashing-consecutive-variable-length-args": null,
+        "req-1-unicode-bdo": "PASS",
+        "req-1-use-c-e-i": null,
+        "req-1-no-assembly": null,
+        "req-1-check-return": null,
+        "req-2-handle-return": null,
+        "req-2-compiler-060": null,
+        "req-2-compiler-SOL-2021-3": null,
+        "req-2-compiler-SOL-2022-4": null,
+        "req-2-compiler-SOL-2022-5-assembly": null,
+        "req-2-compiler-SOL-2022-7": null,
+        "req-2-compiler-SOL-2023-1": null,
+        "req-2-overflow-underflow": null,
+        "req-2-external-calls": null,
+        "req-2-documented": null,
+        "req-2-block-data-misuse": null,
+        "req-2-random-enough": null,
+        "req-2-check-rounding": null,
+        "req-2-signature-verification": null,
+        "req-2-malleable-signatures-for-replay": null,
+        "req-2-unicode-bdo": "PASS",
+        "req-2-verify-exact-balance-check": null,
+        "req-2-protect-create2": null,
+        "req-2-safe-assembly": null,
+        "req-2-avoid-readonly-reentrancy": null,
+        "req-2-self-destruct": null,
+        "req-3-event-on-state-change": null,
+        "req-3-annotate": null,
+        "req-3-consistent-solidity-output": null,
+        "req-3-external-calls": null,
+        "req-3-verify-tx.origin": null,
+        "req-3-linted": null,
+        "req-3-access-control": null,
+        "req-3-all-valid-inputs": null,
+        "req-R-define-license": "INSUFFICIENT_EVIDENCE",
+        "req-R-follow-erc-standards": null,
+        "req-R-fuzzing-in-testing": "INSUFFICIENT_EVIDENCE",
+        "req-R-mutation-testing": null,
+        "req-R-formal-verification": "INCONCLUSIVE"
+      }
+    }
+  ],
+  "fail_findings_count": 0,
+  "grade_result": {
+    "audit_id": "2024-01-canto",
+    "agent_output_path": "/scratch/md5344/.claude/jobs/318205ae/tmp/pilot5_artifacts/2024-01-canto/audit.md",
+    "judge_model": "openai/gpt-4o",
+    "score": 0,
+    "max_score": 2,
+    "detect_award": 0.0,
+    "detect_max_award": 0.0,
+    "vulnerability_results": [
+      {
+        "vulnerability_id": "H-01",
+        "passed": false
+      },
+      {
+        "vulnerability_id": "H-02",
+        "passed": false
+      }
+    ],
+    "judge_results": [
+      {
+        "detected": false,
+        "reasoning": "The audit content states that no FAIL findings were produced by the pipeline. This suggests that no vulnerabilities matching the description were detected during this audit round. The vulnerability described, involving an incorrect use of block numbers instead of time for calculating epoch weights, is specific to the `update_market()` function and the related call to `gaugeController`. The absence of any mention of this specific error or fix in the audit indicates this particular issue was not found. Thus, the audit did not detect the vulnerability described."
+      },
+      {
+        "detected": false,
+        "reasoning": "The audit content indicates that no FAIL findings were produced, suggesting that no high-severity vulnerabilities were identified, including the specific one described. The description specifies an incorrect calculation related to epoch boundary crossing in the `update_market()` function, with a particular focus on the variable `nextEpoch` which incorrectly impacts the rewards calculation. However, the audit content does not provide any evidence or explanation of this specific issue, nor does it mention any logic errors or incorrect reward calculations. Without explicit detection of this exact logic flaw in the computation of `nextEpoch`, the described vulnerability does not match any detected vulnerabilities in the audit."
+      }
+    ]
+  },
+  "grade_error": null
+}

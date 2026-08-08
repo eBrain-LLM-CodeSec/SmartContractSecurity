@@ -1,0 +1,22 @@
+{
+  "entry": "./src/modules/interfaces/IEntryPoint.sol",
+  "wall_s": 2.367370367050171,
+  "codex_cost": 0.0,
+  "stage_metrics": {
+    "requirements_considered": 56,
+    "requirements_applicable": 26,
+    "evidence_bundles_generated": 6,
+    "bundles_judged_without_codex": 6,
+    "bundles_escalated_to_codex": 0,
+    "codex_investigations_completed": 0,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 20,
+      "FAIL": 0,
+      "INCONCLUSIVE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    }
+  },
+  "fail_count": 0
+}

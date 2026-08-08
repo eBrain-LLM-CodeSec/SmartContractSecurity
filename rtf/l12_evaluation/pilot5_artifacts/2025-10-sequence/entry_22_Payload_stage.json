@@ -1,0 +1,22 @@
+{
+  "entry": "./src/modules/Payload.sol",
+  "wall_s": 2.4308855533599854,
+  "codex_cost": 0.0,
+  "stage_metrics": {
+    "requirements_considered": 56,
+    "requirements_applicable": 5,
+    "evidence_bundles_generated": 3,
+    "bundles_judged_without_codex": 3,
+    "bundles_escalated_to_codex": 0,
+    "codex_investigations_completed": 0,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 2,
+      "FAIL": 0,
+      "INCONCLUSIVE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    }
+  },
+  "fail_count": 0
+}

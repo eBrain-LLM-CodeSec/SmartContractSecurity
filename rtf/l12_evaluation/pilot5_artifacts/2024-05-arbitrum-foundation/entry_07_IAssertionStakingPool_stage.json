@@ -1,0 +1,22 @@
+{
+  "entry": "src/assertionStakingPool/interfaces/IAssertionStakingPool.sol",
+  "wall_s": 1.376413345336914,
+  "codex_cost": 0.0,
+  "stage_metrics": {
+    "requirements_considered": 56,
+    "requirements_applicable": 4,
+    "evidence_bundles_generated": 2,
+    "bundles_judged_without_codex": 2,
+    "bundles_escalated_to_codex": 0,
+    "codex_investigations_completed": 0,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 2,
+      "FAIL": 0,
+      "INCONCLUSIVE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    }
+  },
+  "fail_count": 0
+}

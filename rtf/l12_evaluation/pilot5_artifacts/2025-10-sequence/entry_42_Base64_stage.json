@@ -1,0 +1,22 @@
+{
+  "entry": "./src/utils/Base64.sol",
+  "wall_s": 2.5209765434265137,
+  "codex_cost": 0.0,
+  "stage_metrics": {
+    "requirements_considered": 56,
+    "requirements_applicable": 25,
+    "evidence_bundles_generated": 9,
+    "bundles_judged_without_codex": 9,
+    "bundles_escalated_to_codex": 0,
+    "codex_investigations_completed": 0,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 16,
+      "FAIL": 0,
+      "INCONCLUSIVE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    }
+  },
+  "fail_count": 0
+}

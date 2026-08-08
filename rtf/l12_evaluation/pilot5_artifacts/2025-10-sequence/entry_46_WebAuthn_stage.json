@@ -1,0 +1,22 @@
+{
+  "entry": "./src/utils/WebAuthn.sol",
+  "wall_s": 2.7523703575134277,
+  "codex_cost": 0.0,
+  "stage_metrics": {
+    "requirements_considered": 56,
+    "requirements_applicable": 25,
+    "evidence_bundles_generated": 10,
+    "bundles_judged_without_codex": 10,
+    "bundles_escalated_to_codex": 0,
+    "codex_investigations_completed": 0,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 15,
+      "FAIL": 0,
+      "INCONCLUSIVE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    }
+  },
+  "fail_count": 0
+}

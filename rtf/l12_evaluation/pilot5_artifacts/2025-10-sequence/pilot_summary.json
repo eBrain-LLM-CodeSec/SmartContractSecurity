@@ -1,0 +1,1089 @@
+{
+  "audit_id": "2025-10-sequence",
+  "scope_entries": 47,
+  "total_codex_cost_usd": 0.0,
+  "stage_totals": {
+    "requirements_considered": 2632,
+    "requirements_applicable": 768,
+    "evidence_bundles_generated": 277,
+    "bundles_judged_without_codex": 277,
+    "bundles_escalated_to_codex": 0,
+    "codex_investigations_completed": 0,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 491,
+      "FAIL": 0,
+      "INCONCLUSIVE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    }
+  },
+  "infra_failures": [],
+  "per_entry_summaries": [
+    {
+      "entry": "./src/Factory.sol",
+      "wall_s": 3.4741199016571045,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 11,
+        "bundles_judged_without_codex": 11,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 15,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/Guest.sol",
+      "wall_s": 4.011614561080933,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 28,
+        "evidence_bundles_generated": 15,
+        "bundles_judged_without_codex": 15,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 13,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/Stage1Module.sol",
+      "wall_s": 5.449287176132202,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 29,
+        "evidence_bundles_generated": 17,
+        "bundles_judged_without_codex": 17,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 12,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/Stage2Module.sol",
+      "wall_s": 4.812396287918091,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 29,
+        "evidence_bundles_generated": 17,
+        "bundles_judged_without_codex": 17,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 12,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/Wallet.sol",
+      "wall_s": 2.433661460876465,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/passkeys/Passkeys.sol",
+      "wall_s": 2.5545554161071777,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/recovery/Recovery.sol",
+      "wall_s": 2.4294512271881104,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/SessionErrors.sol",
+      "wall_s": 2.3933088779449463,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 4,
+        "bundles_judged_without_codex": 4,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 21,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/SessionManager.sol",
+      "wall_s": 2.418750286102295,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/SessionSig.sol",
+      "wall_s": 2.410651206970215,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/explicit/ExplicitSessionManager.sol",
+      "wall_s": 2.4641966819763184,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/explicit/IExplicitSessionManager.sol",
+      "wall_s": 2.405228853225708,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/explicit/Permission.sol",
+      "wall_s": 2.3991494178771973,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/explicit/PermissionValidator.sol",
+      "wall_s": 2.420320987701416,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/implicit/Attestation.sol",
+      "wall_s": 2.4473748207092285,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/implicit/ISignalsImplicitMode.sol",
+      "wall_s": 2.4167160987854004,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/extensions/sessions/implicit/ImplicitSessionManager.sol",
+      "wall_s": 2.400540828704834,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/Calls.sol",
+      "wall_s": 2.4232654571533203,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/ERC4337v07.sol",
+      "wall_s": 2.479952573776245,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/Hooks.sol",
+      "wall_s": 2.505847215652466,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 12,
+        "bundles_judged_without_codex": 12,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 13,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/Implementation.sol",
+      "wall_s": 2.415438413619995,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 8,
+        "bundles_judged_without_codex": 8,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 17,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/Nonce.sol",
+      "wall_s": 2.489609956741333,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 12,
+        "bundles_judged_without_codex": 12,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 13,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/Payload.sol",
+      "wall_s": 2.4308855533599854,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/ReentrancyGuard.sol",
+      "wall_s": 2.431326150894165,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 10,
+        "bundles_judged_without_codex": 10,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 15,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/Storage.sol",
+      "wall_s": 2.4260499477386475,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 9,
+        "bundles_judged_without_codex": 9,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 16,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/auth/BaseAuth.sol",
+      "wall_s": 2.4830873012542725,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/auth/BaseSig.sol",
+      "wall_s": 2.406475305557251,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/auth/SelfAuth.sol",
+      "wall_s": 2.402315855026245,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 4,
+        "bundles_judged_without_codex": 4,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 21,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/auth/Stage1Auth.sol",
+      "wall_s": 2.4165446758270264,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/auth/Stage2Auth.sol",
+      "wall_s": 2.446723222732544,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IAccount.sol",
+      "wall_s": 2.4079787731170654,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IAuth.sol",
+      "wall_s": 2.3858776092529297,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/ICheckpointer.sol",
+      "wall_s": 2.3866958618164062,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IDelegatedExtension.sol",
+      "wall_s": 2.447500228881836,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IERC1155Receiver.sol",
+      "wall_s": 2.3840551376342773,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IERC1271.sol",
+      "wall_s": 2.3985283374786377,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IERC223Receiver.sol",
+      "wall_s": 2.3774712085723877,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IERC721Receiver.sol",
+      "wall_s": 2.4350874423980713,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IERC777Receiver.sol",
+      "wall_s": 2.3836240768432617,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 5,
+        "bundles_judged_without_codex": 5,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IEntryPoint.sol",
+      "wall_s": 2.367370367050171,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 26,
+        "evidence_bundles_generated": 6,
+        "bundles_judged_without_codex": 6,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 20,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/IPartialAuth.sol",
+      "wall_s": 2.3724308013916016,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/modules/interfaces/ISapient.sol",
+      "wall_s": 2.381248712539673,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 5,
+        "evidence_bundles_generated": 3,
+        "bundles_judged_without_codex": 3,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 2,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/utils/Base64.sol",
+      "wall_s": 2.5209765434265137,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 9,
+        "bundles_judged_without_codex": 9,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 16,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/utils/LibBytes.sol",
+      "wall_s": 2.4447133541107178,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 8,
+        "bundles_judged_without_codex": 8,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 17,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/utils/LibOptim.sol",
+      "wall_s": 2.4632880687713623,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 8,
+        "bundles_judged_without_codex": 8,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 17,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/utils/P256.sol",
+      "wall_s": 2.4225378036499023,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 9,
+        "bundles_judged_without_codex": 9,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 16,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    },
+    {
+      "entry": "./src/utils/WebAuthn.sol",
+      "wall_s": 2.7523703575134277,
+      "codex_cost": 0.0,
+      "stage_metrics": {
+        "requirements_considered": 56,
+        "requirements_applicable": 25,
+        "evidence_bundles_generated": 10,
+        "bundles_judged_without_codex": 10,
+        "bundles_escalated_to_codex": 0,
+        "codex_investigations_completed": 0,
+        "codex_investigations_timed_out": 0,
+        "codex_investigations_skipped_cost_ceiling": 0,
+        "final_decisions": {
+          "PASS": 15,
+          "FAIL": 0,
+          "INCONCLUSIVE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "fail_count": 0
+    }
+  ],
+  "fail_findings_count": 0,
+  "grade_result": {
+    "audit_id": "2025-10-sequence",
+    "agent_output_path": "/scratch/md5344/.claude/jobs/318205ae/tmp/pilot5_artifacts/2025-10-sequence/audit.md",
+    "judge_model": "openai/gpt-4o",
+    "score": 0,
+    "max_score": 2,
+    "detect_award": 0.0,
+    "detect_max_award": 40733.54,
+    "vulnerability_results": [
+      {
+        "vulnerability_id": "H-01",
+        "passed": false
+      },
+      {
+        "vulnerability_id": "H-02",
+        "passed": false
+      }
+    ],
+    "judge_results": [
+      {
+        "detected": false,
+        "reasoning": "The audit report states that no FAIL findings were produced during the audit process, indicating that no vulnerabilities were identified. As such, the specific vulnerability described \u2013 involving a chained signature with checkpoint usage disabled bypassing all checkpointer validation \u2013 would not have been included in any findings unless explicitly noted, which the audit does not do.\n\nThe described vulnerability indicates a specific bypass mechanism involving chaining signatures without checkpointer usage, and the audit content does not cover, mention, or imply that any such mechanism was detected. Since the report explicitly indicates no FAIL findings, it confirms that this specific vulnerability was not detected in the audit process."
+      },
+      {
+        "detected": false,
+        "reasoning": "The audit report describes a vulnerability detection process but does not provide any specific findings related to a partial signature replay or frontrunning attack. The submitted vulnerability description from montecristo identifies a specific flaw in the `Calls.sol` and `SessionSig.sol` contracts related to session signatures and nonce consumption. This flaw allows for a partial signature replay attack when a multi-call session execution reverts but leaves the signature valid.\n\nThe audit content provided mentions no specific vulnerabilities (\"No FAIL findings were produced\"), indicating that the audit did not detect any issues, including the one described by montecristo. Therefore, the specific vulnerability involving partial signature replay/frontrunning was not detected by this audit."
+      }
+    ]
+  },
+  "grade_error": null
+}
