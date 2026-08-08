@@ -41,11 +41,195 @@ from rtf.l8_llm_judgment_layer.judgment_layer import LLMJudgmentLayer
 from rtf.l12_evaluation.codex_bridge import build_codex_prompt_inputs, resolve_conformance_from_arm_g
 from rtf.l12_evaluation.escalation import decide_escalation
 from rtf.l12_evaluation.evidence_ranking import rank_evidence
+from rtf.l12_evaluation.failure_taxonomy import OperationalStatus
 from rtf.l12_evaluation.judge_with_l8 import judge_result
 from rtf.l12_evaluation.metrics import ApplicabilityState, ConformanceState, RoutedRequirementResult, TargetRunResult
-from rtf.l12_evaluation.run_rtf import RunContext, build_context_for_evmbench_target, load_unconditioned_map, run_rtf
+from rtf.l12_evaluation.registry import AGGREGATION_REQ_IDS, LLM_MEDIATED_REQ_IDS, REGISTRY
+from rtf.l12_evaluation.run_rtf import (
+    RunContext,
+    build_context_for_evmbench_target,
+    load_requirement_levels,
+    load_unconditioned_map,
+    run_rtf,
+)
 
 CORPUS_PATH = Path(__file__).resolve().parents[2] / "rtf" / "l1_corpus" / "requirement_corpus.json"
+
+
+def compute_aggregation_requirements(
+    routed: dict[str, RoutedRequirementResult],
+    requirement_levels: dict[str, str],
+) -> dict[str, RoutedRequirementResult]:
+    """Resolves the 3 pure-aggregation requirements
+    (`registry.AGGREGATION_REQ_IDS`) from every OTHER requirement's own
+    FINAL `conformance_state`. Must run AFTER L8 judgment/escalation have
+    resolved everything else in `routed` -- `run_rtf.py`'s own
+    deterministic-only pass cannot compute these (almost every
+    evidence-backed requirement is still `conformance_state=None`,
+    "pending L8", at that point), which is exactly why `run_rtf.py`
+    leaves them as an explicit placeholder rather than a real verdict.
+
+    Aggregation rule for req-2-pass-l1 ("MUST meet the requirements for
+    ... Security Level [S]") / req-3-pass-l2 (same, for Level [M]) --
+    mechanical AND, directly from each requirement's own normative text,
+    over every OTHER requirement at that level (never itself):
+      - PASS: every constituent is PASS, or NOT_APPLICABLE (a conditioned
+        requirement whose trigger never fired was never violated).
+      - FAIL: any constituent is FAIL.
+      - INCONCLUSIVE: no FAIL, but at least one constituent is unresolved
+        (INCONCLUSIVE / INSUFFICIENT_EVIDENCE / an operational failure /
+        UNSUPPORTED_ANALYZER) -- this framework cannot honestly claim the
+        level was met, but nothing has been shown to violate it either.
+
+    req-R-meet-all-possible ("SHOULD meet as many requirements ... as
+    possible") is advisory, not a MUST gate, and this framework has no
+    concept of "the security level for which it is certified" to compare
+    against (an external, undefined input the requirement's own text
+    presupposes) -- per RFC2119 a SHOULD is never given a hard FAIL by an
+    invented threshold (consistent with AR-006's already-logged open
+    question on SHOULD-level semantics). Resolved as PASS only if every
+    OTHER applicable requirement in the ENTIRE corpus is PASS/
+    NOT_APPLICABLE (the maximal case), else INCONCLUSIVE -- never FAIL.
+
+    Neither rule was derived from, or tuned against, any EVMbench ground
+    truth -- both are the literal, mechanical reading of each
+    requirement's own normative text applied to results this framework
+    already produced for unrelated reasons.
+    """
+    updated = dict(routed)
+    by_level: dict[str, list[str]] = {}
+    for req_id, level in requirement_levels.items():
+        by_level.setdefault(level, []).append(req_id)
+
+    def _aggregate(constituent_req_ids: list[str]) -> ConformanceState:
+        saw_fail = False
+        saw_unresolved = False
+        for rid in constituent_req_ids:
+            r = routed.get(rid)
+            if r is None:
+                saw_unresolved = True
+                continue
+            if r.applicability_state == ApplicabilityState.NOT_APPLICABLE:
+                continue
+            if r.conformance_state == ConformanceState.PASS:
+                continue
+            if r.conformance_state == ConformanceState.FAIL:
+                saw_fail = True
+            else:
+                saw_unresolved = True
+        if saw_fail:
+            return ConformanceState.FAIL
+        if saw_unresolved:
+            return ConformanceState.INCONCLUSIVE
+        return ConformanceState.PASS
+
+    def _replace(req_id: str, state: ConformanceState) -> None:
+        prior = routed[req_id]
+        updated[req_id] = RoutedRequirementResult(
+            req_id=req_id, applicability_state=prior.applicability_state,
+            operational_status=prior.operational_status, conformance_state=state,
+            evidence=prior.evidence,
+        )
+
+    if "req-2-pass-l1" in routed:
+        _replace("req-2-pass-l1", _aggregate([r for r in by_level.get("S", []) if r != "req-2-pass-l1"]))
+    if "req-3-pass-l2" in routed:
+        _replace("req-3-pass-l2", _aggregate([r for r in by_level.get("M", []) if r != "req-3-pass-l2"]))
+    if "req-R-meet-all-possible" in routed:
+        all_other = [rid for rid in routed if rid != "req-R-meet-all-possible" and rid not in AGGREGATION_REQ_IDS]
+        state = _aggregate(all_other)
+        if state == ConformanceState.FAIL:  # SHOULD-level: never a hard FAIL, see docstring
+            state = ConformanceState.INCONCLUSIVE
+        _replace("req-R-meet-all-possible", state)
+
+    return updated
+
+
+def compute_terminal_status(r: RoutedRequirementResult) -> str:
+    """Maps a requirement's full (applicability, operational_status,
+    conformance_state) result onto the flat terminal-status vocabulary
+    the supervised-validation invariant requires: PASS, FAIL,
+    INCONCLUSIVE, NOT_APPLICABLE, UNSUPPORTED_ANALYZER, EXECUTION_ERROR --
+    plus INSUFFICIENT_EVIDENCE (an existing, load-bearing
+    `ConformanceState` value used throughout this codebase; kept as its
+    own bucket rather than folded into INCONCLUSIVE, which would lose
+    real information already being tracked) and PENDING_UNRESOLVED
+    (should NEVER appear in a valid run's final counts -- see
+    `compute_integrity_report`; its presence is exactly what
+    `silently_missing` measures).
+    """
+    if r.applicability_state == ApplicabilityState.NOT_APPLICABLE:
+        return "NOT_APPLICABLE"
+    if r.operational_status == OperationalStatus.UNSUPPORTED_ANALYZER:
+        return "UNSUPPORTED_ANALYZER"
+    if r.operational_status != OperationalStatus.OK:
+        return "EXECUTION_ERROR"
+    if r.conformance_state is not None:
+        return r.conformance_state.value
+    return "PENDING_UNRESOLVED"
+
+
+@dataclass
+class IntegrityReport:
+    total_requirements: int = 0
+    applicable: int = 0
+    not_applicable: int = 0
+    applicable_executed_deterministic: int = 0
+    applicable_executed_llm_mediated: int = 0
+    terminal_status_counts: dict = field(default_factory=dict)
+    silently_missing: int = 0
+    silently_missing_req_ids: list = field(default_factory=list)
+    valid: bool = True
+    invalid_reason: str | None = None
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def compute_integrity_report(routed: dict[str, RoutedRequirementResult]) -> IntegrityReport:
+    """The "fail loudly" invariant this whole change exists to enforce:
+    applicable requirements = executed + explicitly unsupported, and
+    `silently_missing` is ALWAYS 0 for a run to be considered VALID.
+
+    "Silently missing" means: applicable, operationally OK, not one of
+    the explicit terminal states -- i.e. `compute_terminal_status`
+    returned `PENDING_UNRESOLVED`. After this change's fixes
+    (`run_rtf.py` iterating the full corpus + explicit
+    `UNSUPPORTED_ANALYZER` + `compute_aggregation_requirements` run
+    before this function), this should be empirically impossible for any
+    of the 81 corpus requirements -- but this function does not assume
+    that; it counts and reports, and callers (`pilot5_driver.py`) must
+    treat `valid=False` as grounds to mark the whole run INVALID rather
+    than a normal benchmark result, per the supervised-validation task's
+    own explicit instruction.
+    """
+    report = IntegrityReport(total_requirements=len(routed))
+    for req_id, r in routed.items():
+        if r.applicability_state == ApplicabilityState.NOT_APPLICABLE:
+            report.not_applicable += 1
+        else:
+            report.applicable += 1
+            if r.applicability_state == ApplicabilityState.APPLICABLE and r.operational_status == OperationalStatus.OK:
+                if req_id in AGGREGATION_REQ_IDS:
+                    pass  # aggregation requirements are neither deterministic nor LLM-mediated evidence collection
+                elif req_id in LLM_MEDIATED_REQ_IDS:
+                    report.applicable_executed_llm_mediated += 1
+                elif req_id in REGISTRY:
+                    report.applicable_executed_deterministic += 1
+
+        status = compute_terminal_status(r)
+        report.terminal_status_counts[status] = report.terminal_status_counts.get(status, 0) + 1
+        if status == "PENDING_UNRESOLVED":
+            report.silently_missing += 1
+            report.silently_missing_req_ids.append(req_id)
+
+    report.valid = report.silently_missing == 0
+    if not report.valid:
+        report.invalid_reason = (
+            f"{report.silently_missing} applicable requirement(s) reached no explicit terminal "
+            f"state: {report.silently_missing_req_ids}"
+        )
+    return report
 
 
 @dataclass
@@ -86,6 +270,7 @@ class PipelineArtifacts:
     escalation_skip_reasons: dict  # req_id -> reason string, for requirements that should have escalated but didn't (cost ceiling)
     codex_outcome_reasons: dict  # req_id -> machine-readable reason (codex_timeout/codex_no_decision/codex_unknown_decision:<x>), only set when Codex's own outcome wasn't a genuine parsed decision -- see codex_bridge.resolve_conformance_from_arm_g
     total_codex_cost_usd: float
+    integrity_report: IntegrityReport  # see compute_integrity_report -- callers MUST check .valid before treating this run as a normal result
 
 
 def run_pipeline_e2e(
@@ -124,6 +309,7 @@ def run_pipeline_e2e(
     """
     metrics = StageMetrics()
     unconditioned_map = load_unconditioned_map(CORPUS_PATH)
+    requirement_levels = load_requirement_levels(CORPUS_PATH)
     ctx, compile_error = build_context_for_evmbench_target(entry_sol_file, project_root, solc_version)
 
     run, _raw = run_rtf(ctx, audit_id, unconditioned_map, known_limitations)
@@ -270,14 +456,40 @@ def run_pipeline_e2e(
             conformance_state=outcome.conformance_state, evidence=updated.evidence,
         )
 
+    # Pure-aggregation requirements (req-2-pass-l1/req-3-pass-l2/
+    # req-R-meet-all-possible) can only be resolved now that every OTHER
+    # requirement's L8/escalation verdict is final -- see
+    # compute_aggregation_requirements's own docstring for why this can't
+    # happen inside run_rtf.py. Skipped when `only_req_ids` restricts this
+    # run to a deliberate subset (tests/cost-bounded runs): the full
+    # corpus isn't present, so "AND over every Level S requirement" would
+    # be computed over an arbitrary partial view, not a meaningful result.
+    if only_req_ids is None:
+        new_routed = compute_aggregation_requirements(new_routed, requirement_levels)
+
     final_run = TargetRunResult(audit_id=audit_id, routed=new_routed)
     for r in final_run.routed.values():
         if r.conformance_state is not None:
             metrics.final_decisions[r.conformance_state.value] += 1
+
+    # The "fail loudly" invariant: applicable requirements = executed +
+    # explicitly unsupported, silently_missing == 0. Same restriction as
+    # above -- a deliberately-restricted `only_req_ids` run is not the
+    # full corpus and would spuriously report requirements as "missing"
+    # that were simply never in scope for this call.
+    if only_req_ids is None:
+        integrity_report = compute_integrity_report(new_routed)
+    else:
+        integrity_report = IntegrityReport(
+            total_requirements=len(new_routed), valid=True,
+            invalid_reason="only_req_ids restricted this run to a deliberate subset; "
+                            "integrity checking is only meaningful for a full-corpus run",
+        )
 
     return PipelineArtifacts(
         run=final_run, stage_metrics=metrics, raw_l8_judgments=raw_l8_judgments,
         codex_results=codex_results, escalation_skip_reasons=escalation_skip_reasons,
         codex_outcome_reasons=codex_outcome_reasons,
         total_codex_cost_usd=total_codex_cost,
+        integrity_report=integrity_report,
     )

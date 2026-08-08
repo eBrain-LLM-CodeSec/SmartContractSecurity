@@ -130,11 +130,98 @@ _reg("req-R-follow-erc-standards", PredicateSpec(P.find_erc_interface_conformanc
 _reg("req-R-fuzzing-in-testing", PredicateSpec(P.find_fuzzing_evidence, ("repo_root", "sol_test_paths")))
 _reg("req-R-mutation-testing", PredicateSpec(P.find_mutation_testing_evidence, ("repo_root",)))
 _reg("req-R-formal-verification", PredicateSpec(P.find_formal_verification_evidence, ("repo_root", "sol_source_paths")))
-# req-R-use-latest-compiler deliberately NOT registered with a hardcoded
-# version -- see run_rtf.py's special-cased handling: it requires a
-# run-time-supplied `latest_known_stable_solc_version` config value, and
-# is marked ENVIRONMENT_FAILURE if that config is absent, rather than
-# silently guessing or skipping.
+
+# req-R-use-latest-compiler: `check_compiler_version_is_latest_stable` was
+# implemented and tested (rtf/l5_predicates/test_predicates.py) but never
+# actually added here -- a real, confirmed category-A gap found during
+# the RTF runtime coverage audit (RTF_RUNTIME_COVERAGE_AUDIT.md): a
+# working predicate existed and simply was not registered. The comment
+# previously here claimed a "special-cased handling" in run_rtf.py that
+# does not exist anywhere in the codebase -- also a documentation/code
+# discrepancy, logged in RTF_MISSING_REQUIREMENTS_GAP_ANALYSIS.md.
+#
+# `latest_known_stable_version` is a genuinely external, time-anchored
+# reference (see the predicate's own docstring) -- 0.8.36, per
+# https://www.soliditylang.org/blog/ as of 2026-08-09 (this repository's
+# solc-select only has up to 0.8.28 installed, which does not change the
+# correctness of the comparison: no version comparison here requires
+# actually compiling WITH 0.8.36, only comparing against it as a string).
+# This value WILL go stale as new Solidity versions ship -- flagged
+# in-line, not hidden, exactly as the predicate's own docstring requires.
+_reg("req-R-use-latest-compiler",
+     PredicateSpec(P.check_compiler_version_is_latest_stable, ("slither",),
+                   {"latest_known_stable_version": "0.8.36"}))
+
+# --- Generic documentary/implementation-comparison evidence ---------------
+# req_ids below were ALL marked NO_PREDICATE_POSSIBLE / NOT_IMPLEMENTED in
+# their own Track A design record because assessing them requires
+# comparing DOCUMENTED claims against IMPLEMENTATION behavior, or
+# reviewing broad semantic/economic properties with no nameable syntactic
+# anchor -- inherently semantic, per those records' own reasoning (see
+# RTF_MISSING_REQUIREMENTS_GAP_ANALYSIS.md for the full per-requirement
+# classification). None of that reasoning is wrong: no DETERMINISTIC
+# predicate is being added here. What was missing is that
+# "NO_PREDICATE_POSSIBLE" was previously treated as equivalent to "never
+# runs at all" -- these requirements never even reached the ALREADY-BUILT
+# shared L8 LLM Judgment Layer, because nothing ever produced evidence to
+# hand it. `collect_documentary_and_implementation_evidence` fixes
+# exactly that gap, generically: it collects README/docs/NatSpec/
+# implementation-source evidence (identical mechanism for every req_id
+# below) and lets the EXISTING judge_with_l8 -> escalation -> Codex
+# pipeline decide conformance from it, same as every other requirement in
+# this registry -- no new judgment mechanism, no per-requirement
+# heuristics, no benchmark-derived knowledge.
+_DOC_EVIDENCE_REQ_IDS = (
+    "req-2-enforce-eval-order",
+    "req-2-no-homoglyph-attack",
+    "req-3-block-front-running",
+    "req-3-block-mev",
+    "req-3-check-oracles",
+    "req-3-document-system",
+    "req-3-document-threats",
+    "req-3-documented",
+    "req-3-enough-gas",
+    "req-3-implement-as-documented",
+    "req-3-intended-replay",
+    "req-3-no-private-data",
+    "req-3-no-single-admin-eoa",
+    "req-3-protect-gas",
+    "req-3-protect-governance",
+    "req-3-revocable-permisions",
+    "req-3-timelock-for-privileged-actions",
+    "req-R-check-new-bugs",
+    "req-R-clean-code",
+    "req-R-multisig-threshold",
+    "req-R-notify-news",
+)
+for _rid in _DOC_EVIDENCE_REQ_IDS:
+    _reg(_rid, PredicateSpec(P.collect_documentary_and_implementation_evidence,
+                              ("entry_sol_file", "repo_root")))
+del _rid
+
+# Public alias: which registered req_ids reach a verdict only through the
+# shared L8 LLM Judgment Layer's semantic reading of generically-collected
+# documentary/implementation evidence, as opposed to a real deterministic
+# analytical predicate. Used by `pipeline_e2e.compute_integrity_report`'s
+# "applicable executed: deterministic / LLM-mediated" breakdown -- L8
+# itself judges evidence from BOTH kinds of requirement alike (that part
+# of the architecture was already unified before this change), so this
+# distinction is about EVIDENCE PROVENANCE, not which requirements get an
+# LLM call at all.
+LLM_MEDIATED_REQ_IDS = frozenset(_DOC_EVIDENCE_REQ_IDS)
+
+# Three requirements are pure AGGREGATIONS over other requirements'
+# already-computed conformance_state (req-2-pass-l1: AND over every Level
+# S requirement; req-3-pass-l2: AND over every Level M requirement;
+# req-R-meet-all-possible: an advisory SHOULD-level completeness measure)
+# -- per their own Track A design records, "implementing" them means
+# composing an L12-evaluation-level result, not writing a predicate that
+# takes evidence from ONE target in isolation. Deliberately NOT registered
+# here; computed by `pipeline_e2e.compute_aggregation_requirements` after
+# the main per-requirement loop, using this same set so run_rtf.py can
+# distinguish "aggregation, handled separately" from "genuinely
+# unsupported" when iterating the full corpus.
+AGGREGATION_REQ_IDS = frozenset({"req-2-pass-l1", "req-3-pass-l2", "req-R-meet-all-possible"})
 
 
 def _wire_reused_detector_specs() -> None:

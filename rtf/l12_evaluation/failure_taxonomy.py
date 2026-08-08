@@ -87,6 +87,26 @@ class OperationalStatus(str, Enum):
     infrastructure/tooling/scope gap; every other non-OK code must be
     ruled out before a result is attributed here."""
 
+    UNSUPPORTED_ANALYZER = "UNSUPPORTED_ANALYZER"
+    """The requirement is APPLICABLE, but no deterministic predicate,
+    documentary-evidence collector, aggregation rule, or any other
+    executable mechanism is currently registered for it AT ALL -- a
+    framework-COMPLETENESS gap (something was never built), distinct from
+    every other code here, all of which describe something going wrong
+    with a mechanism that DOES exist. Added specifically so an applicable
+    requirement can never silently vanish from a run's output the way
+    25 of 81 requirements (including req-3-documented/req-3-implement-
+    as-documented) previously did -- see
+    RTF_RUNTIME_COVERAGE_AUDIT.md/RTF_MISSING_REQUIREMENTS_GAP_ANALYSIS.md.
+    `run_rtf.py`'s main loop now iterates the FULL requirement corpus, not
+    just `registry.REGISTRY`'s keys, and assigns this code explicitly to
+    any applicable requirement neither `REGISTRY` nor the aggregation
+    step covers -- after the fixes in this same change, this should be
+    empirically empty, but the code path exists and is tested regardless
+    of whether it is currently ever hit, precisely so a FUTURE new
+    requirement added to the corpus without a registered mechanism fails
+    loudly instead of silently repeating this exact gap."""
+
 
 # Codes that represent tooling/infrastructure problems, not a judgment RTF
 # itself made. metrics.py excludes results carrying any of these from
@@ -118,6 +138,17 @@ EXPECTED_LIMITATION_CODES = frozenset({
     OperationalStatus.NO_JUSTIFIED_CORRESPONDENCE,
 })
 
+# Codes that represent a framework-COMPLETENESS gap -- a requirement this
+# project has not yet built any executable mechanism for at all. Distinct
+# from INFRASTRUCTURE_CODES (something built broke at runtime) and from
+# EXPECTED_LIMITATION_CODES (correctly identified as unassessable from
+# available evidence, not a "haven't built it yet" gap). Requirements
+# carrying this code are exactly the ones a future implementation pass
+# should target next.
+IMPLEMENTATION_GAP_CODES = frozenset({
+    OperationalStatus.UNSUPPORTED_ANALYZER,
+})
+
 
 def is_eligible_for_routing_metrics(status: OperationalStatus) -> bool:
     """Only OK results may be counted in requirement_routing_recall/
@@ -130,10 +161,10 @@ def is_eligible_for_routing_metrics(status: OperationalStatus) -> bool:
 
 
 def classify_bucket(status: OperationalStatus) -> str:
-    """Which of the three top-level buckets (infrastructure / framework
-    decision / expected limitation) a given code belongs to, for the
-    post-run failure-attribution report. OK is its own bucket, not
-    classified into any of the three.
+    """Which of the four top-level buckets (infrastructure / framework
+    decision / expected limitation / implementation gap) a given code
+    belongs to, for the post-run failure-attribution report. OK is its
+    own bucket, not classified into any of the four.
     """
     if status == OperationalStatus.OK:
         return "OK"
@@ -143,4 +174,6 @@ def classify_bucket(status: OperationalStatus) -> str:
         return "FRAMEWORK_DECISION_FAILURE"
     if status in EXPECTED_LIMITATION_CODES:
         return "EXPECTED_LIMITATION"
+    if status in IMPLEMENTATION_GAP_CODES:
+        return "IMPLEMENTATION_GAP"
     raise ValueError(f"unclassified OperationalStatus: {status!r}")

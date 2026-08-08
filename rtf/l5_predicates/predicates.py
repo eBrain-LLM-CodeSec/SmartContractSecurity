@@ -41,6 +41,108 @@ def find_spdx_or_license_file(sol_source_paths: list[Path], repo_root: Path) -> 
     return findings
 
 
+_NATSPEC_RE = re.compile(r"(?:^[ \t]*///[^\n]*\n?)+|/\*\*.*?\*/", re.MULTILINE | re.DOTALL)
+_README_NAMES = ("README.md", "Readme.md", "readme.md", "README", "README.rst", "README.txt")
+_MAX_README_CHARS = 6000
+_MAX_DOC_FILE_CHARS = 3000
+_MAX_NATSPEC_SNIPPET_CHARS = 800
+_MAX_SOURCE_EXCERPT_CHARS = 8000
+
+
+def collect_documentary_and_implementation_evidence(req_id: str, entry_sol_file: Path, repo_root: Path) -> list[dict]:
+    """Generic, mechanical evidence collector for requirements whose own
+    Track A design record concluded `NO_PREDICATE_POSSIBLE`/`NOT_IMPLEMENTED`
+    because assessing them requires comparing DOCUMENTED claims against
+    implementation behavior (the archetypal L7 Q-level shape -- see
+    `rtf/track_a/l7_level_q_evidence/SCHEMA.md`) -- inherently semantic,
+    but the underlying documentary evidence (README, NatSpec doc-comments,
+    docs/ files) and the implementation it should be compared against are
+    both 100% mechanically collectible. This predicate produces EVIDENCE
+    ONLY, no verdict -- it follows the EXACT SAME "evidence collected ->
+    L8 judges" pattern every other predicate in this registry already
+    uses (see `run_rtf.py`'s module docstring, outcome (1)), so judgment
+    reuses the existing bounded-L8 + escalation-to-Codex pipeline
+    unchanged rather than a new, parallel judgment mechanism.
+
+    Deliberately generic and standards-driven -- identical logic runs for
+    every requirement that registers this predicate, regardless of
+    req_id; nothing here encodes knowledge of any specific project's
+    business logic, benchmark finding, or vulnerability class. The only
+    per-requirement variation is which req_id evidence gets attached to;
+    what a given requirement's text demands OF this evidence is decided
+    downstream by L8, which already receives the requirement's own
+    normative text + context bundle for exactly that purpose.
+
+    Content is capped per item (not a whole-repo dump) to stay within the
+    same evidence-budgeting machinery (`evidence_ranking.py`) every other
+    requirement's evidence already flows through.
+    """
+    findings: list[dict] = []
+    found_readme = False
+    found_docs = False
+    found_natspec = False
+
+    for name in _README_NAMES:
+        p = repo_root / name
+        if p.exists() and p.is_file():
+            text = p.read_text(encoding="utf-8", errors="replace")
+            findings.append({"req_id": req_id, "location": name,
+                              "detail": text[:_MAX_README_CHARS]})
+            found_readme = True
+            break
+
+    docs_dir = repo_root / "docs"
+    if docs_dir.is_dir():
+        doc_files = sorted(
+            f for f in docs_dir.rglob("*")
+            if f.is_file() and f.suffix.lower() in (".md", ".txt", ".rst")
+        )
+        for f in doc_files[:10]:  # bounded: a docs/ dir is documentation, not a code dump
+            text = f.read_text(encoding="utf-8", errors="replace")
+            findings.append({"req_id": req_id, "location": str(f.relative_to(repo_root)),
+                              "detail": text[:_MAX_DOC_FILE_CHARS]})
+            found_docs = True
+
+    if entry_sol_file.exists():
+        source = entry_sol_file.read_text(encoding="utf-8", errors="replace")
+        for m in _NATSPEC_RE.finditer(source):
+            snippet = m.group(0).strip()
+            if len(snippet) < 15:  # skip trivial one-line comments, not real NatSpec
+                continue
+            findings.append({"req_id": req_id, "location": f"{entry_sol_file.name} (NatSpec)",
+                              "detail": snippet[:_MAX_NATSPEC_SNIPPET_CHARS]})
+            found_natspec = True
+        # The entry file's own (capped) source, so a "does implementation
+        # match documentation" judgment has real implementation code to
+        # compare against, not only the documentation side.
+        findings.append({"req_id": req_id, "location": entry_sol_file.name,
+                          "detail": source[:_MAX_SOURCE_EXCERPT_CHARS]})
+
+    # Explicit, unambiguous absence evidence -- critical correctness fix,
+    # not cosmetic. `run_rtf.py`'s "no evidence collected + unconditioned
+    # subject -> automatic PASS" shortcut is correct for PROHIBITION-shaped
+    # requirements ("MUST NOT contain X": no evidence = nothing bad found =
+    # genuinely PASS) but would be SILENTLY WRONG for these AFFIRMATIVE-
+    # OBLIGATION-shaped ones ("MUST have documentation": no evidence found
+    # should never auto-resolve to PASS). Always returning at least one
+    # finding keeps every requirement using this predicate in the
+    # "evidence collected -> deferred to L8" branch unconditionally, and
+    # stating the absence explicitly (rather than leaving L8 to infer it
+    # from a shorter-than-expected evidence list) lets L8 correctly reason
+    # toward FAIL/INSUFFICIENT_EVIDENCE instead of an unearned PASS.
+    if not found_readme:
+        findings.append({"req_id": req_id, "location": repo_root.name,
+                          "detail": "No README file was found at the repository root."})
+    if not found_docs:
+        findings.append({"req_id": req_id, "location": repo_root.name,
+                          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found."})
+    if not found_natspec:
+        findings.append({"req_id": req_id, "location": entry_sol_file.name,
+                          "detail": "No NatSpec (/// or /** */) doc-comments were found in this file."})
+
+    return findings
+
+
 def check_compiler_version_floor(slither: Slither, req_id: str, floor: str) -> list[dict]:
     """req-1-no-ancient-compilers (S, floor='0.3.0'), req-1-compiler-060
     (S, floor='0.8.0'), req-2-compiler-060 (M, floor='0.8.0'): 'MUST NOT

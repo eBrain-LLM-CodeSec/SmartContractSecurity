@@ -29,7 +29,7 @@ from types import SimpleNamespace
 REPO_ROOT = Path("/scratch/md5344/evmbench/agent4vul/.claude/worktrees/mgpr-router2")
 sys.path.insert(0, str(REPO_ROOT))
 
-from rtf.l12_evaluation.pipeline_e2e import run_pipeline_e2e, StageMetrics  # noqa: E402
+from rtf.l12_evaluation.pipeline_e2e import compute_terminal_status, run_pipeline_e2e, StageMetrics  # noqa: E402
 from rtf.l12_evaluation.report_generator import generate_audit_md  # noqa: E402
 from rtf.l12_evaluation.metrics import ApplicabilityState, ConformanceState, EvidenceItem, OperationalStatus, RoutedRequirementResult, TargetRunResult  # noqa: E402
 from rtf.l12_evaluation.run_grader import run_grader  # noqa: E402
@@ -254,6 +254,10 @@ def run_one_audit(
             else:
                 setattr(stage_totals, k, getattr(stage_totals, k, 0) + v)
 
+        if not artifacts.integrity_report.valid:
+            print(f"[{audit_id}] entry {rel_path}: INTEGRITY CHECK FAILED -- "
+                  f"{artifacts.integrity_report.invalid_reason}", flush=True)
+
         per_entry_summaries.append({
             "entry": rel_path, "wall_s": dt, "codex_cost": artifacts.total_codex_cost_usd,
             "stage_metrics": asdict(artifacts.stage_metrics),
@@ -263,6 +267,8 @@ def run_one_audit(
             "codex_outcome_reasons": artifacts.codex_outcome_reasons,
             "conformance_by_req": {k: (v.conformance_state.value if v.conformance_state else None)
                                     for k, v in artifacts.run.routed.items()},
+            "terminal_status_by_req": {k: compute_terminal_status(v) for k, v in artifacts.run.routed.items()},
+            "integrity_report": artifacts.integrity_report.to_dict(),
         })
         (artifacts_dir / f"entry_{i:02d}_{Path(rel_path).stem}_stage.json").write_text(
             json.dumps(per_entry_summaries[-1], indent=2, default=str))
@@ -285,6 +291,22 @@ def run_one_audit(
     except Exception as e:  # noqa: BLE001
         grade_error = f"{type(e).__name__}: {e}"
 
+    # Aggregate integrity validity across every entry -- the supervised-
+    # validation invariant's own instruction: "fail the validation run"
+    # (mark it INVALID, not a normal benchmark result) if ANY entry's
+    # `silently_missing` was nonzero. Entries resumed from a stage.json
+    # written before this integrity-report field existed report `None`
+    # (unknown, not proven valid) rather than being silently assumed
+    # valid -- disclosed explicitly, matching this project's existing
+    # "known data gap" discipline for old-format resumed entries.
+    entry_integrity = []
+    for s in per_entry_summaries:
+        ir = s.get("integrity_report")
+        entry_integrity.append({"entry": s["entry"], "valid": ir.get("valid") if ir else None,
+                                 "invalid_reason": ir.get("invalid_reason") if ir else "pre-integrity-report format (resumed old entry)"})
+    overall_integrity_valid = all(e["valid"] is True for e in entry_integrity) if entry_integrity else True
+    unknown_integrity_entries = [e["entry"] for e in entry_integrity if e["valid"] is None]
+
     summary = {
         "audit_id": audit_id, "scope_entries": len(scope_files),
         "total_codex_cost_usd": total_codex_cost,
@@ -293,10 +315,18 @@ def run_one_audit(
         "per_entry_summaries": per_entry_summaries,
         "fail_findings_count": len(merged_routed),
         "grade_result": grade_result, "grade_error": grade_error,
+        "integrity_valid": overall_integrity_valid,
+        "integrity_by_entry": entry_integrity,
+        "integrity_unknown_entries": unknown_integrity_entries,
     }
     (artifacts_dir / "pilot_summary.json").write_text(json.dumps(summary, indent=2, default=str))
+    integrity_flag = "VALID" if overall_integrity_valid else "**INTEGRITY CHECK FAILED -- INVALID**"
     print(f"[{audit_id}] DONE. codex_cost=${total_codex_cost:.4f} fails={len(merged_routed)} "
-          f"infra_failures={len(infra_failures)} grade={grade_result and grade_result.get('score')}", flush=True)
+          f"infra_failures={len(infra_failures)} grade={grade_result and grade_result.get('score')} "
+          f"integrity={integrity_flag}", flush=True)
+    if unknown_integrity_entries:
+        print(f"[{audit_id}] WARNING: {len(unknown_integrity_entries)} resumed entries predate the "
+              f"integrity-report field and were not re-validated: {unknown_integrity_entries}", flush=True)
     return summary
 
 
