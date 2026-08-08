@@ -45,12 +45,15 @@ if os.environ.get("GRAPH_SOLC_PATH_DIR"):
     os.environ["PATH"] = f"{os.environ['GRAPH_SOLC_PATH_DIR']}:{os.environ.get('PATH', '')}"
 
 from a4v.graph import (  # noqa: E402
-    CALLS, EXTERNAL_CALL, FUNCTION, INHERITS, STATE_READ, STATE_WRITE,
+    CALLS, EXTERNAL_CALL, STATE_READ, STATE_WRITE,
     STATE_WRITE_TRANSITIVE, STATEVAR, USES_MODIFIER, WRITE_AFTER_EXTERNAL_CALL,
     ProgramGraph,
 )
 from a4v.slice import numbered_source, _excerpt  # noqa: E402
 from mcp.server import MCPServer  # noqa: E402
+from rtf.l8_llm_judgment_layer.graph_navigation import (  # noqa: E402
+    node_file as _shared_node_file, resolve_seed_node,
+)
 
 ENTRY_FILE = os.environ["GRAPH_ENTRY_FILE"]
 REMAPS = os.environ.get("GRAPH_SOLC_REMAPS", "").split(":") if os.environ.get("GRAPH_SOLC_REMAPS") else None
@@ -101,29 +104,18 @@ _seed_cache: str | None = None
 
 
 def _get_seed() -> str:
+    # Resolution logic lives in graph_navigation.resolve_seed_node, shared
+    # with production L12 code (pipeline_e2e.py) and graph_relevance.py --
+    # this used to be an independent inline duplicate of the same prefix-
+    # match/ambiguity-check, promoted out to avoid drift between the two.
     global _seed_cache
     if _seed_cache is None:
-        pg = _get_graph()
-        prefix = f"fn::{CANDIDATE_LOCATION}("
-        candidates = [n for n, d in pg.graph.nodes(data=True) if d.get("kind") == FUNCTION and n.startswith(prefix)]
-        if len(candidates) != 1:
-            raise ValueError(f"cannot uniquely resolve candidate {CANDIDATE_LOCATION!r}: {candidates}")
-        _seed_cache = candidates[0]
+        _seed_cache = resolve_seed_node(_get_graph(), CANDIDATE_LOCATION)
     return _seed_cache
 
 
 def _node_file(node: str) -> str | None:
-    pg = _get_graph()
-    data = pg.graph.nodes[node]
-    f = data.get("file")
-    if f:
-        return f
-    if data.get("kind") == STATEVAR:
-        owner = node.removeprefix("var::").rsplit(".", 1)[0]
-        cnode = f"contract::{owner}"
-        if cnode in pg.graph:
-            return pg.graph.nodes[cnode].get("file")
-    return None
+    return _shared_node_file(_get_graph(), node)
 
 
 def _reveal(file_path: str) -> str | None:

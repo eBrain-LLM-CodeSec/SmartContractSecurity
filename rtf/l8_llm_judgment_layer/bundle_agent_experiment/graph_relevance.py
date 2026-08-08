@@ -13,9 +13,11 @@ RTF's predicate `location` field is a bare "Contract.function" string
 `location = f"{contract.name}.{func.name}"`, the exact root cause AR-017
 already documented), while the graph's function-node ids are
 "fn::Contract.function(paramtypes)" (`a4v.graph._node_id_function`,
-`f.canonical_name`). `_resolve_seed_node` bridges the two by prefix
-match -- flagged as a real integration gap (not present in the codebase
-before this experiment), not silently assumed to already work.
+`f.canonical_name`). `resolve_seed_node` (now in `rtf.l8_llm_judgment_
+layer.graph_navigation`, promoted out of this module so production L12
+code can share it rather than duplicate it -- see that module's
+docstring for the full inherited-function history) bridges the two by
+prefix match.
 """
 from __future__ import annotations
 
@@ -28,86 +30,9 @@ from a4v.graph import (
     USES_MODIFIER, WRITE_AFTER_EXTERNAL_CALL, ProgramGraph,
 )
 from a4v.slice import BundleBuilder
-
-
-def resolve_seed_node(pg: ProgramGraph, candidate_location: str) -> str:
-    """candidate_location is RTF's bare "Contract.function" string. Finds
-    the matching "fn::Contract.function(...)" node.
-
-    Matches against the node id's own "fn::Contract.function(" prefix
-    (derived from Slither's `canonical_name`, set once at node creation),
-    NOT the node's `contract` data attribute. This is deliberate, not a
-    style choice: a real bug was found and verified during this
-    experiment's own graph-construction audit --
-    `ProgramGraph.build()` has no `if fid not in g` guard around function-
-    node creation, so when a function is *inherited but not overridden*
-    by a derived contract, Slither's `contract.functions` includes it
-    again under the derived contract's iteration, and `g.add_node(fid,
-    ..., contract=contract.name, ...)` silently overwrites the node's
-    `contract` attribute to the LAST-processed (most-derived) contract's
-    name -- even though the node id itself
-    ("fn::Auth.verify(bytes32,uint8,bytes32,bytes32)") still correctly
-    encodes the function's true declaring contract via canonical_name.
-    Confirmed empirically on the unchecked_ecrecover_mutable_signer
-    fixture: `fn::Auth.verify(...)`'s `contract` attribute reads
-    "AuthAdmin", not "Auth", after AuthAdmin (which inherits verify
-    without overriding it) is processed. See
-    PROGRAM_GRAPH_RELEVANCE_BOUNDARY_EXPERIMENT.md sec. 1 for the full
-    writeup -- not fixed in a4v/graph.py itself, per this experiment's
-    explicit "audit, don't fix" scope; worked around here only.
-
-    Raises if zero or >1 match (multiple matches means an overload RTF's
-    own bare location format can't disambiguate).
-    """
-    prefix = f"fn::{candidate_location}("
-    candidates = [node for node, data in pg.graph.nodes(data=True)
-                  if data.get("kind") == FUNCTION and node.startswith(prefix)]
-    if len(candidates) == 0:
-        raise ValueError(f"no graph node found for candidate_location={candidate_location!r} "
-                          f"(looked for node id prefix {prefix!r})")
-    if len(candidates) > 1:
-        raise ValueError(f"ambiguous candidate_location={candidate_location!r}: "
-                          f"{len(candidates)} overloads {candidates} -- RTF's bare "
-                          f"Contract.function location format cannot disambiguate")
-    return candidates[0]
-
-
-def _node_file(pg: ProgramGraph, node: str) -> str | None:
-    data = pg.graph.nodes[node]
-    f = data.get("file")
-    if f:
-        return f
-    # STATEVAR nodes never get a direct "file" attribute (verified against
-    # graph.py's construction code -- ProgramGraph.build never sets `file=`
-    # for a var:: node) -- resolve indirectly via the owning contract.
-    # Deliberately parsed from the node id's own "var::Owner.name" prefix,
-    # not the node's `contract` data attribute: that attribute is set from
-    # the outer iteration-context contract at first-add time
-    # (`contract=contract.name` in ProgramGraph.build's state-variable
-    # loop), which is only guaranteed correct if the owning contract is
-    # processed before any derived contract sharing the same variable --
-    # true for this experiment's fixtures (Slither's own contract
-    # ordering processes bases first) but not something to rely on
-    # blindly, given the analogous, CONFIRMED bug in function-node
-    # `contract` attributes (see resolve_seed_node's docstring). The node
-    # id's own "var::Owner.name" prefix is set once, from
-    # `v.contract.name` (the variable's true declaring contract), and is
-    # never overwritten after creation -- a more robust source of truth.
-    if data.get("kind") == STATEVAR:
-        owner = node.removeprefix("var::").rsplit(".", 1)[0]
-        contract_node = f"contract::{owner}"
-        if contract_node in pg.graph:
-            return pg.graph.nodes[contract_node].get("file")
-    return None
-
-
-def files_for_nodes(pg: ProgramGraph, nodes: set[str]) -> set[str]:
-    files = set()
-    for n in nodes:
-        f = _node_file(pg, n)
-        if f:
-            files.add(f)
-    return files
+from rtf.l8_llm_judgment_layer.graph_navigation import (
+    files_for_nodes, node_file as _node_file, resolve_seed_node,
+)
 
 
 @dataclass

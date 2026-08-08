@@ -51,17 +51,15 @@ DEFAULT_TOP_P = 1.0
 DEFAULT_MAX_TOKENS = 4096
 
 
-def build_judgment_prompt(requirement_context_bundle: dict, question: str) -> list[dict]:
-    """Builds the message list for a judgment call. The prompt is generated
-    FROM the requirement's own context bundle (L2) -- self, definitions,
-    overriding/exception text, parent-section context -- per the plan's
-    'context bundle, not isolated sentence' rule, plus the specific,
-    narrow `question` a component asks (e.g. an M requirement's exception
-    condition, or a Q requirement's evidence-assessment rubric item).
-    General smart-contract vulnerability knowledge is deliberately NOT
-    injected here -- only what the bundle and the question state.
+def render_context_bundle_text(bundle: dict) -> str:
+    """Renders one requirement's L2 context bundle (self, definitions,
+    overriding/exception text, parent-section context, referenced
+    requirements) into the same plain-text form `build_judgment_prompt`
+    injects into L8's own prompt -- factored out so other consumers of
+    the same bundle (e.g. the L12<->Arm G Codex bridge, which needs the
+    identical "applicable context" a bounded L8 call already saw) render
+    it identically instead of maintaining a second copy.
     """
-    bundle = requirement_context_bundle["bundle"]
     context_parts = [f"Requirement: {bundle['self']}"]
     if bundle.get("parent_section_context"):
         context_parts.append(f"Section context: {bundle['parent_section_context']}")
@@ -73,6 +71,21 @@ def build_judgment_prompt(requirement_context_bundle: dict, question: str) -> li
         context_parts.append(f"Exception ({e['req_id']}): {e['normative_text']}")
     for r in bundle.get("referenced_requirements", []):
         context_parts.append(f"Referenced requirement ({r['req_id']}): {r['normative_text']}")
+    return "\n\n".join(context_parts)
+
+
+def build_judgment_prompt(requirement_context_bundle: dict, question: str) -> list[dict]:
+    """Builds the message list for a judgment call. The prompt is generated
+    FROM the requirement's own context bundle (L2) -- self, definitions,
+    overriding/exception text, parent-section context -- per the plan's
+    'context bundle, not isolated sentence' rule, plus the specific,
+    narrow `question` a component asks (e.g. an M requirement's exception
+    condition, or a Q requirement's evidence-assessment rubric item).
+    General smart-contract vulnerability knowledge is deliberately NOT
+    injected here -- only what the bundle and the question state.
+    """
+    bundle = requirement_context_bundle["bundle"]
+    context_text = render_context_bundle_text(bundle)
 
     system = (
         "You are a semantic reviewer assisting a standards-conformance framework, "
@@ -88,7 +101,7 @@ def build_judgment_prompt(requirement_context_bundle: dict, question: str) -> li
         '"evidence": [{"source": "...", "location": "path:line_or_symbol", "claim": "..."}], '
         '"reasoning_summary": "...", "open_questions": [...], "confidence": "HIGH|MEDIUM|LOW"}'
     )
-    user = "\n\n".join(context_parts) + f"\n\nQuestion: {question}"
+    user = context_text + f"\n\nQuestion: {question}"
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
