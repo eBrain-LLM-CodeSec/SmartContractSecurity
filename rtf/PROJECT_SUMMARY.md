@@ -696,6 +696,54 @@ own, separate 1/2 score above.
 
 ---
 
+## 5-audit end-to-end pilot (in progress)
+
+Following AR-024's resolution of the last open PoolTogether question, the
+user directed a new, larger task: a **frozen end-to-end pilot on 5 real
+EVMbench audits**, testing whether the current RTF + graph-gated Codex
+architecture works across multiple real repositories end to end — not
+another synthetic/single-bundle experiment. Explicitly not optimized for
+a good score; the goal is to find where the pipeline actually breaks.
+
+**Integration readiness audit** (read-only, zero LLM cost) found the
+production RTF pipeline (`run_rtf.py` deterministic evidence collection,
+`judge_with_l8.py` bounded judgment — both real, tested, already run once
+against PoolTogether) and the graph-gated Codex harness built across
+AR-020 through AR-024 are **two disconnected systems** — no escalation
+decision function, no `audit.md` generator, no generic DetectGrader
+script existed anywhere in `rtf/`. A confirmed, exact bug was also found
+in `a4v/graph.py` (previously only worked around, never fixed): inherited-
+but-not-overridden functions corrupted the node's `contract` attribute
+and added duplicate `DECLARES` edges. Fixed via `function.contract_declarer`-
+based resolution + a `processed_function_ids` guard (a naive `fid in g`
+guard was tried first and caused a real regression — caught by the full
+test suite before commit, not shipped). 3 new regression tests added.
+Commit `5ec39f0`, full suite 490 passed / 7 skipped.
+
+**Audit selection surfaced an important, previously-undocumented
+project-wide finding (AR-025)**: a full exposure audit across all 40
+EVMbench entries found **zero have genuine NONE prior exposure** — the
+predecessor MGPR system was built directly from a benchmark registry
+containing every audit's finding title+description, read before any RTF
+work began. Per explicit user decision, the original exposure-tier
+definitions were kept unchanged (not redefined), this 0-NONE finding is
+recorded plainly, and the pilot's 5 audits were drawn from the LIMITED/
+floor-only tier instead (title/description known via the historical
+registry, never reasoned about further): `2025-01-liquid-ron`,
+`2024-01-canto`, `2024-05-arbitrum-foundation`, `2024-06-vultisig`,
+`2025-10-sequence`. A live incident during the exposure audit —
+`2023-12-ethereumcreditguild`'s H-01 finding text was read in full before
+its config's unusual inline-findings layout was recognized — was caught,
+disclosed, and that audit excluded from the pilot's pool. Full record:
+`rtf/l12_evaluation/PILOT5_AUDIT_SELECTION.md`.
+
+Escalation-bridge/`audit.md`-generator/grader-script construction and the
+preregistration freeze were in progress as of this summary entry — see
+`rtf/l12_evaluation/RTF_5_AUDIT_END_TO_END_PREREGISTRATION.md` for
+current status.
+
+---
+
 ## Where to look for more detail
 
 - `rtf/track_a/GO_NO_GO.md`, `rtf/track_a/TRACK_A_RESULTS.md` — Track A
