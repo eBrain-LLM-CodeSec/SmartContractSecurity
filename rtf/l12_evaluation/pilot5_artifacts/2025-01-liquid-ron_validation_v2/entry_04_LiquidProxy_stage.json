@@ -1,0 +1,327 @@
+{
+  "entry": "./src/LiquidProxy.sol",
+  "wall_s": 537.5026383399963,
+  "codex_cost": 0.156762,
+  "stage_metrics": {
+    "requirements_considered": 56,
+    "requirements_applicable": 29,
+    "evidence_bundles_generated": 12,
+    "judgments_attempted": 12,
+    "judgments_succeeded": 12,
+    "judgments_failed": 0,
+    "bundles_judged_without_codex": 7,
+    "bundles_escalated_to_codex": 5,
+    "codex_investigations_completed": 5,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 17,
+      "FAIL": 4,
+      "INCONCLUSIVE": 0,
+      "INSUFFICIENT_EVIDENCE": 8
+    }
+  },
+  "fail_count": 4,
+  "fail_details": [
+    {
+      "req_id": "req-2-documented",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.harvest",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.harvestAndDelegateRewards",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.delegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.redelegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.undelegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "RonHelper._depositRONTo",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "RonHelper._depositRONTo",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "RonHelper._withdrawRONTo",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "RonHelper._withdrawRONTo",
+          "detail": "makes an external call",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The function makes an external payable call to the staking contract but lacks an explicit justification or note about the necessity/risks of that external call as required for documenting special code use.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 3,
+      "wall_clock_s": 82.78647089004517
+    },
+    {
+      "req_id": "req-3-event-on-state-change",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidProxy.constructor",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "RonHelper.constructor",
+          "detail": "writes state but emits no event",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Constructor transactions change storage (vault, roninStaking, wron) yet neither the constructor nor its base emits any event, so this state change is untracked, violating the requirement that all transactions causing state changes emit an event.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 6,
+      "wall_clock_s": 110.80757164955139
+    },
+    {
+      "req_id": "req-3-annotate",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IWRON.deposit",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IWRON.withdraw",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IWRON.transfer",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.harvest",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.harvestAndDelegateRewards",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.delegateAmount",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.redelegateAmount",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.undelegateAmount",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.delegate",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.undelegate",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.redelegate",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.bulkUndelegate",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.claimRewards",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.delegateRewards",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getRewards",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getReward",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getStakingTotal",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getManyStakingTotals",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getStakingAmount",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getManyStakingAmounts",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The public interface function delegateAmount is part of the ABI but has no NatSpec comments describing intent, parameters, return values, or safety guidance, violating the requirement that all public interfaces be annotated.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 2,
+      "wall_clock_s": 48.1779682636261
+    },
+    {
+      "req_id": "req-3-linted",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_linting_violations_via_reused_detectors",
+          "location": "RonHelper._withdrawRONTo",
+          "detail": "RonHelper._withdrawRONTo(address,uint256) (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/src/RonHelper.sol#38-42) is never used and should be removed",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The contract complies with pragma and naming constraints and has no unreachable code or unnecessary variables in the inspected area. However, the state variable `wron` and the constructor lack explicit visibility specifiers, violating the requirement that all functions and variables declare visibility.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 45.97222566604614
+    }
+  ],
+  "escalation_skip_reasons": {
+    "req-1-compiler-SOL-2023-3": "graph_resolution_failed: ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-2-compiler-SOL-2023-1": "graph_resolution_failed: ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-3-consistent-solidity-output": "graph_resolution_failed: ValueError: no graph node found for candidate_location='pragma solidity^0.8.20' (looked for node id prefix 'fn::pragma solidity^0.8.20(')",
+    "req-R-define-license": "graph_resolution_failed: ValueError: no graph node found for candidate_location='/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/certora/harnesses/AccessControlDefaultAdminRulesHarness.sol' (looked for node id prefix 'fn::/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/certora/harnesses/AccessControlDefaultAdminRulesHarness.sol(')",
+    "req-R-follow-erc-standards": "graph_resolution_failed: ValueError: no graph node found for candidate_location='IWRON' (looked for node id prefix 'fn::IWRON(')",
+    "req-R-fuzzing-in-testing": "graph_resolution_failed: ValueError: no graph node found for candidate_location='/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/lib/forge-std/test/StdAssertions.t.sol:testFuzz_AssertEqCall_Return_Pass' (looked for node id prefix 'fn::/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/lib/forge-std/test/StdAssertions.t.sol:testFuzz_AssertEqCall_Return_Pass(')",
+    "req-R-formal-verification": "graph_resolution_failed: ValueError: no graph node found for candidate_location='/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/certora/specs/AccessControl.spec' (looked for node id prefix 'fn::/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/certora/specs/AccessControl.spec(')"
+  },
+  "codex_outcome_reasons": {},
+  "conformance_by_req": {
+    "req-1-compiler-060": "PASS",
+    "req-1-no-ancient-compilers": "PASS",
+    "req-1-compiler-sol-2021-4": null,
+    "req-1-compiler-SOL-2021-1": null,
+    "req-1-compiler-SOL-2021-2": null,
+    "req-1-compiler-SOL-2022-1": null,
+    "req-1-compiler-SOL-2022-2": null,
+    "req-1-compiler-SOL-2022-3": null,
+    "req-1-compiler-SOL-2022-5-push": null,
+    "req-1-compiler-SOL-2022-6": null,
+    "req-1-compiler-SOL-2023-3": "INSUFFICIENT_EVIDENCE",
+    "req-1-eip155-chainid": "PASS",
+    "req-1-exact-balance-check": "PASS",
+    "req-1-no-create2": "PASS",
+    "req-1-self-destruct": "PASS",
+    "req-1-delegatecall": "PASS",
+    "req-1-no-tx.origin": "PASS",
+    "req-1-no-hashing-consecutive-variable-length-args": "PASS",
+    "req-1-unicode-bdo": "PASS",
+    "req-1-use-c-e-i": null,
+    "req-1-no-assembly": "PASS",
+    "req-1-check-return": null,
+    "req-2-handle-return": null,
+    "req-2-compiler-060": "PASS",
+    "req-2-compiler-SOL-2021-3": null,
+    "req-2-compiler-SOL-2022-4": null,
+    "req-2-compiler-SOL-2022-5-assembly": null,
+    "req-2-compiler-SOL-2022-7": null,
+    "req-2-compiler-SOL-2023-1": "INSUFFICIENT_EVIDENCE",
+    "req-2-overflow-underflow": "PASS",
+    "req-2-external-calls": null,
+    "req-2-documented": "FAIL",
+    "req-2-block-data-misuse": null,
+    "req-2-random-enough": null,
+    "req-2-check-rounding": "PASS",
+    "req-2-signature-verification": "PASS",
+    "req-2-malleable-signatures-for-replay": null,
+    "req-2-unicode-bdo": "PASS",
+    "req-2-verify-exact-balance-check": null,
+    "req-2-protect-create2": null,
+    "req-2-safe-assembly": "PASS",
+    "req-2-avoid-readonly-reentrancy": null,
+    "req-2-self-destruct": null,
+    "req-3-event-on-state-change": "FAIL",
+    "req-3-annotate": "FAIL",
+    "req-3-consistent-solidity-output": "INSUFFICIENT_EVIDENCE",
+    "req-3-external-calls": null,
+    "req-3-verify-tx.origin": null,
+    "req-3-linted": "FAIL",
+    "req-3-access-control": null,
+    "req-3-all-valid-inputs": "INSUFFICIENT_EVIDENCE",
+    "req-R-define-license": "INSUFFICIENT_EVIDENCE",
+    "req-R-follow-erc-standards": "INSUFFICIENT_EVIDENCE",
+    "req-R-fuzzing-in-testing": "INSUFFICIENT_EVIDENCE",
+    "req-R-mutation-testing": null,
+    "req-R-formal-verification": "INSUFFICIENT_EVIDENCE"
+  }
+}
