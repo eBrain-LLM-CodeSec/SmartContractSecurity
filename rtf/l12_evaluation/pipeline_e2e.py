@@ -1,15 +1,32 @@
-"""L12 end-to-end orchestrator: EthTrust requirements -> deterministic
-predicates -> bounded L8 judgment -> (escalation rule) -> graph-gated
-Codex investigation -> merged per-requirement conformance results.
+"""L12 end-to-end orchestrator: EthTrust requirements -> routing (fully
+deterministic vs. agent-required, decided ahead of time from each
+requirement's own Track A design record) -> deterministic-complete
+requirements resolved directly from predicate evidence, agent-required
+requirements investigated directly by a full-repository-access Codex
+agent -> merged per-requirement conformance results.
 
-This is the first module that actually chains `run_rtf.py` (L1-L5
-deterministic layer), `judge_with_l8.py` (bounded L8), the escalation
-rule (`escalation.py`), and the graph-gated Codex path (`codex_bridge.py`
-+ `bundle_agent_experiment/arm_g_codex.py`) into one call -- before this,
-every piece existed and worked in isolation but nothing invoked them
-together (confirmed by a repo-wide grep finding zero references to
-`ProgramGraph`/`arm_g_codex`/escalation logic anywhere outside the
-`bundle_agent_experiment/` folder).
+**Architecture history, current as of the "revisit the RTF architecture"
+redesign**: an EARLIER version of this module ran bounded L8 first for
+every evidence-backed requirement and escalated to Codex only when L8's
+own judgment was uncertain (INSUFFICIENT_EVIDENCE/INCONCLUSIVE/LOW
+confidence). That "bounded L8 as an escalation gate" design was found to
+violate the intended architecture: it let LLM-required requirements
+terminate on a bounded judgment without ever giving an agent the chance
+to actually explore the repository, and (combined with a separate
+generic-evidence-collector's fixed-size excerpt) produced a real, found-
+by-forensic-inspection missed finding on `2025-01-liquid-ron`'s H-01 --
+see RTF_AGENTIC_ARCHITECTURE.md for the full analysis. Bounded L8 is no
+longer a gate: every requirement is routed exactly once, ahead of time
+(`registry.DETERMINISTIC_COMPLETE_REQ_IDS` vs
+`registry.AGENT_REQUIRED_REQ_IDS`), and `judge_with_l8.judge_result` is
+not called anywhere in this file's main loop -- see
+`RTF_AGENTIC_ARCHITECTURE.md` for what, if anything, still uses it.
+
+`run_rtf.py` (deterministic layer + routing), `codex_bridge.py` +
+`bundle_agent_experiment/arm_g_codex.py` (the now-mandatory-when-routed
+agent investigation, with full repository access -- see
+`arm_g_codex.run_arm_g_bundle`'s own docstring) are chained here into one
+call.
 
 **Known architecture gap, not silently worked around:** the frozen 5-audit
 pilot architecture describes "one evidence bundle per candidate location."
@@ -30,7 +47,7 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 from a4v.graph import ProgramGraph
@@ -39,10 +56,8 @@ from rtf.l8_llm_judgment_layer.bundle_agent_experiment.arm_g_codex import ArmGRe
 from rtf.l8_llm_judgment_layer.graph_navigation import resolve_seed_node
 from rtf.l8_llm_judgment_layer.judgment_layer import LLMJudgmentLayer
 from rtf.l12_evaluation.codex_bridge import build_codex_prompt_inputs, resolve_conformance_from_arm_g
-from rtf.l12_evaluation.escalation import decide_escalation
 from rtf.l12_evaluation.evidence_ranking import rank_evidence
 from rtf.l12_evaluation.failure_taxonomy import OperationalStatus
-from rtf.l12_evaluation.judge_with_l8 import judge_result
 from rtf.l12_evaluation.metrics import ApplicabilityState, ConformanceState, RoutedRequirementResult, TargetRunResult
 from rtf.l12_evaluation.registry import AGGREGATION_REQ_IDS, LLM_MEDIATED_REQ_IDS, REGISTRY
 from rtf.l12_evaluation.run_rtf import (
@@ -237,20 +252,24 @@ class StageMetrics:
     requirements_considered: int = 0
     requirements_applicable: int = 0
     evidence_bundles_generated: int = 0  # requirements with >=1 evidence item
-    # Bounded-L8 judgment attempts: every evidence-backed requirement this
-    # loop hands to `judge_result` is "attempted"; "succeeded" means the L8
-    # call itself returned a real response (no exception, no `"error"` key
-    # in the raw output -- see `judge_with_l8.judge_result`'s own per-
-    # requirement isolation); "failed" is the rest (network/schema/API
-    # error, degraded to ENVIRONMENT_FAILURE). Added specifically so a
-    # systemic wiring bug (e.g. a wrong ChatClient type, which judge_result
-    # silently converts to ENVIRONMENT_FAILURE per requirement) is visible
-    # as a spike in judgments_failed rather than only showing up as an
-    # oddly-clean all-INSUFFICIENT_EVIDENCE run.
+    # As of the "revisit the RTF architecture" redesign, bounded L8 is NOT
+    # called in this loop at all (no gate before the agent) -- these three
+    # fields are always 0 in the live path now. Kept, not deleted, on the
+    # StageMetrics dataclass because judge_with_l8.judge_result itself is
+    # kept as a reusable component for the documented (but not currently
+    # wired) optional post-agent verifier role -- see
+    # RTF_AGENTIC_ARCHITECTURE.md. A nonzero value here would only appear
+    # if that role is wired back in later.
     judgments_attempted: int = 0
     judgments_succeeded: int = 0
     judgments_failed: int = 0
+    # Always 0 now for the same reason -- every AGENT_REQUIRED_REQ_IDS
+    # requirement that reaches the loop body goes straight to the agent,
+    # none are "judged without" it anymore.
     bundles_judged_without_codex: int = 0
+    # "Codex"/"agent" are used interchangeably below -- every one of these
+    # is now an unconditional agent investigation (per AGENT_REQUIRED_REQ_IDS
+    # routing), not a maybe-escalation gated on bounded-L8 uncertainty.
     bundles_escalated_to_codex: int = 0
     codex_investigations_completed: int = 0
     codex_investigations_timed_out: int = 0
@@ -271,6 +290,7 @@ class PipelineArtifacts:
     codex_outcome_reasons: dict  # req_id -> machine-readable reason (codex_timeout/codex_no_decision/codex_unknown_decision:<x>), only set when Codex's own outcome wasn't a genuine parsed decision -- see codex_bridge.resolve_conformance_from_arm_g
     total_codex_cost_usd: float
     integrity_report: IntegrityReport  # see compute_integrity_report -- callers MUST check .valid before treating this run as a normal result
+    graph_seed_resolved: dict = field(default_factory=dict)  # req_id -> bool, whether a pre-resolved graph hint was available BEFORE the agent started (observability only -- never gates whether the agent runs, see arm_g_codex.py's redesign)
 
 
 def run_pipeline_e2e(
@@ -327,6 +347,7 @@ def run_pipeline_e2e(
     codex_results: dict[str, ArmGResult] = {}
     escalation_skip_reasons: dict[str, str] = {}
     codex_outcome_reasons: dict[str, str] = {}
+    graph_seed_resolved: dict[str, bool] = {}
     total_codex_cost = 0.0
     pg: ProgramGraph | None = None  # built lazily, once, only if an escalation actually happens
 
@@ -335,71 +356,53 @@ def run_pipeline_e2e(
         if result.applicability_state != ApplicabilityState.APPLICABLE:
             continue
         if result.conformance_state is not None:
-            continue  # already resolved deterministically (DETERMINISTIC_COMPLETE) -- no L8, no escalation
+            continue  # already resolved deterministically (DETERMINISTIC_COMPLETE_REQ_IDS, run_rtf.py) -- no agent needed at all
         if not result.evidence or result.operational_status.value != "OK":
             continue
 
-        updated, raw = judge_result(judgment_layer, req_id, result, project_root, use_second_pass=True, use_ranking=True)
-        new_routed[req_id] = updated
-        if raw is not None:
-            raw_l8_judgments[req_id] = raw
-        metrics.judgments_attempted += 1
-        if raw is not None and "error" not in raw:
-            metrics.judgments_succeeded += 1
-        else:
-            metrics.judgments_failed += 1
-
-        confidence = (raw or {}).get("first_pass", {}).get("confidence") if raw else None
-        should_escalate = escalation_enabled and decide_escalation(updated.conformance_state, confidence)
-
-        if not should_escalate:
-            metrics.bundles_judged_without_codex += 1
-            continue
+        # By construction (registry.py's own asserted partition), every
+        # requirement that reaches this point -- applicable, evidence-
+        # backed, not yet resolved -- is in AGENT_REQUIRED_REQ_IDS.
+        # Per the "revisit the RTF architecture" directive: bounded L8 is
+        # NOT a gate that decides whether an agent investigation happens.
+        # It goes straight to the agent. `judge_with_l8.judge_result` is
+        # no longer called in this path at all (kept, untouched, as a
+        # reusable component for the optional post-agent verifier role --
+        # see RTF_AGENTIC_ARCHITECTURE.md).
+        updated = result
 
         if cost_ceiling_usd is not None and total_codex_cost >= cost_ceiling_usd:
             metrics.codex_investigations_skipped_cost_ceiling += 1
             escalation_skip_reasons[req_id] = "cost_ceiling_reached"
-            new_routed[req_id] = updated  # keep the bounded (INCONCLUSIVE/etc) verdict as final
+            new_routed[req_id] = replace(updated, conformance_state=ConformanceState.INCONCLUSIVE)
             continue
 
-        # Resolve the seed candidate location: the single highest-ranked
-        # evidence location for this requirement (see module docstring's
-        # "known architecture gap" note on requirement- vs candidate-level
-        # granularity).
+        # Best-effort HINT only -- the single highest-ranked evidence
+        # location for this requirement, by the same deterministic
+        # `rank_evidence` scoring L8's own prompt used to use. Never a
+        # precondition: if this doesn't resolve on the graph (non-
+        # function-shaped location, ambiguous overload, or simply no
+        # evidence-derived location at all), the agent still runs with
+        # full repository access and discovers the relevant location
+        # itself -- see arm_g_codex.py/graph_mcp_server.py's redesign.
         ranked = rank_evidence(list(updated.evidence), project_root)
-        if not ranked:
-            continue
-        candidate_location = ranked[0].item.location
+        candidate_location = ranked[0].item.location if ranked else ""
 
+        graph_seed_resolved[req_id] = False
         try:
             if pg is None:
-                # Reuse the EXACT SAME compiled Slither object `run_rtf`
-                # already produced via `compile_evmbench_target` (neutral
-                # cwd, Foundry-autodetection-safe) instead of triggering a
-                # second, independently-configured compile of the same
-                # file. A second `ProgramGraph.build(entry_sol_file, ...)`
-                # call here used to compile through `a4v.graph._compile`
-                # directly (no neutral cwd), which let crytic-compile's
-                # Foundry auto-detection fire differently and produced a
-                # real, confirmed-live "stack too deep" BuildFailed on
-                # canto's LendingLedger.sol that the first compile never
-                # hit -- see ProgramGraph.from_slither's docstring.
                 if ctx.slither is None:
                     raise RuntimeError(
-                        f"no compiled Slither object available (compile_error={compile_error!r}); "
-                        "cannot build a navigation graph for a target whose deterministic compile "
-                        "already failed"
+                        f"no compiled Slither object available (compile_error={compile_error!r})"
                     )
                 pg = ProgramGraph.from_slither(ctx.slither)
-            resolve_seed_node(pg, candidate_location)  # raises explicitly if unresolved/ambiguous -- fail loud, don't guess
-        except Exception as e:  # noqa: BLE001 -- one requirement's graph-resolution failure must not abort the run
-            escalation_skip_reasons[req_id] = f"graph_resolution_failed: {type(e).__name__}: {e}"
-            metrics.bundles_judged_without_codex += 1
-            new_routed[req_id] = updated
-            continue
+            if candidate_location:
+                resolve_seed_node(pg, candidate_location)
+                graph_seed_resolved[req_id] = True
+        except Exception as e:  # noqa: BLE001 -- resolution failure is informational only now, never blocks the agent
+            escalation_skip_reasons[req_id] = f"graph_seed_not_resolved (agent still investigates): {type(e).__name__}: {e}"
 
-        open_questions = (raw or {}).get("first_pass", {}).get("open_questions") if raw else None
-        prompt_inputs = build_codex_prompt_inputs(req_id, candidate_location, updated, project_root, open_questions)
+        prompt_inputs = build_codex_prompt_inputs(req_id, candidate_location, updated, project_root, None)
         prompt = build_arm_g_prompt(
             prompt_inputs.requirement_text, prompt_inputs.context_bundle_text,
             prompt_inputs.candidate_location, prompt_inputs.evidence_bundle_text,
@@ -492,4 +495,5 @@ def run_pipeline_e2e(
         codex_outcome_reasons=codex_outcome_reasons,
         total_codex_cost_usd=total_codex_cost,
         integrity_report=integrity_report,
+        graph_seed_resolved=graph_seed_resolved,
     )

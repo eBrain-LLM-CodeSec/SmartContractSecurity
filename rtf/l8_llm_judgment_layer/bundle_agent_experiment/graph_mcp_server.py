@@ -1,33 +1,52 @@
-"""Graph-navigation MCP server for Arm G (agent-driven graph navigation).
+"""Graph-navigation MCP server for the RTF agent investigation (formerly
+"Arm G", now the PRODUCTION path for every AGENT_REQUIRED_REQ_IDS
+requirement -- see `registry.py`).
 
-Runs as a SEPARATE process, launched by `codex mcp add` -- deliberately NOT
-subject to the per-shell-command sandbox Codex CLI would otherwise apply,
-because that sandbox (Landlock+seccomp) does not work at all on this
-session's login node (kernel 4.18, predates Landlock's 5.13 introduction --
-confirmed live via `codex sandbox linux`, which panics with
-"error applying legacy Linux sandbox restrictions"). Because of that, this
-experiment cannot filesystem-enforce Codex's shell-level file access the
-way the prior G1-restricted experiment did (copy only the allowed files
-into an isolated directory, then run fully sandboxed) -- Codex still runs
-with `--dangerously-bypass-approvals-and-sandbox` (the only mode that
-works here), so its shell COULD read anything on disk regardless of what
-this server reveals.
+**Architecture as of the "revisit the RTF architecture" redesign**: this
+server is a SUPPLEMENTARY structural-query capability, not the exclusive
+or "sanctioned" channel for file visibility. `arm_g_codex.run_arm_g_bundle`
+now gives the agent a full copy of the repository from the start (its own
+`GRAPH_INVESTIGATION_DIR`, which is also where the agent's shell already
+runs) -- `ls`/`find`/`grep`/`cat`/`sed` all work over the real repository
+immediately, with no reveal-gating. This server's `investigate`/
+`read_source`/`show_candidate` tools remain genuinely useful for
+STRUCTURAL questions a grep can't easily answer (real caller/callee/
+state-read/state-write/inheritance/external-call edges from the actual
+compiled program graph, not text pattern matching) -- but failing to
+resolve a candidate, or never calling these tools at all, must never
+block or diminish an investigation. `candidate_location` is a best-effort
+HINT (may be empty, or a non-function-shaped string like "compiler
+config") -- see `_get_seed()`'s graceful-failure handling.
 
-This server is instead the *sanctioned* path: it is the only way new files
-are meant to become visible, and the harness measures (does not merely
-assume) compliance -- see AGENT_DRIVEN_GRAPH_NAVIGATION_EXPERIMENT.md's
-divergence analysis for how a shell read of a never-revealed file is
-detected after the fact via arm_c_codex.py's existing command-parsing
-harness. This tradeoff (detection instead of prevention) is disclosed
-explicitly in the preregistration and report, not hidden.
+Runs as a SEPARATE process, launched by `codex mcp add` -- deliberately
+NOT subject to the per-shell-command sandbox Codex CLI would otherwise
+apply, because that sandbox (Landlock+seccomp) does not work at all on
+this session's login node (kernel 4.18, predates Landlock's 5.13
+introduction -- confirmed live via `codex sandbox linux`, which panics
+with "error applying legacy Linux sandbox restrictions"). Codex runs with
+`--dangerously-bypass-approvals-and-sandbox` (the only mode that works
+here) inside its own disposable repository copy (see
+`arm_g_codex.run_arm_g_bundle`'s docstring for why a copy, not the live
+repo).
+
+Historical note: an EARLIER version of this module (see
+AGENT_DRIVEN_GRAPH_NAVIGATION_EXPERIMENT.md) deliberately restricted
+initial visibility to test whether graph-mediated navigation alone
+sufficiently informs an investigation, treating any shell read of a
+never-"revealed" file as a measured protocol violation. That was a valid
+research design for that specific question, but is NOT the production
+architecture -- artificially restricting what the agent can see was
+identified as a real failure mode (an evidence-construction bug caused a
+real missed finding by truncating a file before the agent could ever see
+the relevant function) and is deliberately removed here.
 
 Env vars (set by the harness when registering this server per bundle):
-  GRAPH_ENTRY_FILE       -- path to compile as the ProgramGraph.build() target
-  GRAPH_SOLC_REMAPS      -- optional, ':'-joined solc remaps
-  GRAPH_REPO_ROOT        -- root the investigation_dir's relative paths are computed against
-  GRAPH_INVESTIGATION_DIR -- where revealed files get copied to
-  GRAPH_CANDIDATE_LOCATION -- RTF's "Contract.function" location string
-  GRAPH_TRACE_LOG_PATH   -- append-only JSONL of every tool call + result (harness-authoritative)
+  GRAPH_ENTRY_FILE       -- path to compile as the ProgramGraph.build() target (inside the repo copy)
+  GRAPH_SOLC_REMAPS      -- optional, ':'-joined solc remaps (re-anchored onto the repo copy)
+  GRAPH_REPO_ROOT        -- the repo copy root (same as GRAPH_INVESTIGATION_DIR)
+  GRAPH_INVESTIGATION_DIR -- the repo copy root the agent's shell already has full access to
+  GRAPH_CANDIDATE_LOCATION -- best-effort hint, "Contract.function" or "" if none available
+  GRAPH_TRACE_LOG_PATH   -- append-only JSONL of every tool call + result (harness-authoritative, for observability)
   GRAPH_SOLC_PATH_DIR    -- directory containing a `solc` binary to prepend to PATH before compiling
   GRAPH_SOLC_CWD         -- optional: cwd to compile with, matching
                             `compile_helper.compile_evmbench_target`'s
@@ -115,16 +134,32 @@ RELATION_MAP = {
 
 
 _seed_cache: str | None = None
+_seed_resolution_error: str | None = None
+_seed_attempted = False
 
 
-def _get_seed() -> str:
-    # Resolution logic lives in graph_navigation.resolve_seed_node, shared
-    # with production L12 code (pipeline_e2e.py) and graph_relevance.py --
-    # this used to be an independent inline duplicate of the same prefix-
-    # match/ambiguity-check, promoted out to avoid drift between the two.
-    global _seed_cache
-    if _seed_cache is None:
+def _get_seed() -> str | None:
+    """Best-effort candidate resolution -- NOT a precondition for the agent
+    to do anything else. Per the "revisit the RTF architecture" directive,
+    `candidate_location` is a HINT, possibly empty or non-function-shaped
+    (e.g. "compiler config", "project documentation"); failing to resolve
+    it must never block the investigation, only mean `show_candidate()`
+    has nothing pre-identified to hand back. Resolution logic itself is
+    unchanged (`graph_navigation.resolve_seed_node`, shared with
+    `pipeline_e2e.py`) -- only the caller's reaction to failure changed
+    (graceful `None`, not a crash).
+    """
+    global _seed_cache, _seed_resolution_error, _seed_attempted
+    if _seed_attempted:
+        return _seed_cache
+    _seed_attempted = True
+    if not CANDIDATE_LOCATION:
+        _seed_resolution_error = "no candidate_location hint was provided for this requirement"
+        return None
+    try:
         _seed_cache = resolve_seed_node(_get_graph(), CANDIDATE_LOCATION)
+    except Exception as e:  # noqa: BLE001 -- any resolution failure (zero match, ambiguous, etc.) degrades to "no hint", never a crash
+        _seed_resolution_error = f"{type(e).__name__}: {e}"
     return _seed_cache
 
 
@@ -172,9 +207,26 @@ mcp = MCPServer("rtf-graph-navigation")
 
 @mcp.tool()
 def show_candidate() -> dict:
-    """Reveals the candidate function's own file and returns its source excerpt and node id. Call this first."""
-    pg = _get_graph()
+    """Reveals the candidate function's own file and returns its source
+    excerpt and node id, IF a resolvable candidate hint exists for this
+    requirement. Call this first -- but a `NO_CANDIDATE_HINT` response is
+    a legitimate, expected outcome (not an error): many requirements have
+    no single function-shaped candidate at all (documentation review,
+    broad design properties, project-wide checks). When this happens, you
+    already have the whole repository available through your normal file
+    tools (`ls`, `find`, `grep`, `cat`, `sed`) -- start there instead;
+    discovering the relevant location yourself is part of the
+    investigation, not a blocker."""
     seed = _get_seed()
+    if seed is None:
+        result = {"status": "NO_CANDIDATE_HINT", "reason": _seed_resolution_error,
+                   "guidance": "No pre-identified candidate location for this requirement. "
+                               "Explore the repository directly with your normal file tools "
+                               "(ls/find/grep/cat/sed) to find the relevant code, "
+                               "README/docs/NatSpec, or configuration."}
+        _log({"tool": "show_candidate", "args": {}, "result": result})
+        return result
+    pg = _get_graph()
     summary = _node_summary(seed)
     data = pg.graph.nodes[seed]
     excerpt = _excerpt(data)

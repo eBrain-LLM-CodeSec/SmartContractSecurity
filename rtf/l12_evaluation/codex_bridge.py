@@ -54,12 +54,15 @@ def build_codex_prompt_inputs(
     open_questions: list[str] | None = None,
     max_bundles: int = 30,
 ) -> CodexPromptInputs:
-    """Builds Codex's prompt inputs for one escalated (req_id, candidate)
-    pair. `open_questions` should be the bounded L8 judgment's own
-    `open_questions` field when available (the escalation trigger's own
-    stated gaps) -- this is what `unresolved_facts` is populated from,
-    rather than inventing a new "what's missing" heuristic: L8 already
-    named what it couldn't resolve.
+    """Builds the agent's prompt inputs for one (req_id, candidate) pair.
+    `open_questions`, when the caller has some (e.g. from an optional
+    bounded-L8 pre-pass, if one is ever wired back in), populates
+    `unresolved_facts` directly rather than inventing a new "what's
+    missing" heuristic. As of the "revisit the RTF architecture" redesign,
+    `pipeline_e2e.py`'s main loop no longer runs a bounded pass first, so
+    this is normally `None` -- the agent is expected to discover its own
+    open questions via full repository exploration, not inherit them from
+    a prior bounded judgment.
 
     `context_bundle_text` comes from the requirement's real L2 bundle
     (`rtf/l2_context_bundles/<req_id>.json`) via the same renderer L8's

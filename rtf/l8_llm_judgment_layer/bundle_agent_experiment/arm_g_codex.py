@@ -26,7 +26,12 @@ from rtf.l8_llm_judgment_layer.bundle_agent_experiment.arm_c_codex import (
     _extract_touched_files, codex_login, compute_cost,
 )
 
-ARM_G_PROMPT_PATH = Path(__file__).parent / "ARM_G_PROMPT_v1.md"
+ARM_G_PROMPT_PATH = Path(__file__).parent / "ARM_G_PROMPT_v2.md"
+"""v2: full-repository access, no graph-gated visibility restriction --
+see ARM_G_PROMPT_v2.md's own header for why this supersedes v1. v1 is
+kept on disk (not deleted) as the historical record of the earlier
+graph-gated-navigation research design; nothing in the live pipeline
+loads it anymore."""
 
 
 def load_frozen_arm_g_prompt() -> str:
@@ -102,44 +107,99 @@ class ArmGResult:
     trace_log_path: str
 
 
+_COPY_IGNORE = shutil.ignore_patterns(".git")
+
+
+def prepare_full_repo_investigation_dir(repo_root: Path, investigation_dir: Path) -> Path:
+    """The full-repository-access fix, isolated as its own testable
+    function: a fresh, complete copy of `repo_root` (minus `.git`) at
+    `investigation_dir`, which becomes the agent's cwd -- so `ls`/`find`/
+    `grep`/`cat`/`sed` see the REAL repository from turn one, not a
+    near-empty directory that only grows as graph tools "reveal" files.
+    Extracted from `run_arm_g_bundle` specifically so this property (a
+    file beyond any fixed-size excerpt cutoff is genuinely reachable) is
+    unit-testable without needing a real Codex binary/API key -- see
+    `test_agentic_architecture.py`.
+    """
+    if investigation_dir.exists():
+        shutil.rmtree(investigation_dir)
+    shutil.copytree(repo_root, investigation_dir, ignore=_COPY_IGNORE)
+    return investigation_dir
+
+
 def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Path,
                       api_key: str, model: str, case_id: str,
                       entry_file: Path, repo_root: Path, candidate_location: str,
                       solc_path_dir: str, solc_remaps: list[str] | None,
                       prompt: str, scratch_root: Path, timeout_s: int = 300) -> ArmGResult:
+    """Runs one graph-gated-but-not-graph-RESTRICTED Codex investigation.
+
+    Per the "revisit the RTF architecture" directive: the agent gets REAL,
+    full repository access from the start (a full copy of `repo_root`,
+    read/write/exec within its own scratch copy, normal shell tools --
+    `grep`/`find`/`cat`/`sed`/`ls` all work exactly as they would in the
+    real repo), not a near-empty directory that only grows as graph tools
+    "reveal" files. Graph-navigation MCP tools remain available as an
+    ADDITIONAL structural-query capability (callers/callees/state-read/
+    state-write/inheritance), never the exclusive channel. `candidate_
+    location` is a best-effort HINT (may be "", or a non-function-shaped
+    string like "compiler config" or "project documentation") -- the
+    agent is expected to discover the relevant location itself when no
+    resolvable hint exists, not blocked from starting because one
+    doesn't. See ARM_G_PROMPT_v2.md for the full instruction set.
+
+    A full copy (not the live `repo_root` itself) is used deliberately:
+    Codex runs with `--dangerously-bypass-approvals-and-sandbox` (the
+    only mode that works on this kernel -- see module docstring) and
+    could technically write/delete within its own cwd; giving it its own
+    disposable copy means an errant write can't corrupt the actual
+    cloned audit repo other entries/predicates still need to read.
+    """
     home = scratch_root / f"{case_id}_ghome"
     if home.exists():
         shutil.rmtree(home)
     home.mkdir(parents=True)
 
     investigation_dir = scratch_root / f"{case_id}_gview"
-    if investigation_dir.exists():
-        shutil.rmtree(investigation_dir)
-    investigation_dir.mkdir(parents=True)
-    # Initial visibility: only the candidate's own file, copied in (task's
-    # own "Initial visibility" section) -- everything else must be
-    # revealed via the graph MCP tools.
-    shutil.copy(entry_file, investigation_dir / entry_file.name)
+    prepare_full_repo_investigation_dir(repo_root, investigation_dir)
+
+    # A separate, GUARANTEED-empty neutral cwd for the graph MCP server's
+    # own solc compile (see graph_mcp_server.py's GRAPH_SOLC_CWD docstring
+    # for why this must be foundry.toml-free) -- investigation_dir is now
+    # a full repo copy and WOULD contain a foundry.toml, so it can no
+    # longer serve as its own neutral cwd the way the old near-empty
+    # investigation_dir incidentally could.
+    solc_neutral_cwd = scratch_root / f"{case_id}_solc_neutral"
+    if solc_neutral_cwd.exists():
+        shutil.rmtree(solc_neutral_cwd)
+    solc_neutral_cwd.mkdir(parents=True)
+
+    # entry_file's path relative to the ORIGINAL repo_root, re-anchored
+    # onto the copy -- the graph MCP server compiles this file location.
+    entry_file_in_copy = investigation_dir / entry_file.resolve().relative_to(repo_root.resolve())
 
     trace_log_path = scratch_root / f"{case_id}_graph_trace.jsonl"
     trace_log_path.unlink(missing_ok=True)
 
     mcp_env = {
-        "GRAPH_ENTRY_FILE": str(entry_file),
-        "GRAPH_REPO_ROOT": str(repo_root),
+        "GRAPH_ENTRY_FILE": str(entry_file_in_copy),
+        "GRAPH_REPO_ROOT": str(investigation_dir),
         "GRAPH_INVESTIGATION_DIR": str(investigation_dir),
-        "GRAPH_CANDIDATE_LOCATION": candidate_location,
+        "GRAPH_CANDIDATE_LOCATION": candidate_location or "",
         "GRAPH_TRACE_LOG_PATH": str(trace_log_path),
         "GRAPH_SOLC_PATH_DIR": solc_path_dir,
-        # A freshly-created scratch dir with no `foundry.toml` reachable
-        # anywhere up its tree -- matches compile_helper.compile_
-        # evmbench_target's proven neutral-cwd Foundry-autodetection guard.
-        # See graph_mcp_server.py's GRAPH_SOLC_CWD docstring for why this
-        # matters (a confirmed-live compile divergence on canto).
-        "GRAPH_SOLC_CWD": str(investigation_dir),
+        "GRAPH_SOLC_CWD": str(solc_neutral_cwd),
     }
     if solc_remaps:
-        mcp_env["GRAPH_SOLC_REMAPS"] = ":".join(solc_remaps)
+        # Remaps were collected against the ORIGINAL repo_root; re-anchor
+        # each absolute path onto the copy so they still resolve.
+        repo_root_resolved = str(repo_root.resolve())
+        investigation_dir_resolved = str(investigation_dir.resolve())
+        remapped = [
+            r.replace(repo_root_resolved, investigation_dir_resolved) if repo_root_resolved in r else r
+            for r in solc_remaps
+        ]
+        mcp_env["GRAPH_SOLC_REMAPS"] = ":".join(remapped)
 
     write_g_config(home, str(python_bin), [str(mcp_server_script)], mcp_env)
     codex_login(codex_bin, home, api_key)

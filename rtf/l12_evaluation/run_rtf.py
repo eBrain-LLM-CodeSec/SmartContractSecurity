@@ -85,7 +85,7 @@ from rtf.l12_evaluation.metrics import (
     RoutedRequirementResult,
     TargetRunResult,
 )
-from rtf.l12_evaluation.registry import AGGREGATION_REQ_IDS, REGISTRY
+from rtf.l12_evaluation.registry import AGGREGATION_REQ_IDS, DETERMINISTIC_COMPLETE_REQ_IDS, REGISTRY
 
 
 @dataclass
@@ -236,9 +236,23 @@ def run_rtf(
         conformance: ConformanceState | None = None
         if op_status == OperationalStatus.OK:
             unconditioned = unconditioned_map.get(req_id, False)
-            if all_evidence:
+            if all_evidence and req_id in DETERMINISTIC_COMPLETE_REQ_IDS:
+                # This requirement's OWN Track A design record documents a
+                # genuinely complete deterministic answer (no acknowledged
+                # pending/trigger-only component) -- per the "revisit the
+                # RTF architecture" directive, evidence here IS the final
+                # verdict. No LLM, no Codex, at all. See registry.py's
+                # DETERMINISTIC_COMPLETE_REQ_IDS docstring for the exact
+                # classification method and its deliberately-conservative
+                # membership.
                 applicability = ApplicabilityState.APPLICABLE
-                # conformance stays None -- judgment deferred to L8, see module docstring outcome (1)
+                conformance = ConformanceState.FAIL
+            elif all_evidence:
+                applicability = ApplicabilityState.APPLICABLE
+                # conformance stays None -- for AGENT_REQUIRED_REQ_IDS this
+                # means "pending Codex investigation" (pipeline_e2e.py routes
+                # directly there, no bounded-L8 gate); see module docstring
+                # outcome (1).
             elif unconditioned:
                 applicability = ApplicabilityState.APPLICABLE
                 conformance = ConformanceState.PASS
