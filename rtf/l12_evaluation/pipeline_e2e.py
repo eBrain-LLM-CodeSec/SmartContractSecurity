@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
@@ -305,6 +306,167 @@ class PipelineArtifacts:
     needing to import anything from rtf.standards itself."""
 
 
+def _run_escalations_concurrent(
+    *,
+    routed: dict[str, RoutedRequirementResult],
+    new_routed: dict[str, RoutedRequirementResult],
+    ctx: RunContext,
+    compile_error,
+    project_root: Path,
+    entry_sol_file: Path,
+    generated_bundles: dict[str, dict],
+    audit_id: str,
+    codex_bin: Path,
+    python_bin: Path,
+    mcp_server_script: Path,
+    api_key: str,
+    codex_model: str,
+    solc_path_dir: str,
+    scratch_root: Path,
+    codex_timeout_s: int,
+    cost_ceiling_usd: float | None,
+    max_workers: int,
+    metrics: StageMetrics,
+    codex_results: dict,
+    escalation_skip_reasons: dict[str, str],
+    codex_outcome_reasons: dict[str, str],
+    graph_seed_resolved: dict[str, bool],
+) -> float:
+    """Concurrent counterpart to `run_pipeline_e2e`'s serial escalation
+    loop. Two phases, deliberately kept separate:
+
+    Phase 1 (sequential, cheap, local -- no I/O): for every requirement
+    needing escalation, resolve `candidate_location` (rank_evidence),
+    attempt graph-seed resolution against the ONE shared `ProgramGraph`
+    (built lazily once, same as the serial path), and build the full
+    prompt. Stays single-threaded because it touches shared mutable state
+    (`pg`) and is fast/local anyway -- no benefit to parallelizing it.
+
+    Phase 2 (concurrent, I/O-bound): only the actual `run_arm_g_bundle`
+    subprocess calls, in batches of `max_workers` via a
+    `ThreadPoolExecutor`. Threads, not processes: each call is I/O-bound
+    (subprocess + network wait), not CPU-bound. Safe to parallelize
+    because each call already writes to its own isolated scratch path
+    keyed by `case_id` (`arm_g_codex.run_arm_g_bundle`'s own docstring:
+    unconditionally rm-trees/unlinks any pre-existing path for that
+    `case_id` -- distinct req_ids in the same entry never collide). All
+    dict/counter bookkeeping (`metrics`, `codex_results`, `new_routed`,
+    etc.) happens in the MAIN thread only, as each future resolves via
+    `as_completed` -- worker threads only call `run_arm_g_bundle` and
+    return its result, they never touch shared mutable state directly.
+
+    Cost-ceiling enforcement is checked once per BATCH (before submitting
+    it), using only cost from batches that have FULLY completed -- a
+    call's real cost is only known after it returns, so under concurrency
+    up to `max_workers - 1` extra investigations may already be in flight
+    when the ceiling is crossed mid-batch. A wider (but still bounded, and
+    explicitly documented) version of the same limitation the serial path
+    already has.
+    """
+    escalation_items: list[dict] = []
+    pg: ProgramGraph | None = None
+
+    for req_id, result in routed.items():
+        if result.applicability_state != ApplicabilityState.APPLICABLE:
+            continue
+        if result.conformance_state is not None:
+            continue
+        if not result.evidence or result.operational_status.value != "OK":
+            continue
+
+        updated = result
+        ranked = rank_evidence(list(updated.evidence), project_root)
+        candidate_location = ranked[0].item.location if ranked else ""
+
+        graph_seed_resolved[req_id] = False
+        try:
+            if pg is None:
+                if ctx.slither is None:
+                    raise RuntimeError(
+                        f"no compiled Slither object available (compile_error={compile_error!r})"
+                    )
+                pg = ProgramGraph.from_slither(ctx.slither)
+            if candidate_location:
+                resolve_seed_node(pg, candidate_location)
+                graph_seed_resolved[req_id] = True
+        except Exception as e:  # noqa: BLE001 -- resolution failure is informational only, never blocks the agent
+            escalation_skip_reasons[req_id] = f"graph_seed_not_resolved (agent still investigates): {type(e).__name__}: {e}"
+
+        prompt_inputs = build_codex_prompt_inputs(
+            req_id, candidate_location, updated, project_root, None,
+            bundle_record=generated_bundles.get(req_id),
+        )
+        prompt = build_arm_g_prompt(
+            prompt_inputs.requirement_text, prompt_inputs.context_bundle_text,
+            prompt_inputs.candidate_location, prompt_inputs.evidence_bundle_text,
+            prompt_inputs.unresolved_facts,
+        )
+        entry_slug = entry_sol_file.stem
+        escalation_items.append({
+            "req_id": req_id, "updated": updated,
+            "case_id": f"{audit_id}__{entry_slug}__{req_id}",
+            "candidate_location": candidate_location, "prompt": prompt,
+        })
+
+    remaps = _collect_remappings(project_root)
+    total_codex_cost = 0.0
+
+    def _invoke(item: dict):
+        return run_arm_g_bundle(
+            codex_bin=codex_bin, python_bin=python_bin, mcp_server_script=mcp_server_script,
+            api_key=api_key, model=codex_model, case_id=item["case_id"],
+            entry_file=entry_sol_file, repo_root=project_root,
+            candidate_location=item["candidate_location"],
+            solc_path_dir=solc_path_dir, solc_remaps=remaps, prompt=item["prompt"],
+            scratch_root=scratch_root, timeout_s=codex_timeout_s,
+        )
+
+    i = 0
+    while i < len(escalation_items):
+        if cost_ceiling_usd is not None and total_codex_cost >= cost_ceiling_usd:
+            for item in escalation_items[i:]:
+                req_id = item["req_id"]
+                metrics.codex_investigations_skipped_cost_ceiling += 1
+                escalation_skip_reasons[req_id] = "cost_ceiling_reached"
+                new_routed[req_id] = replace(item["updated"], conformance_state=ConformanceState.INCONCLUSIVE)
+            break
+
+        batch = escalation_items[i:i + max_workers]
+        i += len(batch)
+
+        with ThreadPoolExecutor(max_workers=len(batch)) as executor:
+            future_to_item = {executor.submit(_invoke, item): item for item in batch}
+            for future in as_completed(future_to_item):
+                item = future_to_item[future]
+                req_id = item["req_id"]
+                updated = item["updated"]
+                try:
+                    codex_result = future.result()
+                except Exception as e:  # noqa: BLE001 -- one investigation crashing must not kill the batch/run
+                    escalation_skip_reasons[req_id] = f"codex_invocation_crashed: {type(e).__name__}: {e}"
+                    new_routed[req_id] = replace(updated, conformance_state=ConformanceState.INCONCLUSIVE)
+                    continue
+
+                codex_results[req_id] = codex_result
+                total_codex_cost += codex_result.cost_usd
+                metrics.bundles_escalated_to_codex += 1
+                if codex_result.timed_out:
+                    metrics.codex_investigations_timed_out += 1
+                else:
+                    metrics.codex_investigations_completed += 1
+
+                outcome = resolve_conformance_from_arm_g(codex_result.final_decision, codex_result.timed_out)
+                if outcome.reason is not None:
+                    codex_outcome_reasons[req_id] = outcome.reason
+                new_routed[req_id] = RoutedRequirementResult(
+                    req_id=req_id, applicability_state=updated.applicability_state,
+                    operational_status=updated.operational_status,
+                    conformance_state=outcome.conformance_state, evidence=updated.evidence,
+                )
+
+    return total_codex_cost
+
+
 def run_pipeline_e2e(
     *,
     audit_id: str,
@@ -324,8 +486,25 @@ def run_pipeline_e2e(
     cost_ceiling_usd: float | None = None,
     known_limitations: dict[str, str] | None = None,
     only_req_ids: set[str] | None = None,
+    max_concurrent_investigations: int = 1,
 ) -> PipelineArtifacts:
     """Runs the full L1->L8->(escalation)->Arm G chain for one real target.
+
+    `max_concurrent_investigations`: defaults to 1 -- EXACTLY the original
+    serial behavior (unchanged code path, see `_run_escalations_serial`).
+    When > 1, Codex investigations for this entry run concurrently in
+    batches of that size instead (`_run_escalations_concurrent`) -- each
+    investigation already gets its own isolated scratch directory keyed by
+    `case_id` (`arm_g_codex.run_arm_g_bundle`'s own docstring), so this is
+    safe: no shared mutable state is touched from more than one thread.
+    Wall-clock time only (real Codex/API cost is per-investigation and
+    unaffected by how many run at once). The cost ceiling is still
+    enforced, but at BATCH granularity under concurrency, not per-call --
+    up to `max_concurrent_investigations - 1` extra investigations may
+    already be in flight when the ceiling is crossed, since a call's real
+    cost is only known after it returns (same documented limitation the
+    serial path already has, just with a slightly larger bound under
+    concurrency). See RTF_CONCURRENT_INVESTIGATIONS.md.
 
     `cost_ceiling_usd`, if given, is enforced INCREMENTALLY: before
     launching each new Codex escalation, the sum of `cost_usd` already
@@ -381,114 +560,136 @@ def run_pipeline_e2e(
     pg: ProgramGraph | None = None  # built lazily, once, only if an escalation actually happens
 
     new_routed = dict(run.routed)
-    for req_id, result in run.routed.items():
-        if result.applicability_state != ApplicabilityState.APPLICABLE:
-            continue
-        if result.conformance_state is not None:
-            continue  # already resolved deterministically (DETERMINISTIC_COMPLETE_REQ_IDS, run_rtf.py) -- no agent needed at all
-        if not result.evidence or result.operational_status.value != "OK":
-            continue
+    if max_concurrent_investigations <= 1:
+        # Original serial path -- byte-for-byte unchanged from before
+        # `max_concurrent_investigations` existed, so every existing test
+        # (which calls this function without that parameter, defaulting to
+        # 1) continues to exercise EXACTLY this code, unmodified.
+        for req_id, result in run.routed.items():
+            if result.applicability_state != ApplicabilityState.APPLICABLE:
+                continue
+            if result.conformance_state is not None:
+                continue  # already resolved deterministically (DETERMINISTIC_COMPLETE_REQ_IDS, run_rtf.py) -- no agent needed at all
+            if not result.evidence or result.operational_status.value != "OK":
+                continue
 
-        # By construction (registry.py's own asserted partition), every
-        # requirement that reaches this point -- applicable, evidence-
-        # backed, not yet resolved -- is in AGENT_REQUIRED_REQ_IDS.
-        # Per the "revisit the RTF architecture" directive: bounded L8 is
-        # NOT a gate that decides whether an agent investigation happens.
-        # It goes straight to the agent. `judge_with_l8.judge_result` is
-        # no longer called in this path at all (kept, untouched, as a
-        # reusable component for the optional post-agent verifier role --
-        # see RTF_AGENTIC_ARCHITECTURE.md).
-        updated = result
+            # By construction (registry.py's own asserted partition), every
+            # requirement that reaches this point -- applicable, evidence-
+            # backed, not yet resolved -- is in AGENT_REQUIRED_REQ_IDS.
+            # Per the "revisit the RTF architecture" directive: bounded L8 is
+            # NOT a gate that decides whether an agent investigation happens.
+            # It goes straight to the agent. `judge_with_l8.judge_result` is
+            # no longer called in this path at all (kept, untouched, as a
+            # reusable component for the optional post-agent verifier role --
+            # see RTF_AGENTIC_ARCHITECTURE.md).
+            updated = result
 
-        if cost_ceiling_usd is not None and total_codex_cost >= cost_ceiling_usd:
-            metrics.codex_investigations_skipped_cost_ceiling += 1
-            escalation_skip_reasons[req_id] = "cost_ceiling_reached"
-            new_routed[req_id] = replace(updated, conformance_state=ConformanceState.INCONCLUSIVE)
-            continue
+            if cost_ceiling_usd is not None and total_codex_cost >= cost_ceiling_usd:
+                metrics.codex_investigations_skipped_cost_ceiling += 1
+                escalation_skip_reasons[req_id] = "cost_ceiling_reached"
+                new_routed[req_id] = replace(updated, conformance_state=ConformanceState.INCONCLUSIVE)
+                continue
 
-        # Best-effort HINT only -- the single highest-ranked evidence
-        # location for this requirement, by the same deterministic
-        # `rank_evidence` scoring L8's own prompt used to use. Never a
-        # precondition: if this doesn't resolve on the graph (non-
-        # function-shaped location, ambiguous overload, or simply no
-        # evidence-derived location at all), the agent still runs with
-        # full repository access and discovers the relevant location
-        # itself -- see arm_g_codex.py/graph_mcp_server.py's redesign.
-        ranked = rank_evidence(list(updated.evidence), project_root)
-        candidate_location = ranked[0].item.location if ranked else ""
+            # Best-effort HINT only -- the single highest-ranked evidence
+            # location for this requirement, by the same deterministic
+            # `rank_evidence` scoring L8's own prompt used to use. Never a
+            # precondition: if this doesn't resolve on the graph (non-
+            # function-shaped location, ambiguous overload, or simply no
+            # evidence-derived location at all), the agent still runs with
+            # full repository access and discovers the relevant location
+            # itself -- see arm_g_codex.py/graph_mcp_server.py's redesign.
+            ranked = rank_evidence(list(updated.evidence), project_root)
+            candidate_location = ranked[0].item.location if ranked else ""
 
-        graph_seed_resolved[req_id] = False
-        try:
-            if pg is None:
-                if ctx.slither is None:
-                    raise RuntimeError(
-                        f"no compiled Slither object available (compile_error={compile_error!r})"
-                    )
-                pg = ProgramGraph.from_slither(ctx.slither)
-            if candidate_location:
-                resolve_seed_node(pg, candidate_location)
-                graph_seed_resolved[req_id] = True
-        except Exception as e:  # noqa: BLE001 -- resolution failure is informational only now, never blocks the agent
-            escalation_skip_reasons[req_id] = f"graph_seed_not_resolved (agent still investigates): {type(e).__name__}: {e}"
+            graph_seed_resolved[req_id] = False
+            try:
+                if pg is None:
+                    if ctx.slither is None:
+                        raise RuntimeError(
+                            f"no compiled Slither object available (compile_error={compile_error!r})"
+                        )
+                    pg = ProgramGraph.from_slither(ctx.slither)
+                if candidate_location:
+                    resolve_seed_node(pg, candidate_location)
+                    graph_seed_resolved[req_id] = True
+            except Exception as e:  # noqa: BLE001 -- resolution failure is informational only now, never blocks the agent
+                escalation_skip_reasons[req_id] = f"graph_seed_not_resolved (agent still investigates): {type(e).__name__}: {e}"
 
-        prompt_inputs = build_codex_prompt_inputs(
-            req_id, candidate_location, updated, project_root, None,
-            bundle_record=generated_bundles.get(req_id),
-        )
-        prompt = build_arm_g_prompt(
-            prompt_inputs.requirement_text, prompt_inputs.context_bundle_text,
-            prompt_inputs.candidate_location, prompt_inputs.evidence_bundle_text,
-            prompt_inputs.unresolved_facts,
-        )
+            prompt_inputs = build_codex_prompt_inputs(
+                req_id, candidate_location, updated, project_root, None,
+                bundle_record=generated_bundles.get(req_id),
+            )
+            prompt = build_arm_g_prompt(
+                prompt_inputs.requirement_text, prompt_inputs.context_bundle_text,
+                prompt_inputs.candidate_location, prompt_inputs.evidence_bundle_text,
+                prompt_inputs.unresolved_facts,
+            )
 
-        remaps = _collect_remappings(project_root)
-        # `case_id` doubles as the scratch-artifact path (ghome/gview dirs,
-        # gout.txt, gstream.jsonl, graph_trace.jsonl -- see
-        # arm_g_codex.run_arm_g_bundle, which unconditionally rm-trees/
-        # unlinks any pre-existing path with this case_id before writing).
-        # Must include the entry file, not just (audit_id, req_id): a real,
-        # confirmed-live bug found by forensic inspection AFTER this
-        # session's own liquid-ron validation run completed -- the same
-        # req_id (e.g. "req-3-event-on-state-change") legitimately escalates
-        # across MULTIPLE different scope entries in one audit, and
-        # (audit_id, req_id) alone collided across all of them, silently
-        # overwriting every earlier entry's raw Codex session transcript
-        # with the last one's. Did NOT affect that run's actual counted
-        # results (each entry's ArmGResult was captured in memory and
-        # persisted into ITS OWN stage.json before the next entry could
-        # overwrite the shared scratch path) -- this is a forensic-replay/
-        # observability gap, not a correctness defect, but one that would
-        # compound badly on audits with far more scope entries and req_id
-        # repetition (e.g. arbitrum-foundation's 39, sequence's 47).
-        entry_slug = entry_sol_file.stem
-        codex_result = run_arm_g_bundle(
+            remaps = _collect_remappings(project_root)
+            # `case_id` doubles as the scratch-artifact path (ghome/gview dirs,
+            # gout.txt, gstream.jsonl, graph_trace.jsonl -- see
+            # arm_g_codex.run_arm_g_bundle, which unconditionally rm-trees/
+            # unlinks any pre-existing path with this case_id before writing).
+            # Must include the entry file, not just (audit_id, req_id): a real,
+            # confirmed-live bug found by forensic inspection AFTER this
+            # session's own liquid-ron validation run completed -- the same
+            # req_id (e.g. "req-3-event-on-state-change") legitimately escalates
+            # across MULTIPLE different scope entries in one audit, and
+            # (audit_id, req_id) alone collided across all of them, silently
+            # overwriting every earlier entry's raw Codex session transcript
+            # with the last one's. Did NOT affect that run's actual counted
+            # results (each entry's ArmGResult was captured in memory and
+            # persisted into ITS OWN stage.json before the next entry could
+            # overwrite the shared scratch path) -- this is a forensic-replay/
+            # observability gap, not a correctness defect, but one that would
+            # compound badly on audits with far more scope entries and req_id
+            # repetition (e.g. arbitrum-foundation's 39, sequence's 47).
+            entry_slug = entry_sol_file.stem
+            codex_result = run_arm_g_bundle(
+                codex_bin=codex_bin, python_bin=python_bin, mcp_server_script=mcp_server_script,
+                api_key=api_key, model=codex_model, case_id=f"{audit_id}__{entry_slug}__{req_id}",
+                entry_file=entry_sol_file, repo_root=project_root, candidate_location=candidate_location,
+                solc_path_dir=solc_path_dir, solc_remaps=remaps, prompt=prompt,
+                scratch_root=scratch_root, timeout_s=codex_timeout_s,
+            )
+            codex_results[req_id] = codex_result
+            total_codex_cost += codex_result.cost_usd
+            metrics.bundles_escalated_to_codex += 1
+            if codex_result.timed_out:
+                metrics.codex_investigations_timed_out += 1
+            else:
+                metrics.codex_investigations_completed += 1
+
+            outcome = resolve_conformance_from_arm_g(codex_result.final_decision, codex_result.timed_out)
+            if outcome.reason is not None:
+                # A non-None reason means this ISN'T a genuine parsed Codex
+                # decision (codex_timeout / codex_no_decision / codex_unknown_
+                # decision:<x>) -- record it so a bare INCONCLUSIVE in the
+                # final result is never indistinguishable from one Codex
+                # actually reasoned to, per codex_bridge.resolve_conformance_
+                # from_arm_g's own documented requirement.
+                codex_outcome_reasons[req_id] = outcome.reason
+            new_routed[req_id] = RoutedRequirementResult(
+                req_id=req_id, applicability_state=updated.applicability_state,
+                operational_status=updated.operational_status,
+                conformance_state=outcome.conformance_state, evidence=updated.evidence,
+            )
+    else:
+        # Concurrent path -- see _run_escalations_concurrent's own
+        # docstring for the design (resolve everything cheap/local
+        # sequentially first, only the actual Codex subprocess calls run
+        # concurrently, batch-bounded cost-ceiling enforcement).
+        total_codex_cost = _run_escalations_concurrent(
+            routed=run.routed, new_routed=new_routed, ctx=ctx, compile_error=compile_error,
+            project_root=project_root, entry_sol_file=entry_sol_file,
+            generated_bundles=generated_bundles, audit_id=audit_id,
             codex_bin=codex_bin, python_bin=python_bin, mcp_server_script=mcp_server_script,
-            api_key=api_key, model=codex_model, case_id=f"{audit_id}__{entry_slug}__{req_id}",
-            entry_file=entry_sol_file, repo_root=project_root, candidate_location=candidate_location,
-            solc_path_dir=solc_path_dir, solc_remaps=remaps, prompt=prompt,
-            scratch_root=scratch_root, timeout_s=codex_timeout_s,
-        )
-        codex_results[req_id] = codex_result
-        total_codex_cost += codex_result.cost_usd
-        metrics.bundles_escalated_to_codex += 1
-        if codex_result.timed_out:
-            metrics.codex_investigations_timed_out += 1
-        else:
-            metrics.codex_investigations_completed += 1
-
-        outcome = resolve_conformance_from_arm_g(codex_result.final_decision, codex_result.timed_out)
-        if outcome.reason is not None:
-            # A non-None reason means this ISN'T a genuine parsed Codex
-            # decision (codex_timeout / codex_no_decision / codex_unknown_
-            # decision:<x>) -- record it so a bare INCONCLUSIVE in the
-            # final result is never indistinguishable from one Codex
-            # actually reasoned to, per codex_bridge.resolve_conformance_
-            # from_arm_g's own documented requirement.
-            codex_outcome_reasons[req_id] = outcome.reason
-        new_routed[req_id] = RoutedRequirementResult(
-            req_id=req_id, applicability_state=updated.applicability_state,
-            operational_status=updated.operational_status,
-            conformance_state=outcome.conformance_state, evidence=updated.evidence,
+            api_key=api_key, codex_model=codex_model, solc_path_dir=solc_path_dir,
+            scratch_root=scratch_root, codex_timeout_s=codex_timeout_s,
+            cost_ceiling_usd=cost_ceiling_usd, max_workers=max_concurrent_investigations,
+            metrics=metrics, codex_results=codex_results,
+            escalation_skip_reasons=escalation_skip_reasons,
+            codex_outcome_reasons=codex_outcome_reasons, graph_seed_resolved=graph_seed_resolved,
         )
 
     # Pure-aggregation requirements (req-2-pass-l1/req-3-pass-l2/
