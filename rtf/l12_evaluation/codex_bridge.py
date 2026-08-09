@@ -53,6 +53,7 @@ def build_codex_prompt_inputs(
     repo_root: Path | None,
     open_questions: list[str] | None = None,
     max_bundles: int = 30,
+    bundle_record: dict | None = None,
 ) -> CodexPromptInputs:
     """Builds the agent's prompt inputs for one (req_id, candidate) pair.
     `open_questions`, when the caller has some (e.g. from an optional
@@ -71,15 +72,26 @@ def build_codex_prompt_inputs(
     loaded by `judge_with_l8.judge_result` for every requirement with a
     bundle file.
 
-    Raises FileNotFoundError if no L2 bundle exists for req_id (mirrors
-    `judge_with_l8.judge_result`'s own `ENVIRONMENT_FAILURE` case --
-    callers should catch this the same way, not let it propagate as an
-    unhandled crash for one candidate).
+    `bundle_record`, when given, is used directly instead of reading
+    `rtf/l2_context_bundles/<req_id>.json` from disk -- the seam
+    `rtf.standards.routing.build_standards_routed_requirements` uses to
+    feed a generated (ERC-standard-derived) requirement's in-memory,
+    same-shaped bundle through unchanged, with no L2 bundle FILE ever
+    needing to exist for a dynamically-generated req_id. Every existing
+    call site omits this (defaults to `None`) and behaves exactly as
+    before -- purely additive.
+
+    Raises FileNotFoundError if no L2 bundle exists for req_id AND no
+    `bundle_record` override was given (mirrors `judge_with_l8.judge_
+    result`'s own `ENVIRONMENT_FAILURE` case -- callers should catch this
+    the same way, not let it propagate as an unhandled crash for one
+    candidate).
     """
-    bundle_path = BUNDLES_DIR / f"{req_id}.json"
-    if not bundle_path.exists():
-        raise FileNotFoundError(f"no L2 context bundle for {req_id!r} at {bundle_path}")
-    bundle_record = json.loads(bundle_path.read_text(encoding="utf-8"))
+    if bundle_record is None:
+        bundle_path = BUNDLES_DIR / f"{req_id}.json"
+        if not bundle_path.exists():
+            raise FileNotFoundError(f"no L2 context bundle for {req_id!r} at {bundle_path}")
+        bundle_record = json.loads(bundle_path.read_text(encoding="utf-8"))
     bundle = bundle_record["bundle"]
 
     requirement_text = corpus_by_req_id().get(req_id, {}).get("normative_text", bundle["self"])

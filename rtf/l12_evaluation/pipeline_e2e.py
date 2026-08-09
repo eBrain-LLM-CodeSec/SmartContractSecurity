@@ -67,6 +67,7 @@ from rtf.l12_evaluation.run_rtf import (
     load_unconditioned_map,
     run_rtf,
 )
+from rtf.standards.routing import StandardsIntegrityReport, build_standards_routed_requirements
 
 CORPUS_PATH = Path(__file__).resolve().parents[2] / "rtf" / "l1_corpus" / "requirement_corpus.json"
 
@@ -290,7 +291,18 @@ class PipelineArtifacts:
     codex_outcome_reasons: dict  # req_id -> machine-readable reason (codex_timeout/codex_no_decision/codex_unknown_decision:<x>), only set when Codex's own outcome wasn't a genuine parsed decision -- see codex_bridge.resolve_conformance_from_arm_g
     total_codex_cost_usd: float
     integrity_report: IntegrityReport  # see compute_integrity_report -- callers MUST check .valid before treating this run as a normal result
+    standards_report: StandardsIntegrityReport = field(default_factory=StandardsIntegrityReport)
+    """Additive breakdown for rtf/standards/-generated requirements (§12):
+    standards discovered, clauses loaded, requirements generated/applicable/
+    routed. Defaulted so existing callers constructing PipelineArtifacts
+    without this field (if any exist outside this module) keep working."""
     graph_seed_resolved: dict = field(default_factory=dict)  # req_id -> bool, whether a pre-resolved graph hint was available BEFORE the agent started (observability only -- never gates whether the agent runs, see arm_g_codex.py's redesign)
+    generated_bundles: dict = field(default_factory=dict)
+    """req_id -> in-memory L2-bundle-shaped dict, for generated (ERC-
+    standard-derived) requirements only -- lets report_generator.py look
+    up a real title/obligation text for a generated req_id instead of
+    falling back to the bare req_id string, without report_generator.py
+    needing to import anything from rtf.standards itself."""
 
 
 def run_pipeline_e2e(
@@ -333,6 +345,23 @@ def run_pipeline_e2e(
     ctx, compile_error = build_context_for_evmbench_target(entry_sol_file, project_root, solc_version)
 
     run, _raw = run_rtf(ctx, audit_id, unconditioned_map, known_limitations)
+
+    # --- Standards-driven GP requirement generation (additive) ---
+    # Merges dynamically-generated ERC-standard-derived requirements
+    # (rtf/standards/) into `run.routed` BEFORE the escalation loop below,
+    # which is already fully generic over (req_id -> RoutedRequirementResult)
+    # and needs no further changes to process them identically to the
+    # frozen 81-requirement corpus. Skipped (not a crash) when compilation
+    # failed -- discovery genuinely needs a compiled Slither object, same
+    # precondition every other Slither-backed predicate already has.
+    generated_bundles: dict[str, dict] = {}
+    standards_report = StandardsIntegrityReport()
+    if ctx.slither is not None and ctx.repo_root is not None:
+        generated_routed, standards_report, generated_bundles = build_standards_routed_requirements(
+            repo_root=ctx.repo_root, entry_sol_file=entry_sol_file, slither=ctx.slither,
+        )
+        run = TargetRunResult(audit_id=run.audit_id, routed={**run.routed, **generated_routed})
+
     if only_req_ids is not None:
         run = TargetRunResult(audit_id=run.audit_id,
                                routed={k: v for k, v in run.routed.items() if k in only_req_ids})
@@ -402,7 +431,10 @@ def run_pipeline_e2e(
         except Exception as e:  # noqa: BLE001 -- resolution failure is informational only now, never blocks the agent
             escalation_skip_reasons[req_id] = f"graph_seed_not_resolved (agent still investigates): {type(e).__name__}: {e}"
 
-        prompt_inputs = build_codex_prompt_inputs(req_id, candidate_location, updated, project_root, None)
+        prompt_inputs = build_codex_prompt_inputs(
+            req_id, candidate_location, updated, project_root, None,
+            bundle_record=generated_bundles.get(req_id),
+        )
         prompt = build_arm_g_prompt(
             prompt_inputs.requirement_text, prompt_inputs.context_bundle_text,
             prompt_inputs.candidate_location, prompt_inputs.evidence_bundle_text,
@@ -495,5 +527,7 @@ def run_pipeline_e2e(
         codex_outcome_reasons=codex_outcome_reasons,
         total_codex_cost_usd=total_codex_cost,
         integrity_report=integrity_report,
+        standards_report=standards_report,
         graph_seed_resolved=graph_seed_resolved,
+        generated_bundles=generated_bundles,
     )

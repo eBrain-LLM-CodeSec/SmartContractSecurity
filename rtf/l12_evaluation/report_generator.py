@@ -45,8 +45,17 @@ def generate_audit_md(artifacts: PipelineArtifacts, audit_title: str = "") -> st
     for req_id in fail_req_ids:
         result = artifacts.run.routed[req_id]
         req_record = corpus.get(req_id, {})
-        req_title = req_record.get("title", req_id)
-        req_text = req_record.get("normative_text", "")
+        if req_record:
+            req_title = req_record.get("title", req_id)
+            req_text = req_record.get("normative_text", "")
+        else:
+            # Not in the frozen 81-requirement corpus -- check whether it's
+            # a generated (ERC-standard-derived) requirement instead, via
+            # its own in-memory bundle text, rather than falling back to
+            # the bare (long, opaque) req_id string in the report.
+            generated_bundle = artifacts.generated_bundles.get(req_id, {}).get("bundle", {})
+            req_title = req_id
+            req_text = generated_bundle.get("self", "")
 
         escalated = req_id in artifacts.codex_results
         if escalated:
