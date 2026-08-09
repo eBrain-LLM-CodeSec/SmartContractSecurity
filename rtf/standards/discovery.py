@@ -271,23 +271,28 @@ def _detect_standard(record: StandardRecord, repo_root: Path, entry_sol_file: Pa
             if ev:
                 evidence += ev
                 strong_fired.append(sig.signal_id)
-                # A documentation claim alone (no matching code signal) is
-                # itself relevant per the plan (claimed-but-nonconforming
-                # still deserves investigation) -- but we still require
-                # SOME contract to exist in the repo for `contracts` to be
-                # populated; a pure prose claim with literally no candidate
-                # contract stays UNCERTAIN via the fallback branch below.
-                if not implementing and getattr(slither, "contracts_derived", []):
-                    project_contracts = [
-                        c for c in slither.contracts_derived
-                        if not _is_interface(c)
-                        and not (
-                            (src := _contract_source_path(c, repo_root)) is not None
-                            and _is_vendored_path(src, repo_root)
-                        )
-                    ]
-                    if len(project_contracts) == 1:
-                        implementing.add(project_contracts[0].name)
+                # Deliberately does NOT auto-credit any specific contract
+                # as "implementing" the standard from a bare documentation
+                # claim alone -- `_iter_doc_texts` scans project-level
+                # README/docs, which are NOT scoped to the specific
+                # entry_sol_file being analyzed. A repo-wide README saying
+                # "this project implements ERC-4626" is true of the real
+                # vault contract but says nothing about an unrelated
+                # helper/mixin contract that happens to be compiled from
+                # the same repo. Found LIVE on a real EVMbench target
+                # (2025-01-liquid-ron): compiling Pausable.sol (an
+                # unrelated pause-mixin, no ERC-4626/ERC-20 relationship
+                # whatsoever) in isolation yields exactly one non-vendored
+                # contract in that compilation unit (itself, since it has
+                # no imports) -- an earlier version of this code took
+                # "exactly one candidate contract exists" as license to
+                # credit it, which is wrong: single-contract-in-compilation-
+                # unit is an artifact of how EVMbench scope files get
+                # compiled one at a time, not evidence that contract
+                # implements anything. A documentation claim with no
+                # corroborating code-level signal (inheritance/import/
+                # natspec) now correctly stays UNCERTAIN via the fallback
+                # branch below, never auto-promoted to APPLICABLE.
 
     for sig in record.detection_signals_supporting:
         if sig.signal_type == "function_signatures":

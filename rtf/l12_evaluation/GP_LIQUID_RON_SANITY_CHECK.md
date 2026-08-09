@@ -106,3 +106,55 @@ scope for this preflight.
 **Routing trace frozen before this comparison was written down** -- no
 code in `rtf/standards/` was modified after running this check against the
 real target.
+
+## A real bug found and fixed, live against this target
+
+Running the same check against `2025-01-liquid-ron`'s other 5 in-scope
+files (`Escrow.sol`, `LiquidProxy.sol`, `RonHelper.sol`,
+`ValidatorTracker.sol`, `Pausable.sol` -- per `scope.txt`; the audit's
+`config.yaml` grades only ONE vulnerability, H-01, against the whole
+audit, not per-file) initially showed **every one of these 5 unrelated
+helper contracts falsely flagged `APPLICABLE` for both ERC-4626 and
+ERC-20**, each attributed to itself.
+
+**Root cause**: `_iter_doc_texts` (the `documentation_claim` signal's
+source) scans the PROJECT-level `README.md`, not anything scoped to the
+specific `entry_sol_file` under analysis -- correct, since a project-wide
+README claim is real evidence. The bug was in how that evidence got
+attributed to a specific contract: an earlier version of
+`_detect_standard`'s `documentation_claim` branch auto-credited "the sole
+non-vendored contract in this compilation unit" as implementing the
+standard whenever nothing else corroborated it. Compiling
+`Pausable.sol` (an access-control pause mixin with zero relationship to
+ERC-4626/ERC-20) in isolation via `compile_evmbench_target` yields
+`contracts_derived == ['Pausable']` (it has no imports) -- exactly one
+candidate, which the flawed heuristic took as license to credit `Pausable`
+itself. Confirmed directly: `compile_evmbench_target(REPO/"src"/
+"Pausable.sol", REPO, "0.8.20")` really does yield only `['Pausable']`.
+
+**Fix** (`rtf/standards/discovery.py`): removed the "exactly one candidate
+-> auto-credit" fallback entirely. A bare documentation claim with no
+corroborating code-level signal (inheritance/import/natspec) now correctly
+resolves to `UNCERTAIN` with `contracts=()`, never a false `APPLICABLE`.
+Verified: all 144 existing `rtf/standards/` unit tests still pass
+unchanged (none depended on the removed fallback -- every existing
+positive fixture's `APPLICABLE` result came from a real inheritance
+signal, not a bare doc claim), and `LiquidRon.sol` itself is completely
+unaffected (its `APPLICABLE` verdict comes from real `is ERC4626`/
+`is IERC4626` inheritance, never from the fallback).
+
+**Re-verified after the fix**: all 5 other liquid-ron entries now
+correctly resolve to `UNCERTAIN` (not `APPLICABLE`) for both standards,
+`contracts=()`, `requirements_applicable=0`, `silently_missing=0`,
+`valid=true` for every entry. `LiquidRon.sol` (re-run after the fix)
+still correctly resolves `APPLICABLE` with 91/91 requirements
+applicable, unchanged from the result recorded above.
+
+This is exactly the kind of false-positive risk §5 of the plan warned
+about ("Do not classify a standard based on one common function name
+alone") generalized to documentation claims -- found by testing against a
+real, structurally-diverse EVMbench target (a multi-file project with a
+mix of a real vault contract and several unrelated helper contracts), not
+by synthetic fixtures alone. All 6 of `2025-01-liquid-ron`'s in-scope
+files are now confirmed to route correctly: 1 genuinely applicable
+(`LiquidRon.sol`), 5 correctly `UNCERTAIN`/not-applicable.
