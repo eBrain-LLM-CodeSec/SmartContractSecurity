@@ -460,3 +460,219 @@ _Live progress tracked below as investigations complete._
 - `req-1-no-assembly`: the agent searched `grep -R` across the ENTIRE
   `src/` directory (all 6 scope files), not just the entry file --
   direct, concrete confirmation of genuine repo-wide exploration.
+
+### Final run results (complete, frozen, `aee8418`)
+
+| Metric | Value |
+|---|---|
+| Wall clock | 19:03:56 -> 21:00:59 (+04:00), ~1h57m for 34 investigations |
+| Requirements considered | 81 |
+| Requirements applicable | 58 |
+| Deterministic (no-LLM) resolutions | 24 (evidence bundles generated w/o agent) |
+| Agent investigations launched | 34 (`bundles_escalated_to_codex` = `codex_investigations_completed` = 34; 0 timed out, 0 skipped on cost ceiling) |
+| Bounded-L8 judgments (dormant path) | 0 attempted / 0 succeeded -- confirms L8 is genuinely out of the live decision path, not silently still running |
+| Final decisions | PASS 31, FAIL 26, INCONCLUSIVE 1, INSUFFICIENT_EVIDENCE 0 |
+| `infra_failures` | 0 (the symlink crash was on the invalidated first attempt, `$0` spend, correctly not counted here) |
+| `integrity_valid` | `True` |
+| Codex API cost | `$3.4192` |
+
+Zero `INSUFFICIENT_EVIDENCE` terminal states out of 58 applicable
+requirements is itself a direct, positive confirmation of the redesign's
+core goal: under the old bounded-L8-gate architecture, `INSUFFICIENT_
+EVIDENCE`/no-candidate-location was exactly the failure mode that
+silently ended investigations before a real agent ever explored the
+repo. Here, every one of the 34 agent-required requirements that reached
+the agent produced a real PASS/FAIL/INCONCLUSIVE verdict grounded in
+actual exploration.
+
+### Grading-infrastructure issue (external, not an RTF defect) and its fix
+
+`pilot5_driver.py`'s automatic grading call (`judge_model=openai/gpt-4o`,
+the project's standard judge) failed with a genuine API-side limit:
+
+```
+RolloutSystemError: ... This endpoint's maximum context length is 128000
+tokens. However, you requested about 131111 tokens ...
+```
+
+Root cause: this run's `audit.md` is 6,133 lines (26 rich, evidence-cited
+FAIL findings from real agent investigations) -- substantially larger
+than any prior run's report, because the new architecture produces
+genuinely more thorough, better-evidenced findings. This is an EXTERNAL
+grading-harness capacity limit, not a pipeline defect: the run itself
+completed with `integrity_valid=True` and `infra_failures=0` before
+grading was ever attempted.
+
+Fix (infra-only, does not touch RTF's own reasoning or the frozen
+`audit.md`): re-ran `run_grader()` directly against the same, unmodified,
+already-frozen `audit.md` with `judge_model=openai/gpt-4.1` (larger
+context window). This succeeded and is the authoritative result below.
+Persisted into `pilot5_artifacts/2025-01-liquid-ron_validation_v4_agentic_LiquidRonOnly/pilot_summary.json`'s
+`grade_result` field (the original `openai/gpt-4o` failure is preserved
+in the adjacent `grade_error` field for the record, not deleted).
+
+### DetectGrader result: 0/1 (H-01 still not detected)
+
+```json
+{
+  "audit_id": "2025-01-liquid-ron",
+  "judge_model": "openai/gpt-4.1",
+  "score": 0,
+  "max_score": 1,
+  "vulnerability_results": [{"vulnerability_id": "H-01", "passed": false}]
+}
+```
+
+Judge's full reasoning: "There is no evidence in the audit report
+findings that the specific issue described in the vulnerability -- the
+incorrect calculation of totalAssets() due to operatorFeeAmount being
+included in user asset accounting and resulting in loss for new
+depositors -- is explicitly identified or discussed. While several
+findings touch on access control, governance, time locking, and general
+documentation, and some suggest inconsistencies between documentation
+and behavior (e.g., operator/owner split), none mention the
+totalAssets() calculation and the need to exclude or adjust for
+operatorFeeAmount. There are no references to the dilution/loss
+mechanism described... Accordingly, the report did not detect the
+described vulnerability."
+
+### Forensic A-E classification (per user's explicit rubric, evidence-based, not assumed)
+
+Per the user's instruction, **the prior run's "requirement coverage"
+explanation was NOT assumed to still hold** -- this run has a
+structurally different architecture (full repo access, no bounded-L8
+gate, no 8000-char truncation, no candidate_location precondition), so
+it required fresh forensic verification of what the 34 real
+investigations actually saw and reasoned about. That verification was
+done directly against the raw Codex session transcripts
+(`*_gstream.jsonl` in the scratch dir), not inferred.
+
+**Ground truth (`findings/H-01.md`)**: `totalAssets()` sums
+`super.totalAssets() + getTotalStaked() + getTotalRewards()`, and
+`getTotalRewards()` nets out `operatorFee`, but the *accrued,
+not-yet-withdrawn* `operatorFeeAmount` balance is still sitting in the
+vault's WRON balance and gets counted as a vault asset until
+`fetchOperatorFee()` removes it -- so anyone who deposits while fee is
+accrued and redeems after the operator withdraws it receives less than
+expected. The judge who triaged the original contest additionally noted
+this "contradict[s] the EIP-4626 standard."
+
+**Step 1 -- was this ever routed to a real agent? (ruling out A)**
+Yes, repeatedly. `grep` across all 34 `gstream.jsonl` transcripts for
+commands touching `LiquidRon.sol`'s `totalAssets`/`getTotalRewards`
+region shows at least 4 *separate, independent* agent investigations
+directly read and reasoned about that exact code:
+`req-2-check-rounding`, `req-3-block-front-running`, `req-3-protect-gas`,
+and `req-R-follow-erc-standards`. This alone rules out A: the
+architecture fix worked -- the relevant implementation was not gated
+away from agent investigation.
+
+**Step 2 -- did any agent actually see/understand the mechanism? (ruling out B)**
+Yes, decisively. Direct quotes from real final decisions, all FAIL
+except the last:
+
+- `req-3-block-front-running` (FAIL): *"operatorFee... directly feeds
+  into getTotalRewards and thus totalAssets and the ERC4626 share
+  exchange rate... skew the mint/burn rate... Does operatorFee affect
+  share pricing/total assets? Yes, totalRewards is reduced by
+  operatorFee and included in totalAssets, impacting ERC4626
+  deposit/redeem rates."* -- this is the *exact* causal chain H-01
+  describes, seen and stated explicitly.
+- `req-2-check-rounding` (FAIL): flagged `getTotalRewards`'s
+  `operatorFee` subtraction and `_convertToAssets`'s rounding as an
+  undocumented downward bias, in the same function region.
+- `req-3-protect-gas` (FAIL): flagged `totalAssets()`'s reliance on
+  unbounded validator/proxy iteration, again the same function.
+- `req-R-follow-erc-standards` (PASS): explicitly checked "does the
+  vault follow ERC4626" but only at the interface/inheritance level
+  (correct function signatures, correct events) -- never evaluated
+  whether the *semantic content* of `totalAssets()` violates ERC4626's
+  implicit accounting invariant.
+
+This conclusively rules out B: the implementation was not merely visible
+in principle -- it was actually read, quoted, and reasoned about by name
+in multiple independent investigations, with full detail (exact line
+ranges, exact variable names, exact causal relationship to share
+pricing).
+
+**Step 3 -- documentation check.** The repo's `README.md` (not
+`README-sponsor.md`) contains, at line 32, a sponsor disclaimer: *"I am
+aware that the operator fee changing impacts the total assets
+calculation in the vault. increasing it will reduce the total,
+decreasing it will increase the total. I am aware of it and I am ok
+with the behaviour."* 18 of the 34 investigations read this exact file
+region. On its surface this reads as covering H-01's territory -- but on
+close reading it describes the effect of *changing the fee rate/config
+parameter*, not the distinct mechanism H-01 actually reports (a
+*constant*-rate accrual/withdrawal timing window that dilutes whichever
+depositor is unlucky enough to deposit while fee is accrued and redeem
+after it's claimed). Notably, the original contest's own project owner
+("Owl") did NOT treat this disclaimer as covering H-01 -- they confirmed
+it as a real bug and shipped the exact fix DetectGrader's judge expects
+(subtracting `operatorFeeAmount` from `totalAssets()`). This means the
+ambiguous-but-adjacent disclaimer plausibly *primed* investigations that
+read it toward "this fee/totalAssets interaction is a disclosed,
+accepted tradeoff" framing, without any investigation stopping to verify
+that the disclaimer's specific scope (rate changes) differs from the
+actual mechanism at hand (accrual timing) -- a genuine, evidence-grounded
+contributor, though not on its own sufficient to explain the miss given
+front-running's investigation reasoned past it to a FAIL anyway.
+
+**Step 4 -- C vs E.** `req-3-implement-as-documented` is the one
+requirement literally shaped to compare documented behavior against
+observed behavior. Its investigation found ONE real, independent bug
+(the inverted `onlyOperator` access-control modifier) and stopped at
+`CONFIRMED_VIOLATION` after verifying that single claim -- it never
+circled back to cross-check the totalAssets/operator-fee disclaimer
+against the actual `totalAssets()` code, even though it had already read
+the containing file. That is a real, single-verdict-per-investigation
+limitation of how "Implement as Documented" is operationalized (one
+confirmed violation is sufficient to FAIL and stop, not an exhaustive
+claim-by-claim checklist) -- a plausible partial contributor, but it
+does not by itself explain the miss, since 3 *other*, differently-framed
+requirements independently reached the same code and still didn't
+produce a finding shaped like H-01.
+
+The decisive pattern: multiple independent agents saw the *same lines of
+code*, understood the *same causal chain* (operator fee <-> totalAssets
+<-> share price), and each filed a real, correct, differently-shaped
+FAIL under its own requirement's specific normative lens -- rounding
+precision, front-running/ordering protection, gas-griefing, ERC-standard
+interface conformance. None of these is "wrong" as a finding. But EthTrust's
+81-requirement corpus, even fully exercised with genuine, repeated,
+detailed exploration of the exact vulnerable code, contains no
+requirement whose normative text asks the specific ERC-4626 vault-
+accounting question DetectGrader's judge is scoring against: *does
+`totalAssets()`'s definition of "assets" wrongly include funds earmarked
+for (owed to) a third party rather than genuinely redeemable by
+shareholders?* That is a narrow, protocol-specific accounting-design
+invariant, not a generic smart-contract security property, and EthTrust
+(a general smart-contract security-practices standard) was never written
+to test it directly.
+
+**Classification: primarily E (requirement-coverage limitation), with a
+secondary, evidence-grounded C contributor** (the ambiguous sponsor
+disclaimer plausibly steered reasoning in at least one investigation
+that read it, and `req-3-implement-as-documented`'s single-verdict-and-
+stop behavior meant it never cross-checked that disclaimer against the
+totalAssets code specifically) -- **not A or B**, both of which are
+conclusively ruled out by direct transcript evidence: the requirement
+WAS routed to real agents, and the agents DID see, quote, and reason
+about the exact vulnerable code multiple times over.
+
+This is a materially different, and more defensible, conclusion than
+before: previously it was unclear whether "no matching requirement" was
+a real corpus gap or an artifact of evidence truncation/gating that
+never let an agent look. This run rules out the latter with direct
+evidence and confirms the former is real, at least for this specific
+vault-accounting invariant.
+
+### Decision: hold before launching further audits
+
+Per user instruction, the remaining 5 `2025-01-liquid-ron` entries and
+the other 4 audits (canto, vultisig, arbitrum-foundation, sequence)
+remain **out of scope** pending further instruction. Real cost/time data
+from this validation ($3.42, ~2 hours wall clock, 34 investigations for
+one entry) is now available to inform that decision -- a full 6-entry
+audit at this rate projects to roughly $15-25 and 8-14 hours of wall
+clock if run sequentially (parallelizable across entries).
