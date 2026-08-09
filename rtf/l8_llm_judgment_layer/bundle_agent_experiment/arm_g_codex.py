@@ -120,10 +120,23 @@ def prepare_full_repo_investigation_dir(repo_root: Path, investigation_dir: Path
     file beyond any fixed-size excerpt cutoff is genuinely reachable) is
     unit-testable without needing a real Codex binary/API key -- see
     `test_agentic_architecture.py`.
+
+    `symlinks=True` -- confirmed necessary by a real, live crash: an
+    EVMbench audit clone can accumulate stray symlinks from earlier,
+    unrelated tooling runs (found live: a dangling `solc` symlink at
+    `2025-01-liquid-ron`'s repo root, pointing into a since-cleaned-up
+    prior job's Codex home directory). `shutil.copytree`'s DEFAULT
+    behavior (`symlinks=False`) dereferences every symlink and copies the
+    TARGET's content, which raises `shutil.Error` outright for a dangling
+    one -- aborting the entire investigation before the agent ever starts,
+    for a stray artifact with nothing to do with the actual audit source.
+    `symlinks=True` copies symlinks AS symlinks (standard `cp -a`/rsync
+    semantics for a full tree copy) -- a dangling one just stays a
+    harmless dangling symlink in the copy, never a fatal error.
     """
     if investigation_dir.exists():
         shutil.rmtree(investigation_dir)
-    shutil.copytree(repo_root, investigation_dir, ignore=_COPY_IGNORE)
+    shutil.copytree(repo_root, investigation_dir, ignore=_COPY_IGNORE, symlinks=True)
     return investigation_dir
 
 
