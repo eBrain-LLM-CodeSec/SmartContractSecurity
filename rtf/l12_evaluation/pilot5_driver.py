@@ -117,6 +117,7 @@ def run_one_audit(
     default_solc_version: str,
     path_prefix_overrides: dict[str, str] | None = None,
     l8_cache_dir: Path | None = None,
+    max_concurrent_investigations: int = 1,
 ) -> dict:
     path_prefix_overrides = path_prefix_overrides or {}
     from a4v.llm import ChatClient
@@ -209,6 +210,7 @@ def run_one_audit(
                 api_key=API_KEY, codex_model=CODEX_MODEL, solc_path_dir=entry_solc_path_dir,
                 scratch_root=scratch_root, escalation_enabled=True, codex_timeout_s=900,
                 cost_ceiling_usd=remaining_ceiling,
+                max_concurrent_investigations=max_concurrent_investigations,
             )
         except Exception as e:  # noqa: BLE001 -- one entry's crash must not kill the whole audit
             infra_failures.append({"entry": rel_path, "error": f"{type(e).__name__}: {e}",
@@ -338,6 +340,7 @@ if __name__ == "__main__":
     ceiling = float(sys.argv[5]) if len(sys.argv) > 5 else 3.0
     default_solc_version = sys.argv[6] if len(sys.argv) > 6 else "0.8.20"
     overrides_json = sys.argv[7] if len(sys.argv) > 7 else "{}"
+    max_concurrent_investigations = int(sys.argv[8]) if len(sys.argv) > 8 else 1
     path_prefix_overrides = json.loads(overrides_json)
 
     scope_files = [l.strip() for l in scope_file.read_text().splitlines() if l.strip()]
@@ -349,4 +352,5 @@ if __name__ == "__main__":
     scratch_root = Path(f"{_job_dir}/tmp/pilot5_scratch/{audit_id}")
 
     run_one_audit(audit_id, repo_root, scope_files, scratch_root, artifacts_dir, ceiling,
-                  default_solc_version, path_prefix_overrides)
+                  default_solc_version, path_prefix_overrides,
+                  max_concurrent_investigations=max_concurrent_investigations)
