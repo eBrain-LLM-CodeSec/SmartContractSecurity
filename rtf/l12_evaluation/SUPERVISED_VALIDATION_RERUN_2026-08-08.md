@@ -435,4 +435,28 @@ _Live progress tracked below as investigations complete._
 | Frozen commit | `aee8418` |
 | Scope | `2025-01-liquid-ron`, entry `./src/LiquidRon.sol` ONLY (user-selected partial validation, not the full 6-entry audit) |
 | Cache/artifact reuse | None -- fresh scratch, fresh investigation-dir copies, no prior decision artifacts |
-| Status | IN PROGRESS |
+| Status | IN PROGRESS (27+ of ~30 investigations complete as of this update) |
+
+### Live findings of note (pre-freeze, no H-01 consultation)
+
+- `req-3-documented`: HIGH-confidence PASS. The agent found and read
+  `README-sponsor.md` directly (never visible to the old 8000-char-capped
+  single-file collector) -- "protocol purpose, deposit/withdrawal flows,
+  operator roles, and enumerates each LiquidRon function's behaviour."
+- `req-3-implement-as-documented`: HIGH-confidence **FAIL** -- a genuine,
+  INDEPENDENT bug, not H-01: the `onlyOperator` modifier
+  (`src/LiquidRon.sol:89-93`) requires `msg.sender == owner()` AND the
+  operator flag to be false, so a configured operator address can NEVER
+  actually call the functions `README-sponsor.md` documents as
+  "Operator only call" (`harvest`, `harvestAndDelegateRewards`,
+  `delegateAmount`, `redelegateAmount`, `undelegateAmount`) -- every one
+  of them reverts for real operators. Specific line citations, resolved
+  facts tracing exactly why (`operator[addr]=true` makes the modifier
+  reject that address), `CONFIRMED_VIOLATION` stop reason. This is
+  genuine evidence the new claims-vs-implementation mechanism works as
+  intended -- it does NOT by itself say anything about H-01 specifically,
+  which is a separate, more subtle economic-accounting bug in a different
+  function; full outcome classification only after the run is frozen.
+- `req-1-no-assembly`: the agent searched `grep -R` across the ENTIRE
+  `src/` directory (all 6 scope files), not just the entry file --
+  direct, concrete confirmation of genuine repo-wide exploration.
