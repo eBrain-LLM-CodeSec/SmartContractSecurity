@@ -1,0 +1,1384 @@
+{
+  "standard_id": "ERC-4626",
+  "source_file": "erc-4626.raw.md",
+  "source_sha256": "698c05bff73bfb796f59cd7c4732edccdf7e40176f9bb027c19a0bbe7251e10a",
+  "extraction_method": "MANUAL_REVIEWED_PINNED",
+  "extraction_method_note": "Per the implementation plan's fallback instruction ('If automatic extraction from specification prose is unreliable, use a reviewed/pinned normalized clause representation instead. Do not hide parser uncertainty.'): every clause below was manually authored by reading erc-4626.raw.md section by section (Methods: asset, totalAssets, convertToShares, convertToAssets, maxDeposit, previewDeposit, deposit, maxMint, previewMint, mint, maxWithdraw, previewWithdraw, withdraw, maxRedeem, previewRedeem, redeem; Events: Deposit, Withdraw; plus the top-level EIP-20-conformance MUSTs and the Security Considerations rounding-direction MUST), not produced by rtf/standards/clause_parser.py's generic RFC2119 extractor. That extractor is built and unit-tested separately (rtf/standards/test_clause_parser.py) against synthetic fixtures to prove the extraction MECHANISM works generically -- it is deliberately NOT run against this real, irregular spec prose for production use, exactly as the plan anticipated real EIP prose would be too irregular for a fully automatic pass (e.g. many clauses share one bare 'MUST NOT revert.' sentence across different methods with no method name repeated in the sentence itself; the round-down guidance in Security Considerations uses lowercase 'should round down' in prose, which the generic extractor correctly treats as non-normative per RFC2119's own capitalization convention -- the actual MUST-round-down obligation is separately and correctly captured per-method under Methods:convertToShares/convertToAssets and again as the explicit cross-function invariant clause 'erc4626-convertto-functions-must-both-round-down' below, both hand-derived directly from the capitalized normative text).",
+  "excluded_as_non_normative_note": "Explicitly NOT turned into clauses: (1) 'Rationale' section prose (explanatory, no RFC2119 keywords). (2) The lowercase 'it should round down'/'it should round up' generalizations in Security Considerations -- informative discussion in prose, not capitalized SHOULD; superseded by the actual capitalized MUST-round-down clauses on convertToShares/convertToAssets. (3) 'It is recommended that...'/'should be aware' phrasing in Security Considerations -- advisory prose, not a capitalized keyword. (4) 'MUST_NOT' vs 'MUST NOT' is a normalized enum value here, not a textual variant -- the source always writes 'MUST NOT' or 'MUST _NOT_' (italicized in markdown); both are normalized to the same MUST_NOT strength.",
+  "clause_count": 77,
+  "clauses": [
+    {
+      "clause_id": "erc4626-vault-must-implement-erc20",
+      "standard_id": "ERC-4626",
+      "section": "Specification",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "The Vault contract MUST implement EIP-20 to represent shares.",
+      "affected_interface": [
+        "contract:Vault"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Specification",
+        "quoted_text": "All EIP-4626 tokenized Vaults MUST implement EIP-20 to represent shares."
+      }
+    },
+    {
+      "clause_id": "erc4626-nontransferable-may-revert-transfer",
+      "standard_id": "ERC-4626",
+      "section": "Specification",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "The Vault MAY revert on calls to transfer/transferFrom.",
+      "affected_interface": [
+        "transfer",
+        "transferFrom"
+      ],
+      "conditions": [
+        "the Vault is designed to be non-transferrable"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Specification",
+        "quoted_text": "If a Vault is to be non-transferrable, it MAY revert on calls to `transfer` or `transferFrom`."
+      }
+    },
+    {
+      "clause_id": "erc4626-vault-must-implement-erc20-metadata",
+      "standard_id": "ERC-4626",
+      "section": "Specification",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "The Vault MUST implement EIP-20's optional metadata extensions (name, symbol, decimals).",
+      "affected_interface": [
+        "contract:Vault",
+        "name",
+        "symbol",
+        "decimals"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Specification",
+        "quoted_text": "All EIP-4626 tokenized Vaults MUST implement EIP-20's optional metadata extensions."
+      }
+    },
+    {
+      "clause_id": "erc4626-name-symbol-should-reflect-underlying",
+      "standard_id": "ERC-4626",
+      "section": "Specification",
+      "original_normative_strength": "SHOULD",
+      "normalized_obligation": "name and symbol SHOULD reflect the underlying token's name and symbol in some way.",
+      "affected_interface": [
+        "name",
+        "symbol"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Specification",
+        "quoted_text": "The `name` and `symbol` functions SHOULD reflect the underlying token's `name` and `symbol` in some way."
+      }
+    },
+    {
+      "clause_id": "erc4626-eip2612-may-implement",
+      "standard_id": "ERC-4626",
+      "section": "Specification",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "The Vault MAY implement EIP-2612 permit to improve approval UX.",
+      "affected_interface": [
+        "contract:Vault"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Specification",
+        "quoted_text": "EIP-4626 tokenized Vaults MAY implement [EIP-2612] to improve the UX of approving shares on various integrations."
+      }
+    },
+    {
+      "clause_id": "erc4626-asset-must-be-erc20-token",
+      "standard_id": "ERC-4626",
+      "section": "Methods:asset",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "asset() MUST return the address of an EIP-20 token contract.",
+      "affected_interface": [
+        "asset"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:asset",
+        "quoted_text": "MUST be an EIP-20 token contract."
+      }
+    },
+    {
+      "clause_id": "erc4626-asset-must-not-revert",
+      "standard_id": "ERC-4626",
+      "section": "Methods:asset",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "asset() MUST NOT revert.",
+      "affected_interface": [
+        "asset"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:asset",
+        "quoted_text": "MUST _NOT_ revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-totalassets-should-include-yield",
+      "standard_id": "ERC-4626",
+      "section": "Methods:totalAssets",
+      "original_normative_strength": "SHOULD",
+      "normalized_obligation": "totalAssets() SHOULD include any compounding that occurs from yield.",
+      "affected_interface": [
+        "totalAssets"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:totalAssets",
+        "quoted_text": "SHOULD include any compounding that occurs from yield."
+      }
+    },
+    {
+      "clause_id": "erc4626-totalassets-must-include-fees",
+      "standard_id": "ERC-4626",
+      "section": "Methods:totalAssets",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "totalAssets() MUST be inclusive of any fees that are charged against assets in the Vault -- amounts owed to a third party (e.g. an accrued operator/management fee) that are still held in the Vault's asset balance are still part of totalAssets() until actually paid out.",
+      "affected_interface": [
+        "totalAssets"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:totalAssets",
+        "quoted_text": "MUST be inclusive of any fees that are charged against assets in the Vault."
+      }
+    },
+    {
+      "clause_id": "erc4626-totalassets-must-not-revert",
+      "standard_id": "ERC-4626",
+      "section": "Methods:totalAssets",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "totalAssets() MUST NOT revert.",
+      "affected_interface": [
+        "totalAssets"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:totalAssets",
+        "quoted_text": "MUST _NOT_ revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoshares-must-not-include-fees",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToShares",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "convertToShares() MUST NOT be inclusive of any fees that are charged against assets in the Vault.",
+      "affected_interface": [
+        "convertToShares"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToShares",
+        "quoted_text": "MUST NOT be inclusive of any fees that are charged against assets in the Vault."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoshares-must-not-vary-by-caller",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToShares",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "convertToShares() MUST NOT show any variations depending on the caller.",
+      "affected_interface": [
+        "convertToShares"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToShares",
+        "quoted_text": "MUST NOT show any variations depending on the caller."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoshares-must-not-reflect-slippage",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToShares",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "convertToShares() MUST NOT reflect slippage or other on-chain conditions when performing the actual exchange.",
+      "affected_interface": [
+        "convertToShares"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToShares",
+        "quoted_text": "MUST NOT reflect slippage or other on-chain conditions, when performing the actual exchange."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoshares-must-not-revert-unless-overflow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToShares",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "convertToShares() MUST NOT revert.",
+      "affected_interface": [
+        "convertToShares"
+      ],
+      "conditions": [],
+      "exceptions": [
+        "integer overflow caused by an unreasonably large input"
+      ],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToShares",
+        "quoted_text": "MUST NOT revert unless due to integer overflow caused by an unreasonably large input."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoshares-must-round-down",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToShares",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "convertToShares() MUST round down towards 0.",
+      "affected_interface": [
+        "convertToShares"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToShares",
+        "quoted_text": "MUST round down towards 0."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoassets-must-not-include-fees",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToAssets",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "convertToAssets() MUST NOT be inclusive of any fees that are charged against assets in the Vault.",
+      "affected_interface": [
+        "convertToAssets"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToAssets",
+        "quoted_text": "MUST NOT be inclusive of any fees that are charged against assets in the Vault."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoassets-must-not-vary-by-caller",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToAssets",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "convertToAssets() MUST NOT show any variations depending on the caller.",
+      "affected_interface": [
+        "convertToAssets"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToAssets",
+        "quoted_text": "MUST NOT show any variations depending on the caller."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoassets-must-not-reflect-slippage",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToAssets",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "convertToAssets() MUST NOT reflect slippage or other on-chain conditions when performing the actual exchange.",
+      "affected_interface": [
+        "convertToAssets"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToAssets",
+        "quoted_text": "MUST NOT reflect slippage or other on-chain conditions, when performing the actual exchange."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoassets-must-not-revert-unless-overflow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToAssets",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "convertToAssets() MUST NOT revert.",
+      "affected_interface": [
+        "convertToAssets"
+      ],
+      "conditions": [],
+      "exceptions": [
+        "integer overflow caused by an unreasonably large input"
+      ],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToAssets",
+        "quoted_text": "MUST NOT revert unless due to integer overflow caused by an unreasonably large input."
+      }
+    },
+    {
+      "clause_id": "erc4626-converttoassets-must-round-down",
+      "standard_id": "ERC-4626",
+      "section": "Methods:convertToAssets",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "convertToAssets() MUST round down towards 0.",
+      "affected_interface": [
+        "convertToAssets"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:convertToAssets",
+        "quoted_text": "MUST round down towards 0."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxdeposit-must-not-overestimate",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxDeposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxDeposit() MUST return the maximum amount that the corresponding action would allow (not higher than the actual accepted maximum; MUST underestimate rather than overestimate) and MUST NOT rely on the caller's own balance of the underlying asset.",
+      "affected_interface": [
+        "maxDeposit"
+      ],
+      "conditions": [
+        "assumes the user has infinite assets"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxDeposit",
+        "quoted_text": "MUST return the maximum amount of assets `deposit` would allow to be deposited for `receiver` and not cause a revert, which MUST NOT be higher than the actual maximum that would be accepted (it should underestimate if necessary)... MUST NOT rely on `balanceOf` of `asset`."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxdeposit-must-factor-in-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxDeposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxDeposit() MUST factor in both global and user-specific limits; MUST return 0 if the corresponding action is entirely disabled (even temporarily).",
+      "affected_interface": [
+        "maxDeposit"
+      ],
+      "conditions": [
+        "the corresponding action (deposits) is entirely disabled, even temporarily"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxDeposit",
+        "quoted_text": "MUST factor in both global and user-specific limits, like if deposits are entirely disabled (even temporarily) it MUST return 0."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxdeposit-must-not-revert",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxDeposit",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "maxDeposit() MUST NOT revert.",
+      "affected_interface": [
+        "maxDeposit"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxDeposit",
+        "quoted_text": "MUST NOT revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxmint-must-not-overestimate",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxMint",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxMint() MUST return the maximum amount that the corresponding action would allow (not higher than the actual accepted maximum; MUST underestimate rather than overestimate) and MUST NOT rely on the caller's own balance of the underlying asset.",
+      "affected_interface": [
+        "maxMint"
+      ],
+      "conditions": [
+        "assumes the user has infinite assets"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxMint",
+        "quoted_text": "MUST return the maximum amount of assets `deposit` would allow to be deposited for `receiver` and not cause a revert, which MUST NOT be higher than the actual maximum that would be accepted (it should underestimate if necessary)... MUST NOT rely on `balanceOf` of `asset`."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxmint-must-factor-in-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxMint",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxMint() MUST factor in both global and user-specific limits; MUST return 0 if the corresponding action is entirely disabled (even temporarily).",
+      "affected_interface": [
+        "maxMint"
+      ],
+      "conditions": [
+        "the corresponding action (mints) is entirely disabled, even temporarily"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxMint",
+        "quoted_text": "MUST factor in both global and user-specific limits, like if deposits are entirely disabled (even temporarily) it MUST return 0."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxmint-must-not-revert",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxMint",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "maxMint() MUST NOT revert.",
+      "affected_interface": [
+        "maxMint"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxMint",
+        "quoted_text": "MUST NOT revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxwithdraw-must-not-overestimate",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxWithdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxWithdraw() MUST return the maximum amount that the corresponding action would allow (not higher than the actual accepted maximum; MUST underestimate rather than overestimate) and MUST NOT rely on the caller's own balance of the underlying asset.",
+      "affected_interface": [
+        "maxWithdraw"
+      ],
+      "conditions": [
+        "assumes the user has infinite assets"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxWithdraw",
+        "quoted_text": "MUST return the maximum amount of assets `deposit` would allow to be deposited for `receiver` and not cause a revert, which MUST NOT be higher than the actual maximum that would be accepted (it should underestimate if necessary)... MUST NOT rely on `balanceOf` of `asset`."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxwithdraw-must-factor-in-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxWithdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxWithdraw() MUST factor in both global and user-specific limits; MUST return 0 if the corresponding action is entirely disabled (even temporarily).",
+      "affected_interface": [
+        "maxWithdraw"
+      ],
+      "conditions": [
+        "the corresponding action (withdrawals) is entirely disabled, even temporarily"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxWithdraw",
+        "quoted_text": "MUST factor in both global and user-specific limits, like if deposits are entirely disabled (even temporarily) it MUST return 0."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxwithdraw-must-not-revert",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxWithdraw",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "maxWithdraw() MUST NOT revert.",
+      "affected_interface": [
+        "maxWithdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxWithdraw",
+        "quoted_text": "MUST NOT revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxredeem-must-not-overestimate",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxRedeem",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxRedeem() MUST return the maximum amount that the corresponding action would allow (not higher than the actual accepted maximum; MUST underestimate rather than overestimate) and MUST NOT rely on the caller's own balance of the underlying asset.",
+      "affected_interface": [
+        "maxRedeem"
+      ],
+      "conditions": [
+        "assumes the user has infinite assets"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxRedeem",
+        "quoted_text": "MUST return the maximum amount of assets `deposit` would allow to be deposited for `receiver` and not cause a revert, which MUST NOT be higher than the actual maximum that would be accepted (it should underestimate if necessary)... MUST NOT rely on `balanceOf` of `asset`."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxredeem-must-factor-in-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxRedeem",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxRedeem() MUST factor in both global and user-specific limits; MUST return 0 if the corresponding action is entirely disabled (even temporarily).",
+      "affected_interface": [
+        "maxRedeem"
+      ],
+      "conditions": [
+        "the corresponding action (redemption) is entirely disabled, even temporarily"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxRedeem",
+        "quoted_text": "MUST factor in both global and user-specific limits, like if deposits are entirely disabled (even temporarily) it MUST return 0."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxredeem-must-not-revert",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxRedeem",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "maxRedeem() MUST NOT revert.",
+      "affected_interface": [
+        "maxRedeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxRedeem",
+        "quoted_text": "MUST NOT revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxdeposit-must-return-max-uint-if-unlimited",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxDeposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxDeposit() MUST return 2**256-1 if there is no limit on the maximum amount of assets that may be deposited.",
+      "affected_interface": [
+        "maxDeposit"
+      ],
+      "conditions": [
+        "there is no limit on the maximum amount"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxDeposit",
+        "quoted_text": "MUST return `2 ** 256 - 1` if there is no limit on the maximum amount of assets that may be deposited."
+      }
+    },
+    {
+      "clause_id": "erc4626-maxmint-must-return-max-uint-if-unlimited",
+      "standard_id": "ERC-4626",
+      "section": "Methods:maxMint",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "maxMint() MUST return 2**256-1 if there is no limit on the maximum amount of shares that may be minted.",
+      "affected_interface": [
+        "maxMint"
+      ],
+      "conditions": [
+        "there is no limit on the maximum amount"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:maxMint",
+        "quoted_text": "MUST return `2 ** 256 - 1` if there is no limit on the maximum amount of shares that may be minted."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewdeposit-must-approximate-paired-action",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewDeposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "previewDeposit() MUST return a value that bounds what deposit() would actually do if called in the same transaction: previewDeposit() MUST return as close to and no more than the exact amount of Vault shares that deposit() would mint in the same transaction.",
+      "affected_interface": [
+        "previewDeposit",
+        "deposit"
+      ],
+      "conditions": [
+        "called in the same transaction as the paired action"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewDeposit",
+        "quoted_text": "previewDeposit() MUST return as close to and no more than the exact amount of Vault shares that deposit() would mint in the same transaction."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewdeposit-must-not-account-for-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewDeposit",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "previewDeposit() MUST NOT account for the corresponding max*() limits and MUST act as though the action would be accepted regardless of allowance/balance state.",
+      "affected_interface": [
+        "previewDeposit"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewDeposit",
+        "quoted_text": "MUST NOT account for deposit limits like those returned from maxDeposit and should always act as though the deposit would be accepted, regardless if the user has enough tokens approved, etc."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewdeposit-must-include-fees",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewDeposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "previewDeposit() MUST be inclusive of deposit fees.",
+      "affected_interface": [
+        "previewDeposit"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewDeposit",
+        "quoted_text": "MUST be inclusive of deposit fees. Integrators should be aware of the existence of deposit fees."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewdeposit-must-not-revert-for-vault-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewDeposit",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "previewDeposit() MUST NOT revert due to vault-specific user/global limits.",
+      "affected_interface": [
+        "previewDeposit"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewDeposit",
+        "quoted_text": "MUST NOT revert due to vault specific user/global limits."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewdeposit-may-revert-for-other-conditions",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewDeposit",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "previewDeposit() MAY revert due to other conditions that would also cause the paired action (deposit()) to revert.",
+      "affected_interface": [
+        "previewDeposit"
+      ],
+      "conditions": [
+        "a condition exists that would also cause deposit() to revert"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewDeposit",
+        "quoted_text": "MAY revert due to other conditions that would also cause `deposit` to revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewmint-must-approximate-paired-action",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewMint",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "previewMint() MUST return a value that bounds what mint() would actually do if called in the same transaction: previewMint() MUST return as close to and no fewer than the exact amount of assets that mint() would take in the same transaction.",
+      "affected_interface": [
+        "previewMint",
+        "mint"
+      ],
+      "conditions": [
+        "called in the same transaction as the paired action"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewMint",
+        "quoted_text": "previewMint() MUST return as close to and no fewer than the exact amount of assets that mint() would take in the same transaction."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewmint-must-not-account-for-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewMint",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "previewMint() MUST NOT account for the corresponding max*() limits and MUST act as though the action would be accepted regardless of allowance/balance state.",
+      "affected_interface": [
+        "previewMint"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewMint",
+        "quoted_text": "MUST NOT account for deposit limits like those returned from maxDeposit and should always act as though the deposit would be accepted, regardless if the user has enough tokens approved, etc."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewmint-must-include-fees",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewMint",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "previewMint() MUST be inclusive of deposit fees.",
+      "affected_interface": [
+        "previewMint"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewMint",
+        "quoted_text": "MUST be inclusive of deposit fees. Integrators should be aware of the existence of deposit fees."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewmint-must-not-revert-for-vault-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewMint",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "previewMint() MUST NOT revert due to vault-specific user/global limits.",
+      "affected_interface": [
+        "previewMint"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewMint",
+        "quoted_text": "MUST NOT revert due to vault specific user/global limits."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewmint-may-revert-for-other-conditions",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewMint",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "previewMint() MAY revert due to other conditions that would also cause the paired action (mint()) to revert.",
+      "affected_interface": [
+        "previewMint"
+      ],
+      "conditions": [
+        "a condition exists that would also cause mint() to revert"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewMint",
+        "quoted_text": "MAY revert due to other conditions that would also cause `mint` to revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewwithdraw-must-approximate-paired-action",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewWithdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "previewWithdraw() MUST return a value that bounds what withdraw() would actually do if called in the same transaction: previewWithdraw() MUST return as close to and no fewer than the exact amount of Vault shares that withdraw() would burn in the same transaction.",
+      "affected_interface": [
+        "previewWithdraw",
+        "withdraw"
+      ],
+      "conditions": [
+        "called in the same transaction as the paired action"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewWithdraw",
+        "quoted_text": "previewWithdraw() MUST return as close to and no fewer than the exact amount of Vault shares that withdraw() would burn in the same transaction."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewwithdraw-must-not-account-for-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewWithdraw",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "previewWithdraw() MUST NOT account for the corresponding max*() limits and MUST act as though the action would be accepted regardless of allowance/balance state.",
+      "affected_interface": [
+        "previewWithdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewWithdraw",
+        "quoted_text": "MUST NOT account for deposit limits like those returned from maxDeposit and should always act as though the deposit would be accepted, regardless if the user has enough tokens approved, etc."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewwithdraw-must-include-fees",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewWithdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "previewWithdraw() MUST be inclusive of withdrawal fees.",
+      "affected_interface": [
+        "previewWithdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewWithdraw",
+        "quoted_text": "MUST be inclusive of withdrawal fees. Integrators should be aware of the existence of withdrawal fees."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewwithdraw-must-not-revert-for-vault-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewWithdraw",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "previewWithdraw() MUST NOT revert due to vault-specific user/global limits.",
+      "affected_interface": [
+        "previewWithdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewWithdraw",
+        "quoted_text": "MUST NOT revert due to vault specific user/global limits."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewwithdraw-may-revert-for-other-conditions",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewWithdraw",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "previewWithdraw() MAY revert due to other conditions that would also cause the paired action (withdraw()) to revert.",
+      "affected_interface": [
+        "previewWithdraw"
+      ],
+      "conditions": [
+        "a condition exists that would also cause withdraw() to revert"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewWithdraw",
+        "quoted_text": "MAY revert due to other conditions that would also cause `withdraw` to revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewredeem-must-approximate-paired-action",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewRedeem",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "previewRedeem() MUST return a value that bounds what redeem() would actually do if called in the same transaction: previewRedeem() MUST return as close to and no more than the exact amount of assets that redeem() would return in the same transaction.",
+      "affected_interface": [
+        "previewRedeem",
+        "redeem"
+      ],
+      "conditions": [
+        "called in the same transaction as the paired action"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewRedeem",
+        "quoted_text": "previewRedeem() MUST return as close to and no more than the exact amount of assets that redeem() would return in the same transaction."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewredeem-must-not-account-for-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewRedeem",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "previewRedeem() MUST NOT account for the corresponding max*() limits and MUST act as though the action would be accepted regardless of allowance/balance state.",
+      "affected_interface": [
+        "previewRedeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewRedeem",
+        "quoted_text": "MUST NOT account for deposit limits like those returned from maxDeposit and should always act as though the deposit would be accepted, regardless if the user has enough tokens approved, etc."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewredeem-must-include-fees",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewRedeem",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "previewRedeem() MUST be inclusive of withdrawal fees.",
+      "affected_interface": [
+        "previewRedeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewRedeem",
+        "quoted_text": "MUST be inclusive of withdrawal fees. Integrators should be aware of the existence of withdrawal fees."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewredeem-must-not-revert-for-vault-limits",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewRedeem",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "previewRedeem() MUST NOT revert due to vault-specific user/global limits.",
+      "affected_interface": [
+        "previewRedeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewRedeem",
+        "quoted_text": "MUST NOT revert due to vault specific user/global limits."
+      }
+    },
+    {
+      "clause_id": "erc4626-previewredeem-may-revert-for-other-conditions",
+      "standard_id": "ERC-4626",
+      "section": "Methods:previewRedeem",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "previewRedeem() MAY revert due to other conditions that would also cause the paired action (redeem()) to revert.",
+      "affected_interface": [
+        "previewRedeem"
+      ],
+      "conditions": [
+        "a condition exists that would also cause redeem() to revert"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:previewRedeem",
+        "quoted_text": "MAY revert due to other conditions that would also cause `redeem` to revert."
+      }
+    },
+    {
+      "clause_id": "erc4626-deposit-must-emit-event",
+      "standard_id": "ERC-4626",
+      "section": "Methods:deposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "deposit() MUST emit the Deposit event.",
+      "affected_interface": [
+        "deposit"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:deposit",
+        "quoted_text": "MUST emit the `Deposit` event."
+      }
+    },
+    {
+      "clause_id": "erc4626-deposit-must-support-approve-transferfrom-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:deposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "deposit() MUST support EIP-20 approve/transferFrom on asset as a deposit flow.",
+      "affected_interface": [
+        "deposit"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:deposit",
+        "quoted_text": "MUST support EIP-20 `approve` / `transferFrom` on `asset` as a deposit flow."
+      }
+    },
+    {
+      "clause_id": "erc4626-deposit-may-support-preexisting-balance-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:deposit",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "deposit() MAY support an additional flow where underlying tokens are already owned by the Vault before execution and accounted for during deposit.",
+      "affected_interface": [
+        "deposit"
+      ],
+      "conditions": [
+        "the underlying tokens are owned by the Vault contract before execution"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:deposit",
+        "quoted_text": "MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the `deposit` execution, and are accounted for during `deposit`."
+      }
+    },
+    {
+      "clause_id": "erc4626-deposit-must-revert-if-cannot-complete",
+      "standard_id": "ERC-4626",
+      "section": "Methods:deposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "deposit() MUST revert if the full amount cannot be processed (deposit limit reached, slippage, insufficient approval, etc).",
+      "affected_interface": [
+        "deposit"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:deposit",
+        "quoted_text": "MUST revert if all of `assets` cannot be deposited (due to deposit limit being reached, slippage, the user not approving enough underlying tokens to the Vault contract, etc)."
+      }
+    },
+    {
+      "clause_id": "erc4626-mint-must-emit-event",
+      "standard_id": "ERC-4626",
+      "section": "Methods:mint",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "mint() MUST emit the Deposit event.",
+      "affected_interface": [
+        "mint"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:mint",
+        "quoted_text": "MUST emit the `Deposit` event."
+      }
+    },
+    {
+      "clause_id": "erc4626-mint-must-support-approve-transferfrom-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:mint",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "mint() MUST support EIP-20 approve/transferFrom on asset as a mint flow.",
+      "affected_interface": [
+        "mint"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:mint",
+        "quoted_text": "MUST support EIP-20 `approve` / `transferFrom` on `asset` as a mint flow."
+      }
+    },
+    {
+      "clause_id": "erc4626-mint-may-support-preexisting-balance-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:mint",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "mint() MAY support an additional flow where underlying tokens are already owned by the Vault before execution and accounted for during mint.",
+      "affected_interface": [
+        "mint"
+      ],
+      "conditions": [
+        "the underlying tokens are owned by the Vault contract before execution"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:mint",
+        "quoted_text": "MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the `mint` execution, and are accounted for during `mint`."
+      }
+    },
+    {
+      "clause_id": "erc4626-mint-must-revert-if-cannot-complete",
+      "standard_id": "ERC-4626",
+      "section": "Methods:mint",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "mint() MUST revert if the full amount cannot be processed (deposit limit reached, slippage, insufficient approval, etc).",
+      "affected_interface": [
+        "mint"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:mint",
+        "quoted_text": "MUST revert if all of `shares` cannot be deposited (due to deposit limit being reached, slippage, the user not approving enough underlying tokens to the Vault contract, etc)."
+      }
+    },
+    {
+      "clause_id": "erc4626-withdraw-must-emit-event",
+      "standard_id": "ERC-4626",
+      "section": "Methods:withdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "withdraw() MUST emit the Withdraw event.",
+      "affected_interface": [
+        "withdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:withdraw",
+        "quoted_text": "MUST emit the `Withdraw` event."
+      }
+    },
+    {
+      "clause_id": "erc4626-withdraw-must-support-owner-is-sender-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:withdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "withdraw() MUST support a flow where shares are burned from owner directly when owner is msg.sender.",
+      "affected_interface": [
+        "withdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:withdraw",
+        "quoted_text": "MUST support a withdraw flow where the shares are burned from `owner` directly where `owner` is `msg.sender`."
+      }
+    },
+    {
+      "clause_id": "erc4626-withdraw-must-support-erc20-allowance-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:withdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "withdraw() MUST support a flow where shares are burned from owner when msg.sender has EIP-20 approval over owner's shares.",
+      "affected_interface": [
+        "withdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:withdraw",
+        "quoted_text": "MUST support a withdraw flow where the shares are burned from `owner` directly where `msg.sender` has EIP-20 approval over the shares of `owner`."
+      }
+    },
+    {
+      "clause_id": "erc4626-withdraw-may-support-preexisting-shares-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:withdraw",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "withdraw() MAY support an additional flow where shares are already transferred to the Vault before execution and accounted for during withdraw.",
+      "affected_interface": [
+        "withdraw"
+      ],
+      "conditions": [
+        "shares are transferred to the Vault contract before execution"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:withdraw",
+        "quoted_text": "MAY support an additional flow in which the shares are transferred to the Vault contract before the `withdraw` execution, and are accounted for during `withdraw`."
+      }
+    },
+    {
+      "clause_id": "erc4626-withdraw-should-check-spender-allowance",
+      "standard_id": "ERC-4626",
+      "section": "Methods:withdraw",
+      "original_normative_strength": "SHOULD",
+      "normalized_obligation": "withdraw() SHOULD check that msg.sender can spend owner's funds (assets converted to shares and checked for allowance).",
+      "affected_interface": [
+        "withdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:withdraw",
+        "quoted_text": "SHOULD check `msg.sender` can spend owner funds, assets needs to be converted to shares and shares should be checked for allowance."
+      }
+    },
+    {
+      "clause_id": "erc4626-withdraw-must-revert-if-cannot-complete",
+      "standard_id": "ERC-4626",
+      "section": "Methods:withdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "withdraw() MUST revert if the full amount cannot be processed (withdrawal limit reached, slippage, insufficient shares, etc).",
+      "affected_interface": [
+        "withdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:withdraw",
+        "quoted_text": "MUST revert if all of `assets` cannot be withdrawn/redeemed (due to withdrawal limit being reached, slippage, the owner not having enough shares, etc)."
+      }
+    },
+    {
+      "clause_id": "erc4626-redeem-must-emit-event",
+      "standard_id": "ERC-4626",
+      "section": "Methods:redeem",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "redeem() MUST emit the Withdraw event.",
+      "affected_interface": [
+        "redeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:redeem",
+        "quoted_text": "MUST emit the `Withdraw` event."
+      }
+    },
+    {
+      "clause_id": "erc4626-redeem-must-support-owner-is-sender-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:redeem",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "redeem() MUST support a flow where shares are burned from owner directly when owner is msg.sender.",
+      "affected_interface": [
+        "redeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:redeem",
+        "quoted_text": "MUST support a withdraw flow where the shares are burned from `owner` directly where `owner` is `msg.sender`."
+      }
+    },
+    {
+      "clause_id": "erc4626-redeem-must-support-erc20-allowance-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:redeem",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "redeem() MUST support a flow where shares are burned from owner when msg.sender has EIP-20 approval over owner's shares.",
+      "affected_interface": [
+        "redeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:redeem",
+        "quoted_text": "MUST support a withdraw flow where the shares are burned from `owner` directly where `msg.sender` has EIP-20 approval over the shares of `owner`."
+      }
+    },
+    {
+      "clause_id": "erc4626-redeem-may-support-preexisting-shares-flow",
+      "standard_id": "ERC-4626",
+      "section": "Methods:redeem",
+      "original_normative_strength": "MAY",
+      "normalized_obligation": "redeem() MAY support an additional flow where shares are already transferred to the Vault before execution and accounted for during redeem.",
+      "affected_interface": [
+        "redeem"
+      ],
+      "conditions": [
+        "shares are transferred to the Vault contract before execution"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:redeem",
+        "quoted_text": "MAY support an additional flow in which the shares are transferred to the Vault contract before the `redeem` execution, and are accounted for during `redeem`."
+      }
+    },
+    {
+      "clause_id": "erc4626-redeem-should-check-spender-allowance",
+      "standard_id": "ERC-4626",
+      "section": "Methods:redeem",
+      "original_normative_strength": "SHOULD",
+      "normalized_obligation": "redeem() SHOULD check that msg.sender can spend owner's funds (assets converted to shares and checked for allowance).",
+      "affected_interface": [
+        "redeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:redeem",
+        "quoted_text": "SHOULD check `msg.sender` can spend owner funds using allowance."
+      }
+    },
+    {
+      "clause_id": "erc4626-redeem-must-revert-if-cannot-complete",
+      "standard_id": "ERC-4626",
+      "section": "Methods:redeem",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "redeem() MUST revert if the full amount cannot be processed (withdrawal limit reached, slippage, insufficient shares, etc).",
+      "affected_interface": [
+        "redeem"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Methods:redeem",
+        "quoted_text": "MUST revert if all of `shares` cannot be withdrawn/redeemed (due to withdrawal limit being reached, slippage, the owner not having enough shares, etc)."
+      }
+    },
+    {
+      "clause_id": "erc4626-deposit-event-must-be-emitted",
+      "standard_id": "ERC-4626",
+      "section": "Events:Deposit",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "The Deposit event MUST be emitted when tokens are deposited into the Vault via mint or deposit.",
+      "affected_interface": [
+        "event:Deposit",
+        "mint",
+        "deposit"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Events:Deposit",
+        "quoted_text": "MUST be emitted when tokens are deposited into the Vault via the `mint` and `deposit` methods."
+      }
+    },
+    {
+      "clause_id": "erc4626-withdraw-event-must-be-emitted",
+      "standard_id": "ERC-4626",
+      "section": "Events:Withdraw",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "The Withdraw event MUST be emitted when shares are withdrawn from the Vault via redeem or withdraw.",
+      "affected_interface": [
+        "event:Withdraw",
+        "redeem",
+        "withdraw"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Events:Withdraw",
+        "quoted_text": "MUST be emitted when shares are withdrawn from the Vault in `EIP-4626.redeem` or `EIP-4626.withdraw` methods."
+      }
+    },
+    {
+      "clause_id": "erc4626-convertto-functions-must-both-round-down",
+      "standard_id": "ERC-4626",
+      "section": "Security Considerations",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "Both convertToShares() and convertToAssets() MUST always round down (this restates/reinforces the per-function 'MUST round down towards 0' clauses already captured on each function individually -- kept as a separate clause because the Security Considerations section states it as an explicit cross-function invariant, not merely per-function).",
+      "affected_interface": [
+        "convertToShares",
+        "convertToAssets"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-4626.raw.md",
+        "source_section_heading": "Security Considerations",
+        "quoted_text": "The only functions where the preferred rounding direction would be ambiguous are the `convertTo` functions. To ensure consistency across all EIP-4626 Vault implementations it is specified that these functions MUST both always round _down_."
+      }
+    }
+  ]
+}

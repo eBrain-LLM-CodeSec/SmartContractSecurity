@@ -1,0 +1,91 @@
+{
+  "standard_id": "ERC-4626",
+  "source_family": "ERC",
+  "title": "Tokenized Vaults",
+  "version": "Final (eip-4626, requires EIP-20 + optionally EIP-2612)",
+  "status": "Final",
+  "canonical_source_reference": "https://eips.ethereum.org/EIPS/eip-4626",
+  "local_spec_path": "erc-4626.raw.md",
+  "local_source_hash": "698c05bff73bfb796f59cd7c4732edccdf7e40176f9bb027c19a0bbe7251e10a",
+  "clauses_path": "clauses.json",
+  "parent_gp_requirement_id": "req-R-follow-erc-standards",
+  "detection_signals": {
+    "strong": [
+      {
+        "signal_id": "erc4626-inherits-ierc4626",
+        "signal_type": "inheritance",
+        "pattern": ["IERC4626"],
+        "description": "Contract's inheritance list (Slither Contract.inheritance / immediate bases) includes an interface named IERC4626 (or IERC-4626/IERC_4626 spelling variants)."
+      },
+      {
+        "signal_id": "erc4626-inherits-erc4626-base",
+        "signal_type": "inheritance",
+        "pattern": ["ERC4626"],
+        "description": "Contract's inheritance list includes a base contract literally named ERC4626 (the common pattern for both OpenZeppelin's and Solmate's reference implementations, and any project-local copy of one)."
+      },
+      {
+        "signal_id": "erc4626-imports-ierc4626",
+        "signal_type": "import",
+        "pattern": ["IERC4626", "IERC4626.sol"],
+        "description": "A Solidity import statement in-scope names an IERC4626 interface file, whether or not the importing contract ends up inheriting it (import-only is still a strong signal of intended conformance, captured distinctly from actual inheritance)."
+      },
+      {
+        "signal_id": "erc4626-natspec-inheritdoc",
+        "signal_type": "natspec",
+        "pattern": ["@inheritdoc IERC4626"],
+        "description": "A function carries an explicit `@inheritdoc IERC4626` NatSpec tag -- a direct developer assertion that this function implements the ERC-4626 interface's obligation for that method, independent of whether the containing contract also formally inherits the interface type."
+      },
+      {
+        "signal_id": "erc4626-documentation-claim",
+        "signal_type": "documentation_claim",
+        "pattern": ["ERC-4626", "ERC4626", "EIP-4626", "EIP4626", "ERC 4626"],
+        "description": "Project documentation (README*, NatSpec @notice/@dev contract-level comments, docs/ directory) explicitly claims ERC-4626 conformance in prose, independent of code structure. A documentation claim alone is sufficient to mark the standard applicable -- claimed-but-nonconforming is itself relevant (see fixture 6 in the discovery test suite), not a reason to skip detection."
+      }
+    ],
+    "supporting": [
+      {
+        "signal_id": "erc4626-canonical-function-signatures",
+        "signal_type": "function_signatures",
+        "pattern": [
+          "asset() view returns (address)",
+          "totalAssets() view returns (uint256)",
+          "convertToShares(uint256) view returns (uint256)",
+          "convertToAssets(uint256) view returns (uint256)",
+          "maxDeposit(address) view returns (uint256)",
+          "previewDeposit(uint256) view returns (uint256)",
+          "deposit(uint256,address) returns (uint256)",
+          "maxMint(address) view returns (uint256)",
+          "previewMint(uint256) view returns (uint256)",
+          "mint(uint256,address) returns (uint256)",
+          "maxWithdraw(address) view returns (uint256)",
+          "previewWithdraw(uint256) view returns (uint256)",
+          "withdraw(uint256,address,address) returns (uint256)",
+          "maxRedeem(address) view returns (uint256)",
+          "previewRedeem(uint256) view returns (uint256)",
+          "redeem(uint256,address,address) returns (uint256)"
+        ],
+        "description": "The canonical ERC-4626 method signature set. A SINGLE matching signature (e.g. just totalAssets()) is NOT sufficient on its own to classify a contract as ERC-4626 -- per the plan's explicit instruction not to classify on one common function name alone. Used as a supporting signal that raises confidence only when combined with a meaningful subset (discovery.py defines the exact threshold) or co-occurring with a strong signal."
+      },
+      {
+        "signal_id": "erc4626-canonical-events",
+        "signal_type": "events",
+        "pattern": [
+          "Deposit(address indexed,address indexed,uint256,uint256)",
+          "Withdraw(address indexed,address indexed,address indexed,uint256,uint256)"
+        ],
+        "description": "The two ERC-4626-defined events, matched by name AND indexed-parameter shape (both names are common in isolation -- e.g. plain ERC-20-adjacent 'Deposit' events exist elsewhere -- so signature shape, not name alone, is what's checked)."
+      },
+      {
+        "signal_id": "erc4626-known-library-import",
+        "signal_type": "known_library_import",
+        "pattern": [
+          "openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol",
+          "solmate/src/mixins/ERC4626.sol",
+          "solady/src/tokens/ERC4626.sol"
+        ],
+        "description": "Import path references a known, widely-used ERC-4626 reference implementation from a third-party library (OpenZeppelin, Solmate, Solady). Supporting rather than strong: importing a library file is evidence of intent but the importing contract must still be checked for actual inheritance/usage, not just the import line."
+      }
+    ]
+  },
+  "detection_signal_design_note": "Every discovery decision in rtf/standards/discovery.py must cite which of these signal_ids fired, with confidence and evidence populated in a StandardDetectionResult -- no undocumented ad hoc pattern matching outside this registered signal set."
+}

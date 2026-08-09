@@ -1,0 +1,19 @@
+{
+  "standard_id": "ERC-4626",
+  "eip_number": 4626,
+  "title": "Tokenized Vaults",
+  "source_url": "https://raw.githubusercontent.com/ethereum/ercs/master/ERCS/erc-4626.md",
+  "canonical_human_url": "https://eips.ethereum.org/EIPS/eip-4626",
+  "publisher": "Ethereum Foundation / Ethereum ERCs repository",
+  "status_at_retrieval": "Final",
+  "accepted_per_ethtrust_definition": true,
+  "accepted_erc_definition_note": "EthTrust's [GP] Follow Accepted ERC Standards requirement text (rtf/l1_corpus/requirement_corpus.json, req_id=req-R-follow-erc-standards) says the Tested Code SHOULD conform to 'finalized [ERC] standards'. The corpus's own bibliographic entry for that '[ERC]' citation, found in the pinned EthTrust spec source (standards/ethtrust/ethtrust-sl.raw.html), resolves to: title='ERC Final - Ethereum Improvement Proposals', url='https://eips.ethereum.org/erc' -- i.e. EthTrust's own definition of 'finalized' IS the EIP-1 process's 'Final' status (the terminal, completed status in the Idea -> Draft -> Review -> Last Call -> Final/Stagnant/Withdrawn lifecycle; 'Living' is the one other terminal status EIP-1 defines, for a small number of continuously-amended core process documents like EIP-1 itself -- not applicable to application-level ERCs like this one). This is not an invented interpretation: it is read directly from the EthTrust spec's own citation. ERC-4626's frontmatter in this pinned snapshot states status: Final, so it qualifies. See rtf/standards/registry.py's ACCEPTED_STATUSES for where this is enforced as a load-time validation gate, not just documentation.",
+  "requires": [20, 2612],
+  "license": "CC0-1.0",
+  "license_note": "EIP/ERC content is released under CC0 (public domain dedication) per the spec's own 'Copyright and related rights waived via CC0' footer -- no separate LICENSE file redistribution requirement applies here, unlike the Apache-2.0-licensed EthTrust spec snapshot at standards/ethtrust/.",
+  "retrieved_at": "2026-08-09T18:55:39Z",
+  "retrieval_method": "direct HTTPS GET (curl) of the raw ERCs-repo markdown source -- deliberately not a WebFetch-summarized fetch, matching the same precedent already established for the EthTrust spec itself (standards/ethtrust/metadata.json's retrieval_method note): a summarizing fetch is known to have produced an inaccurate requirement inventory on that earlier occasion, and this snapshot must be exactly as authoritative for clause extraction as that one is for the requirement corpus.",
+  "raw_snapshot_file": "erc-4626.raw.md",
+  "raw_snapshot_sha256": "698c05bff73bfb796f59cd7c4732edccdf7e40176f9bb027c19a0bbe7251e10a",
+  "note_on_eip_vs_erc_repo_split": "The original https://raw.githubusercontent.com/ethereum/EIPs/master/EIPS/eip-4626.md now just redirects ('status: Moved') to the ercs repo fetched here -- ERC-track EIPs were split into a separate repository after EIP-4626 was finalized; this does not affect its Final status or content, confirmed by fetching both and observing the redirect stub."
+}
