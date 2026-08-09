@@ -1,0 +1,44 @@
+{
+  "study_scope": {
+    "description": "Zero-cost (no live Codex/LLM calls) trigger-coverage study of the standards-driven GP requirement generator, per the implementation plan's §19-§21.",
+    "audits_covered": ["2025-01-liquid-ron"],
+    "audits_deferred": ["canto", "vultisig", "arbitrum-foundation", "sequence", "the other 4 EVMbench audits RTF has previously been validated against"],
+    "deferral_reason": "Explicitly chosen by the user (AskUserQuestion, this session) after the Liquid-Ron sanity check passed: 'Just finish liquid-ron's other 5 entries first' -- full multi-audit trigger coverage is out of scope for this session, pending a later explicit request.",
+    "ground_truth_used_as_oracle_only": true,
+    "ground_truth_never_fed_into": ["standard detection", "requirement generation", "applicability", "routing", "mock agent"],
+    "routing_trace_frozen_before_comparison": "commit ddda827 (all rtf/standards/ code) was pushed before this file was written; H-01's ground truth text was already present in this session's conversation context from a prior session (see ETH_TRUST_GP_IMPLEMENTATION_REPORT.md §13 for the full, honest caveat about what 'frozen before consultation' can and cannot mean here)"
+  },
+  "findings": [
+    {
+      "audit_id": "2025-01-liquid-ron",
+      "finding_id": "H-01",
+      "finding_title": "The calculation of totalAssets() could be wrong if operatorFeeAmount > 0, this can cause potential loss for the new depositors",
+      "relevant_code": "src/LiquidRon.sol totalAssets() (L293-L295 in the original audit repo), operatorFeeAmount accrual/withdrawal (fetchOperatorFee / harvest, L121-L126)",
+      "mapped_rtf_requirements": [
+        "gp-accepted-standard__erc-4626__erc4626-totalassets-must-include-fees"
+      ],
+      "requirement_source": "EthTrust req-R-follow-erc-standards ([GP] Follow Accepted ERC Standards) -> ERC-4626 (EIP-4626, status Final) -> clause erc4626-totalassets-must-include-fees",
+      "standard": "ERC-4626",
+      "source_clause_text": "totalAssets() MUST be inclusive of any fees that are charged against assets in the Vault.",
+      "source_clause_citation": "https://eips.ethereum.org/EIPS/eip-4626, section 'totalAssets', pinned snapshot rtf/standards/erc/ERC-4626/erc-4626.raw.md",
+      "standard_discovered": true,
+      "standard_discovery_evidence": [
+        "erc4626-inherits-ierc4626: contract 'LiquidRon' inherits 'IERC4626'",
+        "erc4626-inherits-erc4626-base: contract 'LiquidRon' inherits 'ERC4626'",
+        "erc4626-documentation-claim: README.md mentions 'ERC-4626' and 'ERC4626'",
+        "erc4626-canonical-function-signatures: 16/16 canonical function names matched",
+        "erc4626-canonical-events: Deposit/Withdraw events declared"
+      ],
+      "requirement_generated": true,
+      "applicable": true,
+      "applicability_reason": "parent standard ERC-4626 is applicable (contracts: ['LiquidRon']) and this clause's target(s) ['totalAssets'] are present with no unresolved activation condition",
+      "evaluator": "AGENT_REQUIRED (rtf.standards.routing.classify_requirement -- unconditional for STANDARD_CLAUSE_DIRECT requirements)",
+      "mock_codex_would_be_invoked": true,
+      "mock_codex_invocation_verified_by": "test_mock_codex_routing.py (39/39 passing, exact-invocation-count assertions against the real pipeline_e2e.run_pipeline_e2e orchestrator with run_arm_g_bundle mocked)",
+      "trigger_covered": true,
+      "failure_classification": "RTF_TRIGGER_COVERED",
+      "rationale": "An independently-justified, source-driven RTF requirement (gp-accepted-standard__erc-4626__erc4626-totalassets-must-include-fees) exists, was generated from the real EIP-4626 spec text (not from H-01's description), was determined applicable to LiquidRon specifically, and would be routed to a real Codex investigation with a bundle carrying the exact fee-inclusion obligation directly on-topic for H-01's mechanism. This is the zero-cost-answerable question per §21 ('Did an independently justified RTF requirement exist? Was it generated? Was it applicable? Did it actually fire? Would the Codex agent have received it?') -- all confirmed yes with real evidence. Whether a real (paid, currently ungated) investigation against this specific requirement would correctly diagnose H-01's exact mechanism (operatorFeeAmount being a third-party claim, not a vault-level dilution fee -- a distinction EIP-4626's own spec text does not itself draw) is NOT claimed here and remains an open empirical question outside this preflight's scope.",
+      "contrast_with_prior_architecture": "Before this GP-generator work existed, a prior session's forensic A-E classification (rtf/l12_evaluation/SUPERVISED_VALIDATION_RERUN_2026-08-08.md §8, using only the static 81-requirement EthTrust corpus) classified H-01's miss as primarily 'E' (requirement-coverage limitation): no EthTrust requirement was shaped to ask this specific ERC-4626 accounting question, despite 4 independently-routed investigations reading the exact relevant code. This GP-generator closes exactly that gap at the requirement-generation level -- an ERC-4626-specific requirement now exists and correctly routes. Whether it also closes the gap at the INVESTIGATION level (a real agent actually producing an H-01-shaped finding from this more specific requirement) has not yet been tested with a real Codex call."
+    }
+  ]
+}
