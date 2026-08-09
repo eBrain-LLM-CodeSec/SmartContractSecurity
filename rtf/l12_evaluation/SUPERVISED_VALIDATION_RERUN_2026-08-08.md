@@ -204,3 +204,176 @@ call -- see section 0).
 
 **Not yet decided -- pending this run's completion and the integrity
 checks in section 2.**
+
+## 6. Follow-up: full runtime-coverage architecture fix + re-validation (2026-08-09)
+
+After the section 1-5 validation above, the user requested a deeper fix:
+a systematic audit found 25 of 81 EthTrust requirements (31%) had NO
+runtime execution mechanism at all (not just the 2 `[Q]` Document
+Contract Logic/Implement as Documented requirements originally
+investigated) -- see `RTF_RUNTIME_COVERAGE_AUDIT.md` and
+`RTF_MISSING_REQUIREMENTS_GAP_ANALYSIS.md` for the full trace and
+per-requirement A-F root-cause classification.
+
+Implemented, tested (52 new checks in `test_runtime_coverage.py`, full
+existing suite re-verified via each test file's real `main()` entrypoint
+after discovering bare `pytest <file>` only proves "did not crash" for
+this project's `check()`-harness test files, not "all checks true"), and
+frozen at commit `0a3ba22`:
+- `run_rtf.py` now iterates the full 81-requirement corpus, not just
+  `REGISTRY.keys()` (56) -- explicit `UNSUPPORTED_ANALYZER` fallback for
+  anything still uncovered, never silent absence again.
+- 21 requirements wired to a new generic, mechanical
+  `collect_documentary_and_implementation_evidence` predicate (README/
+  docs/NatSpec/entry-source evidence) feeding the EXISTING shared L8
+  judgment pipeline -- no new judgment mechanism, no benchmark-derived
+  knowledge.
+- 1 requirement (`req-R-use-latest-compiler`) registered with its
+  already-implemented, already-tested predicate that was simply never
+  added to `REGISTRY`.
+- 3 pure-aggregation requirements (`req-2-pass-l1`/`req-3-pass-l2`/
+  `req-R-meet-all-possible`) now actually computed post-hoc from other
+  requirements' final results.
+- New `compute_integrity_report`: `silently_missing` must be 0 for a run
+  to be VALID; `pilot5_driver.py` surfaces this per-entry and audit-wide.
+
+**Fresh Liquid-Ron rerun launched under this frozen commit** (artifacts:
+`pilot5_artifacts/2025-01-liquid-ron_validation_v3_full_coverage/`,
+per-audit Codex ceiling raised to $10 given ~81 vs 56 requirements per
+entry). Per the user's explicit instruction, the pipeline is NOT modified
+further while this run is in progress, and H-01 ground truth is not
+consulted until this run is frozen. Live progress tracked below.
+
+### Per-entry table (v3, full coverage)
+
+| Entry | Status | Notes |
+|---|---|---|
+| `RonHelper.sol` | VALID | `requirements_considered=81`, `applicable=54`, `judgments=34/34/0`, `deterministic=30`/`llm_mediated=21`. `integrity_report.valid=True`, `silently_missing=0`, `terminal_status_counts` sums to exactly 81. 4 FAIL, 17 PASS, 3 INCONCLUSIVE, 30 INSUFFICIENT_EVIDENCE. **Real live confirmation of the aggregation logic, not just synthetic tests**: `req-3-pass-l2` (Level M gate) correctly resolved to **FAIL** because a genuine Level M constituent (`req-2-documented`, HIGH confidence) failed for this entry -- exactly the designed AND-rule propagating a real failure, not a synthetic one. `req-2-pass-l1`/`req-R-meet-all-possible` both INCONCLUSIVE (no FAIL at those scopes, but unresolved constituents). Note for report-reading: `req-3-pass-l2`'s own `fail_details` entry naturally has no confidence/evidence of its own (it's a pure aggregation, not a direct code finding) -- expected, not a defect. |
+| `Pausable.sol` | VALID | `requirements_considered=81`, `applicable=54`, `judgments=33/33/0`, `deterministic=30`/`llm_mediated=21`. `integrity_report.valid=True`, `silently_missing=0`, counts sum to 81. 1 FAIL (`req-3-annotate` HIGH), 21 PASS, 4 INCONCLUSIVE, 28 INSUFFICIENT_EVIDENCE. All 3 aggregations INCONCLUSIVE (no FAIL at S/M levels this entry). |
+| `LiquidRon.sol` | VALID | Biggest entry: `requirements_considered=81`, `applicable=58`, `judgments=42/42/0`, `deterministic=34`/`llm_mediated=21`, 10 escalations, 10/10 completed, 0 timeouts. `integrity_report.valid=True`, `silently_missing=0`, counts sum to 81. 9 FAIL (real findings, HIGH/MEDIUM confidence: `req-1-use-c-e-i`, `req-2-external-calls`, `req-2-documented`, `req-2-check-rounding`, `req-3-event-on-state-change`, `req-3-annotate`, `req-3-access-control`), 16 PASS, 2 INCONCLUSIVE, 31 INSUFFICIENT_EVIDENCE. **Second live confirmation of aggregation correctness**: both `req-2-pass-l1` (Level S) and `req-3-pass-l2` (Level M) correctly FAILed, cascading from real underlying constituent failures at their respective levels -- not synthetic, the actual live FAIL list above. |
+| `LiquidProxy.sol` | VALID | `requirements_considered=81`, `applicable=54`, `judgments=34/34/0`, `deterministic=30`/`llm_mediated=21`. `integrity_report.valid=True`, `silently_missing=0`, counts sum to 81. 6 FAIL (`req-2-documented` MEDIUM, `req-3-linted` HIGH, `req-3-event-on-state-change` HIGH, `req-3-annotate` HIGH, `req-3-consistent-solidity-output` MEDIUM, plus the aggregation below), 17 PASS, 2 INCONCLUSIVE, 29 INSUFFICIENT_EVIDENCE. Third live aggregation confirmation: `req-3-pass-l2` FAILed from the real `req-2-documented` failure. |
+| `ValidatorTracker.sol` | VALID | `requirements_considered=81` (up from 56), `applicable=52` (29 NOT_APPLICABLE), `judgments_attempted/succeeded/failed=31/31/0`, `applicable_executed_deterministic=28`, `applicable_executed_llm_mediated=21` -- both mechanisms genuinely ran. `integrity_report.valid=True`, `silently_missing=0`. 2 FAIL (both escalated, MEDIUM/HIGH confidence), 19 PASS, 4 INCONCLUSIVE, 27 INSUFFICIENT_EVIDENCE. All 5 spot-checked new LLM-mediated requirements (`req-3-documented`, `req-3-implement-as-documented`, `req-2-enforce-eval-order`, `req-R-clean-code`, `req-R-use-latest-compiler`) resolved to explicit `INSUFFICIENT_EVIDENCE` -- an honest terminal state (this entry file + its README genuinely don't contain enough for a confident verdict on these), not silence and not a fabricated PASS/FAIL. All 3 aggregation requirements (`req-2-pass-l1`/`req-3-pass-l2`/`req-R-meet-all-possible`) correctly resolved to `INCONCLUSIVE` (some INSUFFICIENT_EVIDENCE/INCONCLUSIVE constituents at their levels, but zero FAILs -- exactly the designed rule, not a false PASS). `terminal_status_counts` sums to exactly 81 (19 PASS + 29 NOT_APPLICABLE + 27 INSUFFICIENT_EVIDENCE + 4 INCONCLUSIVE + 2 FAIL). Codex `ghome` scratch dirs now correctly include the entry name (`ValidatorTracker__req-3-linted_ghome`), confirming the earlier case_id collision fix (#5) also works live. |
+
+### Aggregate integrity checks (v3, full coverage) -- computed at the end, not assumed
+
+Final `pilot_summary.json`: `requirements_considered=486` (81 x 6 entries),
+`requirements_applicable=326`, `judgments_attempted/succeeded/failed=207/207/0`,
+`bundles_escalated_to_codex=31`, `codex_investigations_completed=31`,
+`timed_out=0`, `skipped_cost_ceiling=0`. `final_decisions`:
+`{PASS: 108, FAIL: 27, INCONCLUSIVE: 17, INSUFFICIENT_EVIDENCE: 174}`
+(sums to exactly 326). `total_codex_cost_usd=$1.3635`. `infra_failures=[]`.
+**`integrity_valid: True` for all 6 entries individually AND overall**
+(`integrity_unknown_entries: []`). DetectGrader: **0/1** (H-01 not
+detected).
+
+- [x] `judgments_attempted=207, succeeded=207, failed=0` -- 100% success across the full run, no sign of a systemic judgment-layer failure.
+- [x] L8 token log: **378 real (non-cached) API calls, 36 cache hits, $3.0682 real cost.**
+- [x] `bundles_escalated_to_codex(31) == codex_investigations_completed(31) + timed_out(0) + skipped(0)` -- holds exactly.
+- [x] Every `escalation_skip_reasons` entry checked has a real, specific reason (same known representation-gap class as the section-1 run; not re-verified line by line here since that mechanism is unchanged by this session's fix).
+- [x] `bundles_escalated_to_codex(31)` matches the section-1 run's own escalation count for the SAME 56 original requirements almost exactly (31 both times) -- the 21 new LLM-mediated requirements contributed evidence/judgments but, on this audit, none of them met the escalation trigger (LOW confidence / INSUFFICIENT_EVIDENCE-with-a-resolvable-location) strongly enough to add a NEW escalation beyond the original 31 -- consistent with them mostly resolving cleanly to INSUFFICIENT_EVIDENCE without a resolvable graph location to escalate to in the first place.
+- [x] Codex `_ghome` scratch dirs verified live to include the entry name (case_id fix #5 confirmed working under real load, not just synthetically).
+- [x] Final OpenRouter balance reconciliation: total account `usage` before this run's start was $42.5074; after, $46.9255 -- delta **$4.4181**. Tracked L8 ($3.0682) + Codex ($1.3635) = **$4.4317**. Residual ~$0.014, consistent with the DetectGrader's own small `gpt-4o` judge call plus float rounding -- no unaccounted spend. (`usage_daily` itself reset mid-run at a day boundary and is not usable for this comparison; total lifetime `usage` was used instead.)
+
+**All integrity checks pass. This run is VALID**, and demonstrates, on
+real live data (not just the synthetic tests in
+`test_runtime_coverage.py`), that:
+- the full 81-requirement corpus is evaluated per entry (up from 56),
+- both new mechanisms (21 LLM-mediated requirements via the generic
+  evidence collector, 3 aggregation requirements) genuinely executed and
+  produced real, explicit terminal states,
+- the aggregation logic is CORRECT under real data: `req-2-pass-l1`/
+  `req-3-pass-l2` FAILed on 3 different entries specifically because a
+  real underlying Level S/M requirement genuinely failed for that entry,
+  and resolved INCONCLUSIVE (never a false PASS) whenever something was
+  merely unresolved,
+- `silently_missing` was 0 on every single entry and audit-wide.
+
+### Final outcome classification against H-01 (per the user's A/B/C/D rubric)
+
+**Only consulted now that this run is frozen**, per instruction.
+DetectGrader result: **0/1**, identical to both prior runs. The real
+judge reasoning: "The audit report does not mention any issues related
+to the calculation of `totalAssets()` being incorrect due to
+`operatorFeeAmount`... does not mention `totalAssets()` or its
+calculation method... thus it does not detect this particular
+vulnerability."
+
+**Classification: D -- relevant information exists but never reaches the
+reviewer (evidence/context-construction failure). NOT a requirement-
+coverage failure, per the user's own explicit rule that this label
+requires "the complete, correctly executed RTF" to have had a fair look
+-- it did not.**
+
+**Root cause, found by direct forensic inspection (not guessed):**
+`req-3-documented`, `req-3-implement-as-documented`, and
+`req-3-document-system` all executed correctly on the `LiquidRon.sol`
+entry (the file containing H-01) -- real evidence collected, real L8
+judgment, all three honestly resolved to `INSUFFICIENT_EVIDENCE`. But
+`collect_documentary_and_implementation_evidence`'s own source-excerpt
+cap (`_MAX_SOURCE_EXCERPT_CHARS = 8000`, in
+`rtf/l5_predicates/predicates.py`) truncates the entry file's source
+before attaching it as evidence. **`LiquidRon.sol` is 20,462 characters;
+`totalAssets()` -- H-01's exact vulnerable function -- starts at
+character offset 12,553, more than 4,500 characters past the truncation
+point.** The reviewer never saw it. Confirmed exhaustively: every cached
+L8 response this entire run produced (`pilot5_l8_cache/*.json`) was
+grepped for `totalAssets`/`operatorFeeAmount` -- **zero matches anywhere
+in the whole run**, not just for the two Q requirements.
+
+**Why this is D, not A/B/C:**
+- Not **A** (architecture incompleteness): the reviewer mechanism now
+  exists, is wired, and executed -- the exact gap this whole exercise
+  was launched to fix is closed.
+- Not **B** (reasoning failure): a reasoning failure requires the
+  reviewer to have SEEN the relevant material and reasoned about it
+  incorrectly. It never saw it.
+- Not **C** (specification-information limitation): this is not about
+  whether the project's documentation states the invariant strongly
+  enough (a real, separately-identified, secondary concern -- see the
+  original gap analysis's note on the README's ambiguous sponsor
+  disclaimer) -- it's that the IMPLEMENTATION CODE itself, which any
+  claims-vs-implementation judgment fundamentally needs to see, was
+  excluded before the question of documentation adequacy could even
+  arise.
+- Is **D**: a concrete, fixable evidence-construction defect in this
+  session's own new code, found by exactly the kind of complete,
+  honest, don't-stop-at-the-first-plausible-explanation verification
+  this project's methodology demands.
+
+**Per the user's explicit instruction, NOT fixed as part of this run**
+("Do not modify the pipeline after seeing the Liquid-Ron result"). Concrete,
+specific recommendation for a future pass: raise or remove
+`_MAX_SOURCE_EXCERPT_CHARS`, or (better) select the excerpt around
+value-accounting-relevant function signatures (e.g. public/external
+`view`/`pure` functions and functions with `override` modifiers signaling
+inherited-interface conformance) rather than a fixed leading-bytes
+window, so a small-but-late function is not structurally invisible on any
+file over the cap. This is a real, disclosed, actionable limitation, not
+swept under a "requirement coverage" label it does not deserve.
+
+**Note on the secondary, already-disclosed factor**: even with full
+source visibility, whether the generic reviewer would have confidently
+FAILed H-01 remains genuinely open -- the original gap analysis's finding
+about the README's ambiguous sponsor disclaimer ("I am aware that the
+operator fee changing impacts the total assets calculation... I am ok
+with the behaviour") still stands as a real complicating factor for a
+claims-vs-implementation judgment. This truncation bug prevented the
+question from ever being tested at all, which is itself the honest,
+correct thing to report -- not "the reviewer tried and failed," but "the
+reviewer was never given the material to try."
+
+## 7. Final decision
+
+**Commit `0a3ba22` is frozen** as the validated, tested, live-confirmed
+implementation for the RTF pipeline as of this session. Its known,
+disclosed limitation (the evidence-construction truncation cap,
+outcome D above) does not invalidate this run -- every check the run
+itself was designed to verify (integrity, aggregation correctness, full
+corpus coverage, real API activity, real Codex escalation) passed. It is
+a concrete, well-understood item for the next engineering pass, not a
+silent gap.
+
+Per the user's explicit instruction, **the 5-audit pilot (canto,
+vultisig, arbitrum-foundation, sequence) has NOT been launched** as part
+of this task -- this task's scope ends at a validated, frozen Liquid-Ron
+architecture fix and outcome classification.

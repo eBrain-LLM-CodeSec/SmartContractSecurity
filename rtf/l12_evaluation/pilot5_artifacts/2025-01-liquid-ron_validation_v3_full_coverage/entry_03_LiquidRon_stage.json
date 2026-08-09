@@ -1,0 +1,2124 @@
+{
+  "entry": "./src/LiquidRon.sol",
+  "wall_s": 2079.43474984169,
+  "codex_cost": 0.633818,
+  "stage_metrics": {
+    "requirements_considered": 81,
+    "requirements_applicable": 58,
+    "evidence_bundles_generated": 42,
+    "judgments_attempted": 42,
+    "judgments_succeeded": 42,
+    "judgments_failed": 0,
+    "bundles_judged_without_codex": 32,
+    "bundles_escalated_to_codex": 10,
+    "codex_investigations_completed": 10,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 16,
+      "FAIL": 9,
+      "INCONCLUSIVE": 2,
+      "INSUFFICIENT_EVIDENCE": 31
+    }
+  },
+  "fail_count": 9,
+  "fail_details": [
+    {
+      "req_id": "req-1-use-c-e-i",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "LiquidRon.harvest",
+          "detail": "external call at node 1 followed by state write at node 2 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "LiquidRon.harvestAndDelegateRewards",
+          "detail": "external call at node 2 followed by state write at node 3 (CFG-reachable)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "harvest makes an external call to a proxy before modifying state and lacks any reentrancy guard; this violates the Checks-Effects-Interactions pattern required for external calls.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 10,
+      "wall_clock_s": 194.05239391326904
+    },
+    {
+      "req_id": "req-2-pass-l1",
+      "escalated": false,
+      "evidence": [],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-2-external-calls",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "LiquidRon.harvest",
+          "detail": "external call at node 1 followed by state write at node 2 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "LiquidRon.harvestAndDelegateRewards",
+          "detail": "external call at node 2 followed by state write at node 3 (CFG-reachable)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "External calls target LiquidProxy instances controlled by the owner, so addresses stay within the tested set. However, both functions perform state writes after external interactions and lack any nonReentrant or Checks-Effects-Interactions safeguard, leaving reentrancy exposure, so the requirement is not met.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 17,
+      "wall_clock_s": 218.6264293193817
+    },
+    {
+      "req_id": "req-2-documented",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeCast.toUint",
+          "detail": "SafeCast.toUint(bool) (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol#1157-1161) uses assembly\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol#1158-1160)",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20._callOptionalReturnBool",
+          "detail": "SafeERC20._callOptionalReturnBool(IERC20,bytes) (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#187-197) uses assembly\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#191-195)",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "Math.mulDiv(uint256,uint256,uint256) (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/Math.sol#144-223) uses assembly\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/Math.sol#151-154)\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/Math.sol#175-182)\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/Math.sol#188-197)",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "Math.tryModExp(uint256,uint256,uint256) (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/Math.sol#337-361) uses assembly\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/Math.sol#339-360)",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20._callOptionalReturn",
+          "detail": "SafeERC20._callOptionalReturn(IERC20,bytes) (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#159-177) uses assembly\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#162-172)",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "Math.tryModExp(bytes,bytes,bytes) (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/Math.sol#377-399) uses assembly\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/math/Math.sol#389-398)",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Panic.panic",
+          "detail": "Panic.panic(uint256) (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/Panic.sol#50-56) uses assembly\n\t- INLINE ASM (../../../../../.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/contracts/utils/Panic.sol#51-55)",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC4626._tryGetAssetDecimals",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC4626.totalAssets",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC4626._convertToShares",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC4626._convertToAssets",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC4626._deposit",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC4626._withdraw",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20.safeIncreaseAllowance",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20.safeDecreaseAllowance",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20.transferAndCallRelaxed",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20.transferFromAndCallRelaxed",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20.approveAndCallRelaxed",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.ternary",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.ceilDiv",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.ceilDiv",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.modExp",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.modExp",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Escrow.constructor",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Escrow.deposit",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.harvest",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.harvestAndDelegateRewards",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.delegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.redelegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidProxy.undelegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.constructor",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.harvest",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.harvestAndDelegateRewards",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.delegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.redelegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.undelegateAmount",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.pruneValidatorList",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.pruneValidatorList",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.getAssetsInVault",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.deposit",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.redeem",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon._getTotalRewardsInProxy",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon._getTotalStakedInProxy",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon._convertToAssets",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon._checkUserCanReceiveRon",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon._withdraw",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "LiquidRon.receive",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "RonHelper._depositRONTo",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "RonHelper._depositRONTo",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "RonHelper._withdrawRONTo",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "RonHelper._withdrawRONTo",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC20._update",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC20._update",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC20._update",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "ERC20._spendAllowance",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20.safeDecreaseAllowance",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20._callOptionalReturn",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "SafeERC20._callOptionalReturnBool",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryAdd",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.trySub",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryMul",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.ternary",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.ceilDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.ceilDiv",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.ceilDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.mulDiv",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.invMod",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.invMod",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.invMod",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.invMod",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.invMod",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.invMod",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.invModPrime",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.tryModExp",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.sqrt",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log2",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "** operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log10",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "Math.log256",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The constructor performs an external ERC20 approval with unlimited allowance but provides no documentation explaining why this external call is required, violating the requirement to document special code use.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 2,
+      "wall_clock_s": 60.98787784576416
+    },
+    {
+      "req_id": "req-2-check-rounding",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.tryMul",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.tryDiv",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.average",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.ceilDiv",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.mulDiv",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.mulDiv",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.mulDiv",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.mulDiv",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.invMod",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.sqrt",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.sqrt",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.sqrt",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.sqrt",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.sqrt",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.sqrt",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.sqrt",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.log10",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.log10",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.log10",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.log10",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.log10",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "Math.log10",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "LiquidRon.harvest",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "LiquidRon.harvestAndDelegateRewards",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "LiquidRon.getTotalRewards",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "getTotalRewards and harvest functions apply operator fee via integer division, truncating fractional fees and potentially accumulating undistributed wei. The code lacks documentation of rounding error bounds or safeguards, violating the requirement to identify and protect against rounding effects.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 18,
+      "wall_clock_s": 221.97899866104126
+    },
+    {
+      "req_id": "req-3-pass-l2",
+      "escalated": false,
+      "evidence": [],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-3-event-on-state-change",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "ERC20.constructor",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "ERC4626.constructor",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "Panic.slitherConstructorConstantVariables",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "Escrow.constructor",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidProxy.constructor",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidRon.constructor",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidRon.updateFeeRecipient",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidRon.updateOperator",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidRon.setOperatorFee",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidRon.deployStakingProxy",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidRon.fetchOperatorFee",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "LiquidRon.slitherConstructorConstantVariables",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "Pausable.pause",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "Pausable.unpause",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "RonHelper.constructor",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "ValidatorTracker._tryPushValidator",
+          "detail": "writes state but emits no event",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "ValidatorTracker._removeValidator",
+          "detail": "writes state but emits no event",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Constructor changes state by setting _vault but contains no emit and has no callees; thus the state-changing transaction lacks an event.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 6,
+      "wall_clock_s": 76.2616548538208
+    },
+    {
+      "req_id": "req-3-annotate",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IVault.deposit",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "Pausable.pause",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "Pausable.unpause",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IWRON.deposit",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IWRON.withdraw",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IWRON.transfer",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.harvest",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.harvestAndDelegateRewards",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.delegateAmount",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.redelegateAmount",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "ILiquidProxy.undelegateAmount",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.delegate",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.undelegate",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.redelegate",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.bulkUndelegate",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.claimRewards",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.delegateRewards",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getRewards",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getReward",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getStakingTotal",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getManyStakingTotals",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getStakingAmount",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "IRoninValidator.getManyStakingAmounts",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The public interface function delegateAmount appears without any NatSpec inline documentation, violating the requirement that all public interfaces be annotated.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 2,
+      "wall_clock_s": 35.457972049713135
+    },
+    {
+      "req_id": "req-3-access-control",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "Ownable.renounceOwnership",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "Ownable.transferOwnership",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "ERC20.transfer",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "ERC20.approve",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "ERC20.transferFrom",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "ERC4626.deposit",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "ERC4626.mint",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "ERC4626.withdraw",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "ERC4626.redeem",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.updateFeeRecipient",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.updateOperator",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.setOperatorFee",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.deployStakingProxy",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.fetchOperatorFee",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.harvest",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.harvestAndDelegateRewards",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.delegateAmount",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.redelegateAmount",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.pruneValidatorList",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.finaliseRonRewardsForEpoch",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.withdraw",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.redeem",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.deposit",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.mint",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.requestWithdrawal",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "LiquidRon.redeem",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "Pausable.pause",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "Pausable.unpause",
+          "detail": "state-mutating function is PROTECTED (access-controlled) per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "delegateAmount moves vault funds and is intended for operators, but onlyOperator is written with an OR condition that blocks all designated operators and leaves only the owner able to perform delegation. This does not implement the documented operator role and concentrates privileged actions under the broader owner privilege rather than least-privilege operator access.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 20,
+      "wall_clock_s": 354.5423495769501
+    }
+  ],
+  "escalation_skip_reasons": {
+    "req-1-no-hashing-consecutive-variable-length-args": "graph_resolution_failed: ValueError: ambiguous candidate_location='Math.tryModExp': 2 overloads ['fn::Math.tryModExp(uint256,uint256,uint256)', 'fn::Math.tryModExp(bytes,bytes,bytes)'] -- RTF's bare Contract.function location format cannot disambiguate",
+    "req-1-no-assembly": "graph_resolution_failed: ValueError: ambiguous candidate_location='Math.mulDiv': 2 overloads ['fn::Math.mulDiv(uint256,uint256,uint256,Math.Rounding)', 'fn::Math.mulDiv(uint256,uint256,uint256)'] -- RTF's bare Contract.function location format cannot disambiguate",
+    "req-1-compiler-SOL-2023-3": "graph_resolution_failed: ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-2-enforce-eval-order": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-2-no-homoglyph-attack": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-2-compiler-SOL-2023-1": "graph_resolution_failed: ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-3-timelock-for-privileged-actions": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-linted": "graph_resolution_failed: ValueError: no graph node found for candidate_location='?.shadowing-local' (looked for node id prefix 'fn::?.shadowing-local(')",
+    "req-3-enough-gas": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-protect-gas": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-check-oracles": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-block-front-running": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-block-mev": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-protect-governance": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-no-private-data": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-intended-replay": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-documented": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-document-system": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-document-threats": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-implement-as-documented": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-revocable-permisions": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-no-single-admin-eoa": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-3-consistent-solidity-output": "graph_resolution_failed: ValueError: no graph node found for candidate_location='pragma solidity^0.8.20' (looked for node id prefix 'fn::pragma solidity^0.8.20(')",
+    "req-R-check-new-bugs": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-R-use-latest-compiler": "graph_resolution_failed: ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-R-clean-code": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-R-follow-erc-standards": "graph_resolution_failed: ValueError: no graph node found for candidate_location='IWRON' (looked for node id prefix 'fn::IWRON(')",
+    "req-R-define-license": "graph_resolution_failed: ValueError: no graph node found for candidate_location='/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/certora/harnesses/AccessControlDefaultAdminRulesHarness.sol' (looked for node id prefix 'fn::/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/certora/harnesses/AccessControlDefaultAdminRulesHarness.sol(')",
+    "req-R-notify-news": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')",
+    "req-R-fuzzing-in-testing": "graph_resolution_failed: ValueError: no graph node found for candidate_location='/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/lib/forge-std/test/StdAssertions.t.sol:testFuzz_AssertEqCall_Return_Pass' (looked for node id prefix 'fn::/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/lib/forge-std/test/StdAssertions.t.sol:testFuzz_AssertEqCall_Return_Pass(')",
+    "req-R-formal-verification": "graph_resolution_failed: ValueError: no graph node found for candidate_location='/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/certora/specs/AccessControl.spec' (looked for node id prefix 'fn::/scratch/md5344/.claude/jobs/318205ae/tmp/audit_diversity/2025-01-liquid-ron/lib/openzeppelin-contracts/certora/specs/AccessControl.spec(')",
+    "req-R-multisig-threshold": "graph_resolution_failed: ValueError: no graph node found for candidate_location='LiquidRon.sol' (looked for node id prefix 'fn::LiquidRon.sol(')"
+  },
+  "codex_outcome_reasons": {},
+  "conformance_by_req": {
+    "req-1-eip155-chainid": "PASS",
+    "req-1-no-create2": "PASS",
+    "req-1-no-tx.origin": "PASS",
+    "req-1-exact-balance-check": "PASS",
+    "req-1-no-hashing-consecutive-variable-length-args": "INSUFFICIENT_EVIDENCE",
+    "req-1-self-destruct": "PASS",
+    "req-1-no-assembly": "INSUFFICIENT_EVIDENCE",
+    "req-1-unicode-bdo": "PASS",
+    "req-1-check-return": null,
+    "req-1-use-c-e-i": "FAIL",
+    "req-1-delegatecall": "PASS",
+    "req-1-compiler-SOL-2023-3": "INSUFFICIENT_EVIDENCE",
+    "req-1-compiler-SOL-2022-6": null,
+    "req-1-compiler-SOL-2022-5-push": null,
+    "req-1-compiler-SOL-2022-3": null,
+    "req-1-compiler-SOL-2022-2": null,
+    "req-1-compiler-SOL-2022-1": null,
+    "req-1-compiler-sol-2021-4": null,
+    "req-1-compiler-SOL-2021-2": null,
+    "req-1-compiler-SOL-2021-1": null,
+    "req-1-compiler-060": "PASS",
+    "req-1-no-ancient-compilers": "PASS",
+    "req-2-pass-l1": "FAIL",
+    "req-2-enforce-eval-order": "INSUFFICIENT_EVIDENCE",
+    "req-2-verify-exact-balance-check": null,
+    "req-2-unicode-bdo": "PASS",
+    "req-2-no-homoglyph-attack": "INSUFFICIENT_EVIDENCE",
+    "req-2-external-calls": "FAIL",
+    "req-2-avoid-readonly-reentrancy": null,
+    "req-2-handle-return": null,
+    "req-2-documented": "FAIL",
+    "req-2-check-rounding": "FAIL",
+    "req-2-self-destruct": null,
+    "req-2-safe-assembly": "PASS",
+    "req-2-protect-create2": null,
+    "req-2-overflow-underflow": "PASS",
+    "req-2-random-enough": null,
+    "req-2-block-data-misuse": null,
+    "req-2-signature-verification": "PASS",
+    "req-2-malleable-signatures-for-replay": null,
+    "req-2-compiler-SOL-2023-1": "INSUFFICIENT_EVIDENCE",
+    "req-2-compiler-SOL-2022-7": null,
+    "req-2-compiler-SOL-2022-5-assembly": null,
+    "req-2-compiler-SOL-2022-4": null,
+    "req-2-compiler-SOL-2021-3": null,
+    "req-2-compiler-060": "PASS",
+    "req-3-pass-l2": "FAIL",
+    "req-3-timelock-for-privileged-actions": "INSUFFICIENT_EVIDENCE",
+    "req-3-linted": "INSUFFICIENT_EVIDENCE",
+    "req-3-enough-gas": "INSUFFICIENT_EVIDENCE",
+    "req-3-protect-gas": "INSUFFICIENT_EVIDENCE",
+    "req-3-check-oracles": "INSUFFICIENT_EVIDENCE",
+    "req-3-block-front-running": "INSUFFICIENT_EVIDENCE",
+    "req-3-block-mev": "INSUFFICIENT_EVIDENCE",
+    "req-3-protect-governance": "INSUFFICIENT_EVIDENCE",
+    "req-3-all-valid-inputs": "PASS",
+    "req-3-event-on-state-change": "FAIL",
+    "req-3-no-private-data": "INSUFFICIENT_EVIDENCE",
+    "req-3-intended-replay": "INSUFFICIENT_EVIDENCE",
+    "req-3-documented": "INSUFFICIENT_EVIDENCE",
+    "req-3-document-system": "INSUFFICIENT_EVIDENCE",
+    "req-3-document-threats": "INSUFFICIENT_EVIDENCE",
+    "req-3-annotate": "FAIL",
+    "req-3-implement-as-documented": "INSUFFICIENT_EVIDENCE",
+    "req-3-access-control": "FAIL",
+    "req-3-revocable-permisions": "INSUFFICIENT_EVIDENCE",
+    "req-3-no-single-admin-eoa": "INSUFFICIENT_EVIDENCE",
+    "req-3-external-calls": "PASS",
+    "req-3-verify-tx.origin": null,
+    "req-3-consistent-solidity-output": "INCONCLUSIVE",
+    "req-R-check-new-bugs": "INSUFFICIENT_EVIDENCE",
+    "req-R-meet-all-possible": "INCONCLUSIVE",
+    "req-R-use-latest-compiler": "INSUFFICIENT_EVIDENCE",
+    "req-R-clean-code": "INSUFFICIENT_EVIDENCE",
+    "req-R-follow-erc-standards": "INSUFFICIENT_EVIDENCE",
+    "req-R-define-license": "INSUFFICIENT_EVIDENCE",
+    "req-R-notify-news": "INSUFFICIENT_EVIDENCE",
+    "req-R-fuzzing-in-testing": "INSUFFICIENT_EVIDENCE",
+    "req-R-mutation-testing": null,
+    "req-R-formal-verification": "INSUFFICIENT_EVIDENCE",
+    "req-R-multisig-threshold": "INSUFFICIENT_EVIDENCE"
+  },
+  "terminal_status_by_req": {
+    "req-1-eip155-chainid": "PASS",
+    "req-1-no-create2": "PASS",
+    "req-1-no-tx.origin": "PASS",
+    "req-1-exact-balance-check": "PASS",
+    "req-1-no-hashing-consecutive-variable-length-args": "INSUFFICIENT_EVIDENCE",
+    "req-1-self-destruct": "PASS",
+    "req-1-no-assembly": "INSUFFICIENT_EVIDENCE",
+    "req-1-unicode-bdo": "PASS",
+    "req-1-check-return": "NOT_APPLICABLE",
+    "req-1-use-c-e-i": "FAIL",
+    "req-1-delegatecall": "PASS",
+    "req-1-compiler-SOL-2023-3": "INSUFFICIENT_EVIDENCE",
+    "req-1-compiler-SOL-2022-6": "NOT_APPLICABLE",
+    "req-1-compiler-SOL-2022-5-push": "NOT_APPLICABLE",
+    "req-1-compiler-SOL-2022-3": "NOT_APPLICABLE",
+    "req-1-compiler-SOL-2022-2": "NOT_APPLICABLE",
+    "req-1-compiler-SOL-2022-1": "NOT_APPLICABLE",
+    "req-1-compiler-sol-2021-4": "NOT_APPLICABLE",
+    "req-1-compiler-SOL-2021-2": "NOT_APPLICABLE",
+    "req-1-compiler-SOL-2021-1": "NOT_APPLICABLE",
+    "req-1-compiler-060": "PASS",
+    "req-1-no-ancient-compilers": "PASS",
+    "req-2-pass-l1": "FAIL",
+    "req-2-enforce-eval-order": "INSUFFICIENT_EVIDENCE",
+    "req-2-verify-exact-balance-check": "NOT_APPLICABLE",
+    "req-2-unicode-bdo": "PASS",
+    "req-2-no-homoglyph-attack": "INSUFFICIENT_EVIDENCE",
+    "req-2-external-calls": "FAIL",
+    "req-2-avoid-readonly-reentrancy": "NOT_APPLICABLE",
+    "req-2-handle-return": "NOT_APPLICABLE",
+    "req-2-documented": "FAIL",
+    "req-2-check-rounding": "FAIL",
+    "req-2-self-destruct": "NOT_APPLICABLE",
+    "req-2-safe-assembly": "PASS",
+    "req-2-protect-create2": "NOT_APPLICABLE",
+    "req-2-overflow-underflow": "PASS",
+    "req-2-random-enough": "NOT_APPLICABLE",
+    "req-2-block-data-misuse": "NOT_APPLICABLE",
+    "req-2-signature-verification": "PASS",
+    "req-2-malleable-signatures-for-replay": "NOT_APPLICABLE",
+    "req-2-compiler-SOL-2023-1": "INSUFFICIENT_EVIDENCE",
+    "req-2-compiler-SOL-2022-7": "NOT_APPLICABLE",
+    "req-2-compiler-SOL-2022-5-assembly": "NOT_APPLICABLE",
+    "req-2-compiler-SOL-2022-4": "NOT_APPLICABLE",
+    "req-2-compiler-SOL-2021-3": "NOT_APPLICABLE",
+    "req-2-compiler-060": "PASS",
+    "req-3-pass-l2": "FAIL",
+    "req-3-timelock-for-privileged-actions": "INSUFFICIENT_EVIDENCE",
+    "req-3-linted": "INSUFFICIENT_EVIDENCE",
+    "req-3-enough-gas": "INSUFFICIENT_EVIDENCE",
+    "req-3-protect-gas": "INSUFFICIENT_EVIDENCE",
+    "req-3-check-oracles": "INSUFFICIENT_EVIDENCE",
+    "req-3-block-front-running": "INSUFFICIENT_EVIDENCE",
+    "req-3-block-mev": "INSUFFICIENT_EVIDENCE",
+    "req-3-protect-governance": "INSUFFICIENT_EVIDENCE",
+    "req-3-all-valid-inputs": "PASS",
+    "req-3-event-on-state-change": "FAIL",
+    "req-3-no-private-data": "INSUFFICIENT_EVIDENCE",
+    "req-3-intended-replay": "INSUFFICIENT_EVIDENCE",
+    "req-3-documented": "INSUFFICIENT_EVIDENCE",
+    "req-3-document-system": "INSUFFICIENT_EVIDENCE",
+    "req-3-document-threats": "INSUFFICIENT_EVIDENCE",
+    "req-3-annotate": "FAIL",
+    "req-3-implement-as-documented": "INSUFFICIENT_EVIDENCE",
+    "req-3-access-control": "FAIL",
+    "req-3-revocable-permisions": "INSUFFICIENT_EVIDENCE",
+    "req-3-no-single-admin-eoa": "INSUFFICIENT_EVIDENCE",
+    "req-3-external-calls": "PASS",
+    "req-3-verify-tx.origin": "NOT_APPLICABLE",
+    "req-3-consistent-solidity-output": "INCONCLUSIVE",
+    "req-R-check-new-bugs": "INSUFFICIENT_EVIDENCE",
+    "req-R-meet-all-possible": "INCONCLUSIVE",
+    "req-R-use-latest-compiler": "INSUFFICIENT_EVIDENCE",
+    "req-R-clean-code": "INSUFFICIENT_EVIDENCE",
+    "req-R-follow-erc-standards": "INSUFFICIENT_EVIDENCE",
+    "req-R-define-license": "INSUFFICIENT_EVIDENCE",
+    "req-R-notify-news": "INSUFFICIENT_EVIDENCE",
+    "req-R-fuzzing-in-testing": "INSUFFICIENT_EVIDENCE",
+    "req-R-mutation-testing": "NOT_APPLICABLE",
+    "req-R-formal-verification": "INSUFFICIENT_EVIDENCE",
+    "req-R-multisig-threshold": "INSUFFICIENT_EVIDENCE"
+  },
+  "integrity_report": {
+    "total_requirements": 81,
+    "applicable": 58,
+    "not_applicable": 23,
+    "applicable_executed_deterministic": 34,
+    "applicable_executed_llm_mediated": 21,
+    "terminal_status_counts": {
+      "PASS": 16,
+      "INSUFFICIENT_EVIDENCE": 31,
+      "NOT_APPLICABLE": 23,
+      "FAIL": 9,
+      "INCONCLUSIVE": 2
+    },
+    "silently_missing": 0,
+    "silently_missing_req_ids": [],
+    "valid": true,
+    "invalid_reason": null
+  }
+}
