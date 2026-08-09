@@ -1,0 +1,18 @@
+{
+  "standard_id": "ERC-20",
+  "eip_number": 20,
+  "title": "Token Standard",
+  "source_url": "https://raw.githubusercontent.com/ethereum/ercs/master/ERCS/erc-20.md",
+  "canonical_human_url": "https://eips.ethereum.org/EIPS/eip-20",
+  "publisher": "Ethereum Foundation / Ethereum ERCs repository",
+  "status_at_retrieval": "Final",
+  "accepted_per_ethtrust_definition": true,
+  "accepted_erc_definition_note": "Same interpretation as ERC-4626 (see ../../GP_ACCEPTED_ERC_DEFINITION.md) -- status: Final in this pinned snapshot's frontmatter qualifies it as EthTrust's 'finalized [ERC]'.",
+  "license": "CC0-1.0",
+  "retrieved_at": "2026-08-09T19:20:00Z",
+  "retrieval_method": "direct HTTPS GET (curl) of the raw ERCs-repo markdown source, same method as ERC-4626's snapshot.",
+  "raw_snapshot_file": "erc-20.raw.md",
+  "raw_snapshot_sha256": "50d0bdc535ed8987ac5c124cb5f9c39606806c97e909aae66ef4b747dd9c93dd",
+  "registered_reason": "Second registered standard, deliberately much smaller than ERC-4626, added ONLY to demonstrate that rtf/standards/discovery.py and generator.py are genuinely generic across standard families -- not proof of an exhaustive ERC-20 translation. See ../../../l12_evaluation/RTF_TRIGGER_COVERAGE_REPORT.md (once written) for how the multi-standard fixture uses this.",
+  "note_on_terseness": "EIP-20's own specification text is notably terser than EIP-4626's -- totalSupply(), balanceOf(), and allowance() carry NO RFC2119 keyword at all in the source text (contrast EIP-4626, where nearly every method has explicit MUST/SHOULD language). clauses.json's own excluded_as_non_normative_note records this explicitly rather than inventing MUST obligations the spec text does not state."
+}

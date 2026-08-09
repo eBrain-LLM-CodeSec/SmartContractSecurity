@@ -1,0 +1,268 @@
+{
+  "standard_id": "ERC-20",
+  "source_file": "erc-20.raw.md",
+  "source_sha256": "50d0bdc535ed8987ac5c124cb5f9c39606806c97e909aae66ef4b747dd9c93dd",
+  "extraction_method": "MANUAL_REVIEWED_PINNED",
+  "extraction_method_note": "Manually authored by reading erc-20.raw.md section by section, same discipline as ERC-4626's clauses.json. This standard is registered specifically to prove rtf/standards/discovery.py and generator.py are genuinely generic across standard families (see metadata.json's registered_reason), not to be an exhaustively complete ERC-20 translation.",
+  "excluded_as_non_normative_note": "totalSupply(), balanceOf(), and allowance() carry NO RFC2119 keyword anywhere in EIP-20's actual specification text -- their descriptions are bare declarative sentences ('Returns the total token supply.', etc.) with no MUST/SHOULD/MAY governing them, unlike almost every ERC-4626 method. No clause was invented for them; this is the correct behavior for a source-driven translation, not a gap. The approve() method's 'clients SHOULD make sure to create user interfaces...' guidance was also excluded: it is advisory language directed at wallet/client UX, not an obligation on the Tested Code (the on-chain contract) itself -- 'the contract itself shouldn't enforce it' is stated explicitly in the same paragraph.",
+  "clause_count": 14,
+  "clauses": [
+    {
+      "clause_id": "erc20-callers-must-handle-false-return",
+      "standard_id": "ERC-20",
+      "section": "Methods (notes)",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "Callers of transfer/transferFrom/approve MUST handle a `false` returned from `returns (bool success)` rather than assuming success.",
+      "affected_interface": [
+        "transfer",
+        "transferFrom",
+        "approve"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods (notes)",
+        "quoted_text": "Callers MUST handle `false` from `returns (bool success)`."
+      }
+    },
+    {
+      "clause_id": "erc20-callers-must-not-assume-false-never-returned",
+      "standard_id": "ERC-20",
+      "section": "Methods (notes)",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "Callers MUST NOT assume that `false` is never returned by transfer/transferFrom/approve.",
+      "affected_interface": [
+        "transfer",
+        "transferFrom",
+        "approve"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods (notes)",
+        "quoted_text": "Callers MUST NOT assume that `false` is never returned!"
+      }
+    },
+    {
+      "clause_id": "erc20-name-must-not-be-relied-upon",
+      "standard_id": "ERC-20",
+      "section": "Methods:name",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "Interfaces and other contracts MUST NOT expect name() to be present (it is an OPTIONAL method).",
+      "affected_interface": [
+        "name"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:name",
+        "quoted_text": "OPTIONAL - This method can be used to improve usability, but interfaces and other contracts MUST NOT expect these values to be present."
+      }
+    },
+    {
+      "clause_id": "erc20-symbol-must-not-be-relied-upon",
+      "standard_id": "ERC-20",
+      "section": "Methods:symbol",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "Interfaces and other contracts MUST NOT expect symbol() to be present (it is an OPTIONAL method).",
+      "affected_interface": [
+        "symbol"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:symbol",
+        "quoted_text": "OPTIONAL - This method can be used to improve usability, but interfaces and other contracts MUST NOT expect these values to be present."
+      }
+    },
+    {
+      "clause_id": "erc20-decimals-must-not-be-relied-upon",
+      "standard_id": "ERC-20",
+      "section": "Methods:decimals",
+      "original_normative_strength": "MUST_NOT",
+      "normalized_obligation": "Interfaces and other contracts MUST NOT expect decimals() to be present (it is an OPTIONAL method).",
+      "affected_interface": [
+        "decimals"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:decimals",
+        "quoted_text": "OPTIONAL - This method can be used to improve usability, but interfaces and other contracts MUST NOT expect these values to be present."
+      }
+    },
+    {
+      "clause_id": "erc20-transfer-must-fire-transfer-event",
+      "standard_id": "ERC-20",
+      "section": "Methods:transfer",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "transfer() MUST fire the Transfer event.",
+      "affected_interface": [
+        "transfer",
+        "event:Transfer"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:transfer",
+        "quoted_text": "Transfers `_value` amount of tokens to address `_to`, and MUST fire the `Transfer` event."
+      }
+    },
+    {
+      "clause_id": "erc20-transfer-should-throw-on-insufficient-balance",
+      "standard_id": "ERC-20",
+      "section": "Methods:transfer",
+      "original_normative_strength": "SHOULD",
+      "normalized_obligation": "transfer() SHOULD throw if the caller's account balance does not have enough tokens to spend.",
+      "affected_interface": [
+        "transfer"
+      ],
+      "conditions": [
+        "the message caller's account balance does not have enough tokens to spend"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:transfer",
+        "quoted_text": "The function SHOULD `throw` if the message caller's account balance does not have enough tokens to spend."
+      }
+    },
+    {
+      "clause_id": "erc20-transfer-zero-value-must-fire-event",
+      "standard_id": "ERC-20",
+      "section": "Methods:transfer",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "transfer() of a zero value MUST be treated as a normal transfer and MUST fire the Transfer event.",
+      "affected_interface": [
+        "transfer",
+        "event:Transfer"
+      ],
+      "conditions": [
+        "the transferred value is 0"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:transfer",
+        "quoted_text": "Transfers of 0 values MUST be treated as normal transfers and fire the `Transfer` event."
+      }
+    },
+    {
+      "clause_id": "erc20-transferfrom-must-fire-transfer-event",
+      "standard_id": "ERC-20",
+      "section": "Methods:transferFrom",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "transferFrom() MUST fire the Transfer event.",
+      "affected_interface": [
+        "transferFrom",
+        "event:Transfer"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:transferFrom",
+        "quoted_text": "Transfers `_value` amount of tokens from address `_from` to address `_to`, and MUST fire the `Transfer` event."
+      }
+    },
+    {
+      "clause_id": "erc20-transferfrom-should-throw-if-unauthorized",
+      "standard_id": "ERC-20",
+      "section": "Methods:transferFrom",
+      "original_normative_strength": "SHOULD",
+      "normalized_obligation": "transferFrom() SHOULD throw unless the _from account has deliberately authorized the sender of the message.",
+      "affected_interface": [
+        "transferFrom"
+      ],
+      "conditions": [
+        "the _from account has not deliberately authorized the message sender"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:transferFrom",
+        "quoted_text": "The function SHOULD `throw` unless the `_from` account has deliberately authorized the sender of the message via some mechanism."
+      }
+    },
+    {
+      "clause_id": "erc20-transferfrom-zero-value-must-fire-event",
+      "standard_id": "ERC-20",
+      "section": "Methods:transferFrom",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "transferFrom() of a zero value MUST be treated as a normal transfer and MUST fire the Transfer event.",
+      "affected_interface": [
+        "transferFrom",
+        "event:Transfer"
+      ],
+      "conditions": [
+        "the transferred value is 0"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Methods:transferFrom",
+        "quoted_text": "Transfers of 0 values MUST be treated as normal transfers and fire the `Transfer` event."
+      }
+    },
+    {
+      "clause_id": "erc20-transfer-event-must-trigger-on-transfer",
+      "standard_id": "ERC-20",
+      "section": "Events:Transfer",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "The Transfer event MUST trigger when tokens are transferred, including zero-value transfers.",
+      "affected_interface": [
+        "event:Transfer"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Events:Transfer",
+        "quoted_text": "MUST trigger when tokens are transferred, including zero value transfers."
+      }
+    },
+    {
+      "clause_id": "erc20-transfer-event-should-trigger-on-mint-from-zero",
+      "standard_id": "ERC-20",
+      "section": "Events:Transfer",
+      "original_normative_strength": "SHOULD",
+      "normalized_obligation": "A token contract that creates new tokens SHOULD trigger a Transfer event with _from set to 0x0 when tokens are created.",
+      "affected_interface": [
+        "event:Transfer"
+      ],
+      "conditions": [
+        "new tokens are created (minted)"
+      ],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Events:Transfer",
+        "quoted_text": "A token contract which creates new tokens SHOULD trigger a Transfer event with the `_from` address set to `0x0` when tokens are created."
+      }
+    },
+    {
+      "clause_id": "erc20-approval-event-must-trigger-on-approve",
+      "standard_id": "ERC-20",
+      "section": "Events:Approval",
+      "original_normative_strength": "MUST",
+      "normalized_obligation": "The Approval event MUST trigger on any successful call to approve().",
+      "affected_interface": [
+        "event:Approval",
+        "approve"
+      ],
+      "conditions": [],
+      "exceptions": [],
+      "provenance": {
+        "source_file": "erc-20.raw.md",
+        "source_section_heading": "Events:Approval",
+        "quoted_text": "MUST trigger on any successful call to `approve(address _spender, uint256 _value)`."
+      }
+    }
+  ]
+}

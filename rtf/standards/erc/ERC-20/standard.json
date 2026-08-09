@@ -1,0 +1,80 @@
+{
+  "standard_id": "ERC-20",
+  "source_family": "ERC",
+  "title": "Token Standard",
+  "version": "Final (eip-20)",
+  "status": "Final",
+  "canonical_source_reference": "https://eips.ethereum.org/EIPS/eip-20",
+  "local_spec_path": "erc-20.raw.md",
+  "local_source_hash": "50d0bdc535ed8987ac5c124cb5f9c39606806c97e909aae66ef4b747dd9c93dd",
+  "clauses_path": "clauses.json",
+  "parent_gp_requirement_id": "req-R-follow-erc-standards",
+  "detection_signals": {
+    "strong": [
+      {
+        "signal_id": "erc20-inherits-ierc20",
+        "signal_type": "inheritance",
+        "pattern": ["IERC20"],
+        "description": "Contract's inheritance list includes an interface named IERC20."
+      },
+      {
+        "signal_id": "erc20-inherits-erc20-base",
+        "signal_type": "inheritance",
+        "pattern": ["ERC20"],
+        "description": "Contract's inheritance list includes a base contract literally named ERC20 (OpenZeppelin/Solmate reference-implementation pattern)."
+      },
+      {
+        "signal_id": "erc20-imports-ierc20",
+        "signal_type": "import",
+        "pattern": ["IERC20", "IERC20.sol"],
+        "description": "A Solidity import statement in-scope names an IERC20 interface file."
+      },
+      {
+        "signal_id": "erc20-natspec-inheritdoc",
+        "signal_type": "natspec",
+        "pattern": ["@inheritdoc IERC20"],
+        "description": "A function carries an explicit `@inheritdoc IERC20` NatSpec tag."
+      },
+      {
+        "signal_id": "erc20-documentation-claim",
+        "signal_type": "documentation_claim",
+        "pattern": ["ERC-20", "ERC20", "EIP-20", "EIP20", "ERC 20"],
+        "description": "Project documentation explicitly claims ERC-20 conformance in prose."
+      }
+    ],
+    "supporting": [
+      {
+        "signal_id": "erc20-canonical-function-signatures",
+        "signal_type": "function_signatures",
+        "pattern": [
+          "totalSupply() view returns (uint256)",
+          "balanceOf(address) view returns (uint256)",
+          "transfer(address,uint256) returns (bool)",
+          "transferFrom(address,address,uint256) returns (bool)",
+          "approve(address,uint256) returns (bool)",
+          "allowance(address,address) view returns (uint256)"
+        ],
+        "description": "The 6 mandatory (non-OPTIONAL) canonical ERC-20 method signatures. A single matching name (e.g. just transfer()) is NOT sufficient on its own -- discovery.py requires a majority-overlap match before this fires at all, and even then it's supporting-only, never sufficient alone for an APPLICABLE verdict."
+      },
+      {
+        "signal_id": "erc20-canonical-events",
+        "signal_type": "events",
+        "pattern": [
+          "Transfer(address indexed,address indexed,uint256)",
+          "Approval(address indexed,address indexed,uint256)"
+        ],
+        "description": "The two ERC-20-defined events."
+      },
+      {
+        "signal_id": "erc20-known-library-import",
+        "signal_type": "known_library_import",
+        "pattern": [
+          "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol",
+          "solmate/src/tokens/ERC20.sol",
+          "solady/src/tokens/ERC20.sol"
+        ],
+        "description": "Import path references a known third-party ERC-20 reference implementation."
+      }
+    ]
+  }
+}
