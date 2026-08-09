@@ -377,3 +377,62 @@ Per the user's explicit instruction, **the 5-audit pilot (canto,
 vultisig, arbitrum-foundation, sequence) has NOT been launched** as part
 of this task -- this task's scope ends at a validated, frozen Liquid-Ron
 architecture fix and outcome classification.
+
+## 8. Agentic architecture redesign + validation (2026-08-09/10)
+
+Per user directive ("revisit the RTF pipeline architecture... the current
+design is not aligned with the intended agentic architecture"): full
+redesign removing bounded L8 as a pre-Codex gate. Full audit, design,
+implementation, and test record in `RTF_AGENTIC_ARCHITECTURE.md` (19
+requirements now fully deterministic/no-LLM-at-all;
+59 now route directly to an agent investigation with full repository
+access, no `candidate_location` precondition). Frozen at commit
+`aee8418` (`2614177` + a live-discovered dangling-symlink fix in the new
+`shutil.copytree` full-repo-copy step -- see that commit's own message).
+
+**Cost/time check-in with the user before launching**: removing the
+bounded-L8 gate means every applicable agent-required requirement is now
+an unconditional investigation (~150-210 projected for the full 6-entry
+audit, vs. 31 before) -- realistically 8-20+ hours and $10-40 for the
+full audit. **User chose to validate on `LiquidRon.sol` alone first**
+(the entry containing H-01), not the full 6-entry audit, to get real
+cost/time data and confirm the new architecture behaves correctly live
+before committing to the rest.
+
+### Live findings from the first launch attempt (invalidated, refunded $0)
+
+First launch crashed immediately (`$0` spend, 0 valid results,
+`infra_failures=1`, correctly NOT reported as a clean success): `shutil.
+copytree`'s default `symlinks=False` tried to dereference a stray
+dangling `solc` symlink at the liquid-ron repo clone's root (leftover
+from an earlier, unrelated session's Codex home-directory setup) and
+raised `shutil.Error` before the agent ever started. Fixed
+(`symlinks=True`, standard `cp -a` semantics for a full tree copy) and
+the stray symlink itself removed from the shared clone. Per the
+invalidate-and-rerun rule: nothing valid existed yet to discard: relaunched
+from scratch under the fix (commit `aee8418`).
+
+### Second launch: live-confirmed working
+
+- Full repository genuinely present in the investigation dir immediately
+  (verified directly: `README.md`, `README-sponsor.md`, `test/`,
+  `script/`, `src/`, `lib/`, `foundry.toml`, `remappings.txt`, etc. --
+  not just the entry file).
+- Real Codex process confirmed running with the new `ARM_G_PROMPT_v2.md`
+  content (verified via `ps`/process args).
+- Live-observed adaptive behavior: the agent tried `rg "assembly"` first
+  (per the prompt's suggested tool list) -- `rg` isn't actually on the
+  sandboxed subprocess's minimal `PATH` (`/usr/bin:/bin`) -- got
+  `command not found`, and recovered on its own by falling back to
+  `grep -r`, which worked and returned real matches (including vendored
+  `lib/openzeppelin-contracts` hits) -- genuine adaptive exploration
+  behavior, not a blocking defect; no pipeline change made for this.
+
+_Live progress tracked below as investigations complete._
+
+| Metric | Value |
+|---|---|
+| Frozen commit | `aee8418` |
+| Scope | `2025-01-liquid-ron`, entry `./src/LiquidRon.sol` ONLY (user-selected partial validation, not the full 6-entry audit) |
+| Cache/artifact reuse | None -- fresh scratch, fresh investigation-dir copies, no prior decision artifacts |
+| Status | IN PROGRESS |
