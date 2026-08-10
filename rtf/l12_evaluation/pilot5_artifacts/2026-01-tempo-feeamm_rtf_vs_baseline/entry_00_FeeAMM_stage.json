@@ -1,0 +1,1892 @@
+{
+  "entry": "contracts/FeeAMM.sol",
+  "wall_s": 1784.5564923286438,
+  "codex_cost": 2.54264375,
+  "stage_metrics": {
+    "requirements_considered": 172,
+    "requirements_applicable": 61,
+    "evidence_bundles_generated": 48,
+    "judgments_attempted": 0,
+    "judgments_succeeded": 0,
+    "judgments_failed": 0,
+    "bundles_judged_without_codex": 0,
+    "bundles_escalated_to_codex": 42,
+    "codex_investigations_completed": 42,
+    "codex_investigations_timed_out": 0,
+    "codex_investigations_skipped_cost_ceiling": 0,
+    "final_decisions": {
+      "PASS": 34,
+      "FAIL": 25,
+      "INCONCLUSIVE": 1,
+      "INSUFFICIENT_EVIDENCE": 1
+    }
+  },
+  "fail_count": 25,
+  "fail_details": [
+    {
+      "req_id": "req-1-eip155-chainid",
+      "escalated": false,
+      "evidence": [
+        {
+          "predicate": "find_keccak256_calls_chainid_dependency",
+          "location": "FeeAMM.getPoolId",
+          "detail": "keccak256() call at node 1: block.chainid is NOT read in the same expression -- whether this is a transaction/signature-authorization hash at all is NOT determined here (blocked applicability component, see this requirement's own L5 record)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-1-use-c-e-i",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "external call at node 7 followed by state write at node 8 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.mint",
+          "detail": "external call at node 20 followed by state write at node 23 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.burn",
+          "detail": "external call at node 11 followed by state write at node 13 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.burn",
+          "detail": "external call at node 12 followed by state write at node 13 (CFG-reachable)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Multiple functions (burn, executeFeeSwap, mint) perform external ERC20 transfers before updating contract state, lacking CEI and any reentrancy guard; thus the requirement to use Checks-Effects-Interactions for external calls is not met.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 74.90635132789612
+    },
+    {
+      "req_id": "req-1-compiler-060",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "check_compiler_version_floor",
+          "location": "compiler config",
+          "detail": "solc 0.7.6 < required floor 0.8.0",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Build config and contract pragma both target Solidity 0.7.6 (<0.8.0). No evidence of satisfying all overriding EthTrust requirements for older compilers, so the modern compiler requirement is not met.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 0,
+      "wall_clock_s": 77.13460803031921
+    },
+    {
+      "req_id": "req-2-pass-l1",
+      "escalated": false,
+      "evidence": [],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-2-external-calls",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "external call at node 7 followed by state write at node 8 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.mint",
+          "detail": "external call at node 20 followed by state write at node 23 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.burn",
+          "detail": "external call at node 11 followed by state write at node 13 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.burn",
+          "detail": "external call at node 12 followed by state write at node 13 (CFG-reachable)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "FeeAMM calls arbitrary ERC20 addresses supplied by users, violating the requirement that all external calls target tested contracts under common control. Functions lack CEI-equivalent protection: burn performs interactions before internal state changes and no reentrancy guard is used, creating reentrancy exposure from malicious tokens. Thus external call protection requirement is not met.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 0,
+      "wall_clock_s": 68.49872589111328
+    },
+    {
+      "req_id": "req-2-documented",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.burn",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.burn",
+          "detail": "makes an external call",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.checkSufficientLiquidity",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.burn",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.burn",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.burn",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM.burn",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM._calculateBurnAmounts",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_documented_trigger_sites",
+          "location": "FeeAMM._calculateBurnAmounts",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Requirement demands documentation for external calls and potential overflow/underflow areas. FeeAMM uses multiple ERC20 external calls and unchecked arithmetic in Solidity 0.7.6, but the contract and repository contain no comments or documentation justifying these uses, so the requirement is not met.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 146.85543870925903
+    },
+    {
+      "req_id": "req-2-check-rounding",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM.checkSufficientLiquidity",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM.mint",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM.mint",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM.mint",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM.mint",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM._calculateBurnAmounts",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        },
+        {
+          "predicate": "find_division_in_value_context",
+          "location": "FeeAMM._calculateBurnAmounts",
+          "detail": "division operation (potential rounding)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Core operations floor divisions without documenting error bounds; dust can accumulate and shift value, violating the requirement for documented and protected rounding behavior.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 243.64741706848145
+    },
+    {
+      "req_id": "req-2-overflow-underflow",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.checkSufficientLiquidity",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.mint",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.mint",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.mint",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.mint",
+          "detail": "+ operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.burn",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.burn",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.burn",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM.burn",
+          "detail": "- operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM._calculateBurnAmounts",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        },
+        {
+          "predicate": "find_unprotected_arithmetic",
+          "location": "FeeAMM._calculateBurnAmounts",
+          "detail": "* operation, inside unchecked{} block",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The contract uses Solidity 0.7.6 with no overflow checks. In _calculateBurnAmounts, user-controlled liquidity is multiplied by pool reserves (uint128) and divided by totalSupply, with no bounds to ensure the product fits in uint256, and totalSupply/liquidity can grow unchecked via mint. Therefore overflow is possible, violating the requirement.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 120.44867539405823
+    },
+    {
+      "req_id": "req-2-compiler-060",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "check_compiler_version_floor",
+          "location": "compiler config",
+          "detail": "solc 0.7.6 < required floor 0.8.0",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The only tested contract, FeeAMM, declares pragma >=0.7.6 <0.8.0 and the Foundry configuration pins solc 0.7.6, which is older than 0.8.0. No evidence of satisfying the overriding requirement (Compiler Bug Check Constructor Payment) is present. Therefore the tested code violates the modern compiler requirement.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 96.87406206130981
+    },
+    {
+      "req_id": "req-3-pass-l2",
+      "escalated": false,
+      "evidence": [],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-3-block-front-running",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol (NatSpec)",
+          "detail": "/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol",
+          "detail": "// SPDX-License-Identifier: MIT OR Apache-2.0\npragma solidity >=0.7.6 <0.8.0;\npragma experimental ABIEncoderV2;\n\nimport \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\n/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */\ncontract FeeAMM {\n    uint256 public constant M = 9970;\n    uint256 public constant N = 9985;\n    uint256 public constant SCALE = 10_000;\n    uint256 public constant MIN_LIQUIDITY = 1000;\n\n    struct Pool {\n        uint128 reserveUserToken;\n        uint128 reserveValidatorToken;\n    }\n\n    event Mint(\n        address indexed sender,\n        address indexed to,\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity\n    );\n\n    event Burn(\n        address indexed sender,\n        address userToken,\n        address validatorToken,\n        uint256 amountUserToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity,\n        address indexed to\n    );\n\n    event RebalanceSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    event FeeSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    mapping(bytes32 => Pool) public pools;\n    mapping(bytes32 => uint256) public totalSupply;\n    mapping(bytes32 => mapping(address => uint256)) public liquidityBalances;\n\n    function _requireU128(uint256 x) internal pure {\n        require(x <= type(uint128).max, \"INVALID_AMOUNT\");\n    }\n\n    function getPoolId(\n        address userToken,\n        address validatorToken\n    ) public pure returns (bytes32) {\n        return keccak256(abi.encode(userToken, validatorToken));\n    }\n\n    function getPool(\n        address userToken,\n        address validatorToken\n    ) external view returns (Pool memory) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        return pools[poolId];\n    }\n\n    function checkSufficientLiquidity(\n        address userToken,\n        address validatorToken,\n        uint256 maxAmount\n    ) external view {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        uint256 amountOutNeeded = (maxAmount * M) / SCALE;\n        require(\n            pools[poolId].reserveValidatorToken >= amountOutNeeded,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n    }\n\n    function executeFeeSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountIn\n    ) external returns (uint256 amountOut) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        Pool storage pool = pools[poolId];\n\n        amountOut = (amountIn * M) / SCALE;\n\n        _requireU128(amountIn);\n        _requireU128(amountOut);\n\n        require(\n            pool.reserveValidatorToken >= amountOut,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n\n        IERC20(userToken).transferFrom(msg.sender, address(this), amountIn);\n\n        pool.reserveUserToken += uint128(amountIn);\n        pool.reserveValidatorToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transfer(msg.sender, amountOut);\n\n        emit FeeSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function rebalanceSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountOut,\n        address to\n    ) external returns (uint256 amountIn) {\n        require(amountOut != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        amountIn = (amountOut * N) / SCALE + 1;\n\n        Pool storage pool = pools[poolId];\n\n        _requireU128(amountOut);\n        _requireU128(amountIn);\n\n        if (\n            uint256(pool.reserveValidatorToken) + amountIn > type(uint128).max\n        ) {\n            revert(\"INSUFFICIENT_RESERVES\");\n        }\n\n        require(pool.reserveUserToken >= amountOut, \"INVALID_AMOUNT\");\n\n        pool.reserveValidatorToken += uint128(amountIn);\n        pool.reserveUserToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountIn\n        );\n        IERC20(userToken).transfer(to, amountOut);\n\n        emit RebalanceSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function mint(\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        address to\n    ) external returns (uint256 liquidity) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(amountValidatorToken != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n        uint256 _totalSupply = totalSupply[poolId];\n\n        if (pool.reserveUserToken == 0 && pool.reserveValidatorToken == 0) {\n            if (amountValidatorToken / 2 <= MIN_LIQUIDITY) {\n                revert(\"INSUFFICIENT_LIQUIDITY\");\n            }\n            liquidity = amountValidatorToken / 2 - MIN_LIQUIDITY;\n            totalSupply[poolId] += MIN_LIQUIDITY;\n        } else {\n            uint256 product = (N * uint256(pool.reserveUserToken)) / SCALE;\n            uint256 denom = uint256(pool.reserveValidatorToken) + product;\n            liquidity = (amountValidatorToken * _totalSupply) / denom;\n        }\n\n        if (liquidity == 0) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        _requireU128(amountValidatorToken);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountValidatorToken\n        );\n\n        pool.reserveValidatorToken += uint128(amountValidatorToken);\n\n        totalSupply[poolId] += liquidity;\n        liquidityBalances[poolId][to] += liquidity;\n\n        emit Mint(\n            msg.sender,\n            to,\n            userToken,\n            validatorToken,\n            amountValidatorToken,\n            liquidity\n        );\n    }\n\n    function burn(\n        address userToken,\n        address validatorToken,\n        uint256 liquidity,\n        address to\n    ) external returns (uint256 amountUserToken, uint256 amountValidatorToken) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(liquidity != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n\n        if (liquidityBalances[poolId][msg.sender] < liquidity) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        (amountUserToken, amountValidatorToken) = _calculateBurnAmounts(\n            pool,\n            poolId,\n            liquidity\n        );\n\n        _requireU128(amountUserToken);\n        _requireU128(amountValidatorToken);\n\n        IERC20(userToken).transfer(to, amountUserToken);\n        IERC20(validatorToken).transfer(to, amountValidatorToken);\n\n        liquidityBalances[poolId][msg.sender] -= liquidity;\n        totalSupply[poolId] -= liquidity;\n        pool.reserveUserToken -= uint128(amountUserToken);\n        pool.reserveValidatorToken -= uint128(amountValidatorToken);\n\n        emit Burn(\n            msg.sender,\n            userToken,\n            validatorToken,\n            amountUserToken,\n            amountValidatorToken,\n            liquidity,\n            to\n        );\n    }\n\n    function _calculateBurnAmounts(\n        Pool storage pool,\n        bytes32 poolId,\n        uint256 liquidity\n    )\n        private\n        view\n        returns (uint256 amountUserToken, uint256 amountValidatorToken)\n    {\n        uint256 _totalSupply = totalSupply[poolId];",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No README file was found at the repository root.",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found.",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "All AMM operations rely on mutable reserves and expose no anti-ordering controls (deadlines, slippage/min-out, commit-reveal). Transaction ordering can change reserves before execution, enabling front-running/sandwiching to alter outcomes or cause reverts, so requirement is not met.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 123.52749156951904
+    },
+    {
+      "req_id": "req-3-block-mev",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol (NatSpec)",
+          "detail": "/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol",
+          "detail": "// SPDX-License-Identifier: MIT OR Apache-2.0\npragma solidity >=0.7.6 <0.8.0;\npragma experimental ABIEncoderV2;\n\nimport \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\n/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */\ncontract FeeAMM {\n    uint256 public constant M = 9970;\n    uint256 public constant N = 9985;\n    uint256 public constant SCALE = 10_000;\n    uint256 public constant MIN_LIQUIDITY = 1000;\n\n    struct Pool {\n        uint128 reserveUserToken;\n        uint128 reserveValidatorToken;\n    }\n\n    event Mint(\n        address indexed sender,\n        address indexed to,\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity\n    );\n\n    event Burn(\n        address indexed sender,\n        address userToken,\n        address validatorToken,\n        uint256 amountUserToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity,\n        address indexed to\n    );\n\n    event RebalanceSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    event FeeSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    mapping(bytes32 => Pool) public pools;\n    mapping(bytes32 => uint256) public totalSupply;\n    mapping(bytes32 => mapping(address => uint256)) public liquidityBalances;\n\n    function _requireU128(uint256 x) internal pure {\n        require(x <= type(uint128).max, \"INVALID_AMOUNT\");\n    }\n\n    function getPoolId(\n        address userToken,\n        address validatorToken\n    ) public pure returns (bytes32) {\n        return keccak256(abi.encode(userToken, validatorToken));\n    }\n\n    function getPool(\n        address userToken,\n        address validatorToken\n    ) external view returns (Pool memory) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        return pools[poolId];\n    }\n\n    function checkSufficientLiquidity(\n        address userToken,\n        address validatorToken,\n        uint256 maxAmount\n    ) external view {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        uint256 amountOutNeeded = (maxAmount * M) / SCALE;\n        require(\n            pools[poolId].reserveValidatorToken >= amountOutNeeded,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n    }\n\n    function executeFeeSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountIn\n    ) external returns (uint256 amountOut) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        Pool storage pool = pools[poolId];\n\n        amountOut = (amountIn * M) / SCALE;\n\n        _requireU128(amountIn);\n        _requireU128(amountOut);\n\n        require(\n            pool.reserveValidatorToken >= amountOut,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n\n        IERC20(userToken).transferFrom(msg.sender, address(this), amountIn);\n\n        pool.reserveUserToken += uint128(amountIn);\n        pool.reserveValidatorToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transfer(msg.sender, amountOut);\n\n        emit FeeSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function rebalanceSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountOut,\n        address to\n    ) external returns (uint256 amountIn) {\n        require(amountOut != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        amountIn = (amountOut * N) / SCALE + 1;\n\n        Pool storage pool = pools[poolId];\n\n        _requireU128(amountOut);\n        _requireU128(amountIn);\n\n        if (\n            uint256(pool.reserveValidatorToken) + amountIn > type(uint128).max\n        ) {\n            revert(\"INSUFFICIENT_RESERVES\");\n        }\n\n        require(pool.reserveUserToken >= amountOut, \"INVALID_AMOUNT\");\n\n        pool.reserveValidatorToken += uint128(amountIn);\n        pool.reserveUserToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountIn\n        );\n        IERC20(userToken).transfer(to, amountOut);\n\n        emit RebalanceSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function mint(\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        address to\n    ) external returns (uint256 liquidity) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(amountValidatorToken != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n        uint256 _totalSupply = totalSupply[poolId];\n\n        if (pool.reserveUserToken == 0 && pool.reserveValidatorToken == 0) {\n            if (amountValidatorToken / 2 <= MIN_LIQUIDITY) {\n                revert(\"INSUFFICIENT_LIQUIDITY\");\n            }\n            liquidity = amountValidatorToken / 2 - MIN_LIQUIDITY;\n            totalSupply[poolId] += MIN_LIQUIDITY;\n        } else {\n            uint256 product = (N * uint256(pool.reserveUserToken)) / SCALE;\n            uint256 denom = uint256(pool.reserveValidatorToken) + product;\n            liquidity = (amountValidatorToken * _totalSupply) / denom;\n        }\n\n        if (liquidity == 0) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        _requireU128(amountValidatorToken);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountValidatorToken\n        );\n\n        pool.reserveValidatorToken += uint128(amountValidatorToken);\n\n        totalSupply[poolId] += liquidity;\n        liquidityBalances[poolId][to] += liquidity;\n\n        emit Mint(\n            msg.sender,\n            to,\n            userToken,\n            validatorToken,\n            amountValidatorToken,\n            liquidity\n        );\n    }\n\n    function burn(\n        address userToken,\n        address validatorToken,\n        uint256 liquidity,\n        address to\n    ) external returns (uint256 amountUserToken, uint256 amountValidatorToken) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(liquidity != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n\n        if (liquidityBalances[poolId][msg.sender] < liquidity) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        (amountUserToken, amountValidatorToken) = _calculateBurnAmounts(\n            pool,\n            poolId,\n            liquidity\n        );\n\n        _requireU128(amountUserToken);\n        _requireU128(amountValidatorToken);\n\n        IERC20(userToken).transfer(to, amountUserToken);\n        IERC20(validatorToken).transfer(to, amountValidatorToken);\n\n        liquidityBalances[poolId][msg.sender] -= liquidity;\n        totalSupply[poolId] -= liquidity;\n        pool.reserveUserToken -= uint128(amountUserToken);\n        pool.reserveValidatorToken -= uint128(amountValidatorToken);\n\n        emit Burn(\n            msg.sender,\n            userToken,\n            validatorToken,\n            amountUserToken,\n            amountValidatorToken,\n            liquidity,\n            to\n        );\n    }\n\n    function _calculateBurnAmounts(\n        Pool storage pool,\n        bytes32 poolId,\n        uint256 liquidity\n    )\n        private\n        view\n        returns (uint256 amountUserToken, uint256 amountValidatorToken)\n    {\n        uint256 _totalSupply = totalSupply[poolId];",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No README file was found at the repository root.",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found.",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "FeeAMM exposes public swap entry points that are inherently ordering-sensitive yet omit standard MEV mitigations such as slippage constraints or deadlines; any reordering can change reserve availability and cause unexpected failure or extraction with no protective checks, so the requirement to protect against MEV is not satisfied.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 184.10791993141174
+    },
+    {
+      "req_id": "req-3-event-on-state-change",
+      "escalated": false,
+      "evidence": [
+        {
+          "predicate": "find_state_write_without_event",
+          "location": "FeeAMM.slitherConstructorConstantVariables",
+          "detail": "writes state but emits no event",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-3-documented",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol (NatSpec)",
+          "detail": "/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol",
+          "detail": "// SPDX-License-Identifier: MIT OR Apache-2.0\npragma solidity >=0.7.6 <0.8.0;\npragma experimental ABIEncoderV2;\n\nimport \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\n/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */\ncontract FeeAMM {\n    uint256 public constant M = 9970;\n    uint256 public constant N = 9985;\n    uint256 public constant SCALE = 10_000;\n    uint256 public constant MIN_LIQUIDITY = 1000;\n\n    struct Pool {\n        uint128 reserveUserToken;\n        uint128 reserveValidatorToken;\n    }\n\n    event Mint(\n        address indexed sender,\n        address indexed to,\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity\n    );\n\n    event Burn(\n        address indexed sender,\n        address userToken,\n        address validatorToken,\n        uint256 amountUserToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity,\n        address indexed to\n    );\n\n    event RebalanceSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    event FeeSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    mapping(bytes32 => Pool) public pools;\n    mapping(bytes32 => uint256) public totalSupply;\n    mapping(bytes32 => mapping(address => uint256)) public liquidityBalances;\n\n    function _requireU128(uint256 x) internal pure {\n        require(x <= type(uint128).max, \"INVALID_AMOUNT\");\n    }\n\n    function getPoolId(\n        address userToken,\n        address validatorToken\n    ) public pure returns (bytes32) {\n        return keccak256(abi.encode(userToken, validatorToken));\n    }\n\n    function getPool(\n        address userToken,\n        address validatorToken\n    ) external view returns (Pool memory) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        return pools[poolId];\n    }\n\n    function checkSufficientLiquidity(\n        address userToken,\n        address validatorToken,\n        uint256 maxAmount\n    ) external view {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        uint256 amountOutNeeded = (maxAmount * M) / SCALE;\n        require(\n            pools[poolId].reserveValidatorToken >= amountOutNeeded,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n    }\n\n    function executeFeeSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountIn\n    ) external returns (uint256 amountOut) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        Pool storage pool = pools[poolId];\n\n        amountOut = (amountIn * M) / SCALE;\n\n        _requireU128(amountIn);\n        _requireU128(amountOut);\n\n        require(\n            pool.reserveValidatorToken >= amountOut,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n\n        IERC20(userToken).transferFrom(msg.sender, address(this), amountIn);\n\n        pool.reserveUserToken += uint128(amountIn);\n        pool.reserveValidatorToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transfer(msg.sender, amountOut);\n\n        emit FeeSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function rebalanceSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountOut,\n        address to\n    ) external returns (uint256 amountIn) {\n        require(amountOut != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        amountIn = (amountOut * N) / SCALE + 1;\n\n        Pool storage pool = pools[poolId];\n\n        _requireU128(amountOut);\n        _requireU128(amountIn);\n\n        if (\n            uint256(pool.reserveValidatorToken) + amountIn > type(uint128).max\n        ) {\n            revert(\"INSUFFICIENT_RESERVES\");\n        }\n\n        require(pool.reserveUserToken >= amountOut, \"INVALID_AMOUNT\");\n\n        pool.reserveValidatorToken += uint128(amountIn);\n        pool.reserveUserToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountIn\n        );\n        IERC20(userToken).transfer(to, amountOut);\n\n        emit RebalanceSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function mint(\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        address to\n    ) external returns (uint256 liquidity) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(amountValidatorToken != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n        uint256 _totalSupply = totalSupply[poolId];\n\n        if (pool.reserveUserToken == 0 && pool.reserveValidatorToken == 0) {\n            if (amountValidatorToken / 2 <= MIN_LIQUIDITY) {\n                revert(\"INSUFFICIENT_LIQUIDITY\");\n            }\n            liquidity = amountValidatorToken / 2 - MIN_LIQUIDITY;\n            totalSupply[poolId] += MIN_LIQUIDITY;\n        } else {\n            uint256 product = (N * uint256(pool.reserveUserToken)) / SCALE;\n            uint256 denom = uint256(pool.reserveValidatorToken) + product;\n            liquidity = (amountValidatorToken * _totalSupply) / denom;\n        }\n\n        if (liquidity == 0) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        _requireU128(amountValidatorToken);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountValidatorToken\n        );\n\n        pool.reserveValidatorToken += uint128(amountValidatorToken);\n\n        totalSupply[poolId] += liquidity;\n        liquidityBalances[poolId][to] += liquidity;\n\n        emit Mint(\n            msg.sender,\n            to,\n            userToken,\n            validatorToken,\n            amountValidatorToken,\n            liquidity\n        );\n    }\n\n    function burn(\n        address userToken,\n        address validatorToken,\n        uint256 liquidity,\n        address to\n    ) external returns (uint256 amountUserToken, uint256 amountValidatorToken) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(liquidity != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n\n        if (liquidityBalances[poolId][msg.sender] < liquidity) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        (amountUserToken, amountValidatorToken) = _calculateBurnAmounts(\n            pool,\n            poolId,\n            liquidity\n        );\n\n        _requireU128(amountUserToken);\n        _requireU128(amountValidatorToken);\n\n        IERC20(userToken).transfer(to, amountUserToken);\n        IERC20(validatorToken).transfer(to, amountValidatorToken);\n\n        liquidityBalances[poolId][msg.sender] -= liquidity;\n        totalSupply[poolId] -= liquidity;\n        pool.reserveUserToken -= uint128(amountUserToken);\n        pool.reserveValidatorToken -= uint128(amountValidatorToken);\n\n        emit Burn(\n            msg.sender,\n            userToken,\n            validatorToken,\n            amountUserToken,\n            amountValidatorToken,\n            liquidity,\n            to\n        );\n    }\n\n    function _calculateBurnAmounts(\n        Pool storage pool,\n        bytes32 poolId,\n        uint256 liquidity\n    )\n        private\n        view\n        returns (uint256 amountUserToken, uint256 amountValidatorToken)\n    {\n        uint256 _totalSupply = totalSupply[poolId];",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No README file was found at the repository root.",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found.",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Requirement needs a specification of intended contract logic available to callers. Only a brief header exists, with no function-level documentation or external README/docs outlining the business logic, so the specification is not provided.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 0,
+      "wall_clock_s": 208.4953908920288
+    },
+    {
+      "req_id": "req-3-document-system",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol (NatSpec)",
+          "detail": "/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol",
+          "detail": "// SPDX-License-Identifier: MIT OR Apache-2.0\npragma solidity >=0.7.6 <0.8.0;\npragma experimental ABIEncoderV2;\n\nimport \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\n/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */\ncontract FeeAMM {\n    uint256 public constant M = 9970;\n    uint256 public constant N = 9985;\n    uint256 public constant SCALE = 10_000;\n    uint256 public constant MIN_LIQUIDITY = 1000;\n\n    struct Pool {\n        uint128 reserveUserToken;\n        uint128 reserveValidatorToken;\n    }\n\n    event Mint(\n        address indexed sender,\n        address indexed to,\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity\n    );\n\n    event Burn(\n        address indexed sender,\n        address userToken,\n        address validatorToken,\n        uint256 amountUserToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity,\n        address indexed to\n    );\n\n    event RebalanceSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    event FeeSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    mapping(bytes32 => Pool) public pools;\n    mapping(bytes32 => uint256) public totalSupply;\n    mapping(bytes32 => mapping(address => uint256)) public liquidityBalances;\n\n    function _requireU128(uint256 x) internal pure {\n        require(x <= type(uint128).max, \"INVALID_AMOUNT\");\n    }\n\n    function getPoolId(\n        address userToken,\n        address validatorToken\n    ) public pure returns (bytes32) {\n        return keccak256(abi.encode(userToken, validatorToken));\n    }\n\n    function getPool(\n        address userToken,\n        address validatorToken\n    ) external view returns (Pool memory) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        return pools[poolId];\n    }\n\n    function checkSufficientLiquidity(\n        address userToken,\n        address validatorToken,\n        uint256 maxAmount\n    ) external view {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        uint256 amountOutNeeded = (maxAmount * M) / SCALE;\n        require(\n            pools[poolId].reserveValidatorToken >= amountOutNeeded,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n    }\n\n    function executeFeeSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountIn\n    ) external returns (uint256 amountOut) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        Pool storage pool = pools[poolId];\n\n        amountOut = (amountIn * M) / SCALE;\n\n        _requireU128(amountIn);\n        _requireU128(amountOut);\n\n        require(\n            pool.reserveValidatorToken >= amountOut,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n\n        IERC20(userToken).transferFrom(msg.sender, address(this), amountIn);\n\n        pool.reserveUserToken += uint128(amountIn);\n        pool.reserveValidatorToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transfer(msg.sender, amountOut);\n\n        emit FeeSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function rebalanceSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountOut,\n        address to\n    ) external returns (uint256 amountIn) {\n        require(amountOut != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        amountIn = (amountOut * N) / SCALE + 1;\n\n        Pool storage pool = pools[poolId];\n\n        _requireU128(amountOut);\n        _requireU128(amountIn);\n\n        if (\n            uint256(pool.reserveValidatorToken) + amountIn > type(uint128).max\n        ) {\n            revert(\"INSUFFICIENT_RESERVES\");\n        }\n\n        require(pool.reserveUserToken >= amountOut, \"INVALID_AMOUNT\");\n\n        pool.reserveValidatorToken += uint128(amountIn);\n        pool.reserveUserToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountIn\n        );\n        IERC20(userToken).transfer(to, amountOut);\n\n        emit RebalanceSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function mint(\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        address to\n    ) external returns (uint256 liquidity) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(amountValidatorToken != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n        uint256 _totalSupply = totalSupply[poolId];\n\n        if (pool.reserveUserToken == 0 && pool.reserveValidatorToken == 0) {\n            if (amountValidatorToken / 2 <= MIN_LIQUIDITY) {\n                revert(\"INSUFFICIENT_LIQUIDITY\");\n            }\n            liquidity = amountValidatorToken / 2 - MIN_LIQUIDITY;\n            totalSupply[poolId] += MIN_LIQUIDITY;\n        } else {\n            uint256 product = (N * uint256(pool.reserveUserToken)) / SCALE;\n            uint256 denom = uint256(pool.reserveValidatorToken) + product;\n            liquidity = (amountValidatorToken * _totalSupply) / denom;\n        }\n\n        if (liquidity == 0) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        _requireU128(amountValidatorToken);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountValidatorToken\n        );\n\n        pool.reserveValidatorToken += uint128(amountValidatorToken);\n\n        totalSupply[poolId] += liquidity;\n        liquidityBalances[poolId][to] += liquidity;\n\n        emit Mint(\n            msg.sender,\n            to,\n            userToken,\n            validatorToken,\n            amountValidatorToken,\n            liquidity\n        );\n    }\n\n    function burn(\n        address userToken,\n        address validatorToken,\n        uint256 liquidity,\n        address to\n    ) external returns (uint256 amountUserToken, uint256 amountValidatorToken) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(liquidity != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n\n        if (liquidityBalances[poolId][msg.sender] < liquidity) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        (amountUserToken, amountValidatorToken) = _calculateBurnAmounts(\n            pool,\n            poolId,\n            liquidity\n        );\n\n        _requireU128(amountUserToken);\n        _requireU128(amountValidatorToken);\n\n        IERC20(userToken).transfer(to, amountUserToken);\n        IERC20(validatorToken).transfer(to, amountValidatorToken);\n\n        liquidityBalances[poolId][msg.sender] -= liquidity;\n        totalSupply[poolId] -= liquidity;\n        pool.reserveUserToken -= uint128(amountUserToken);\n        pool.reserveValidatorToken -= uint128(amountValidatorToken);\n\n        emit Burn(\n            msg.sender,\n            userToken,\n            validatorToken,\n            amountUserToken,\n            amountValidatorToken,\n            liquidity,\n            to\n        );\n    }\n\n    function _calculateBurnAmounts(\n        Pool storage pool,\n        bytes32 poolId,\n        uint256 liquidity\n    )\n        private\n        view\n        returns (uint256 amountUserToken, uint256 amountValidatorToken)\n    {\n        uint256 _totalSupply = totalSupply[poolId];",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No README file was found at the repository root.",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found.",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Repository lacks any system architecture documentation; only a brief NatSpec header exists and does not cover required elements, so requirement is not satisfied.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 118.15290951728821
+    },
+    {
+      "req_id": "req-3-document-threats",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol (NatSpec)",
+          "detail": "/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol",
+          "detail": "// SPDX-License-Identifier: MIT OR Apache-2.0\npragma solidity >=0.7.6 <0.8.0;\npragma experimental ABIEncoderV2;\n\nimport \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\n/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */\ncontract FeeAMM {\n    uint256 public constant M = 9970;\n    uint256 public constant N = 9985;\n    uint256 public constant SCALE = 10_000;\n    uint256 public constant MIN_LIQUIDITY = 1000;\n\n    struct Pool {\n        uint128 reserveUserToken;\n        uint128 reserveValidatorToken;\n    }\n\n    event Mint(\n        address indexed sender,\n        address indexed to,\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity\n    );\n\n    event Burn(\n        address indexed sender,\n        address userToken,\n        address validatorToken,\n        uint256 amountUserToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity,\n        address indexed to\n    );\n\n    event RebalanceSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    event FeeSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    mapping(bytes32 => Pool) public pools;\n    mapping(bytes32 => uint256) public totalSupply;\n    mapping(bytes32 => mapping(address => uint256)) public liquidityBalances;\n\n    function _requireU128(uint256 x) internal pure {\n        require(x <= type(uint128).max, \"INVALID_AMOUNT\");\n    }\n\n    function getPoolId(\n        address userToken,\n        address validatorToken\n    ) public pure returns (bytes32) {\n        return keccak256(abi.encode(userToken, validatorToken));\n    }\n\n    function getPool(\n        address userToken,\n        address validatorToken\n    ) external view returns (Pool memory) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        return pools[poolId];\n    }\n\n    function checkSufficientLiquidity(\n        address userToken,\n        address validatorToken,\n        uint256 maxAmount\n    ) external view {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        uint256 amountOutNeeded = (maxAmount * M) / SCALE;\n        require(\n            pools[poolId].reserveValidatorToken >= amountOutNeeded,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n    }\n\n    function executeFeeSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountIn\n    ) external returns (uint256 amountOut) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        Pool storage pool = pools[poolId];\n\n        amountOut = (amountIn * M) / SCALE;\n\n        _requireU128(amountIn);\n        _requireU128(amountOut);\n\n        require(\n            pool.reserveValidatorToken >= amountOut,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n\n        IERC20(userToken).transferFrom(msg.sender, address(this), amountIn);\n\n        pool.reserveUserToken += uint128(amountIn);\n        pool.reserveValidatorToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transfer(msg.sender, amountOut);\n\n        emit FeeSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function rebalanceSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountOut,\n        address to\n    ) external returns (uint256 amountIn) {\n        require(amountOut != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        amountIn = (amountOut * N) / SCALE + 1;\n\n        Pool storage pool = pools[poolId];\n\n        _requireU128(amountOut);\n        _requireU128(amountIn);\n\n        if (\n            uint256(pool.reserveValidatorToken) + amountIn > type(uint128).max\n        ) {\n            revert(\"INSUFFICIENT_RESERVES\");\n        }\n\n        require(pool.reserveUserToken >= amountOut, \"INVALID_AMOUNT\");\n\n        pool.reserveValidatorToken += uint128(amountIn);\n        pool.reserveUserToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountIn\n        );\n        IERC20(userToken).transfer(to, amountOut);\n\n        emit RebalanceSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function mint(\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        address to\n    ) external returns (uint256 liquidity) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(amountValidatorToken != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n        uint256 _totalSupply = totalSupply[poolId];\n\n        if (pool.reserveUserToken == 0 && pool.reserveValidatorToken == 0) {\n            if (amountValidatorToken / 2 <= MIN_LIQUIDITY) {\n                revert(\"INSUFFICIENT_LIQUIDITY\");\n            }\n            liquidity = amountValidatorToken / 2 - MIN_LIQUIDITY;\n            totalSupply[poolId] += MIN_LIQUIDITY;\n        } else {\n            uint256 product = (N * uint256(pool.reserveUserToken)) / SCALE;\n            uint256 denom = uint256(pool.reserveValidatorToken) + product;\n            liquidity = (amountValidatorToken * _totalSupply) / denom;\n        }\n\n        if (liquidity == 0) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        _requireU128(amountValidatorToken);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountValidatorToken\n        );\n\n        pool.reserveValidatorToken += uint128(amountValidatorToken);\n\n        totalSupply[poolId] += liquidity;\n        liquidityBalances[poolId][to] += liquidity;\n\n        emit Mint(\n            msg.sender,\n            to,\n            userToken,\n            validatorToken,\n            amountValidatorToken,\n            liquidity\n        );\n    }\n\n    function burn(\n        address userToken,\n        address validatorToken,\n        uint256 liquidity,\n        address to\n    ) external returns (uint256 amountUserToken, uint256 amountValidatorToken) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(liquidity != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n\n        if (liquidityBalances[poolId][msg.sender] < liquidity) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        (amountUserToken, amountValidatorToken) = _calculateBurnAmounts(\n            pool,\n            poolId,\n            liquidity\n        );\n\n        _requireU128(amountUserToken);\n        _requireU128(amountValidatorToken);\n\n        IERC20(userToken).transfer(to, amountUserToken);\n        IERC20(validatorToken).transfer(to, amountValidatorToken);\n\n        liquidityBalances[poolId][msg.sender] -= liquidity;\n        totalSupply[poolId] -= liquidity;\n        pool.reserveUserToken -= uint128(amountUserToken);\n        pool.reserveValidatorToken -= uint128(amountValidatorToken);\n\n        emit Burn(\n            msg.sender,\n            userToken,\n            validatorToken,\n            amountUserToken,\n            amountValidatorToken,\n            liquidity,\n            to\n        );\n    }\n\n    function _calculateBurnAmounts(\n        Pool storage pool,\n        bytes32 poolId,\n        uint256 liquidity\n    )\n        private\n        view\n        returns (uint256 amountUserToken, uint256 amountValidatorToken)\n    {\n        uint256 _totalSupply = totalSupply[poolId];",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No README file was found at the repository root.",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found.",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Searched the repository and reviewed FeeAMM.sol; found no README/docs or any text describing threats, assumptions, responses, or outcomes. Only vendor markdown exists, so the required threat model is absent.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 198.4652123451233
+    },
+    {
+      "req_id": "req-3-annotate",
+      "escalated": false,
+      "evidence": [
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "FeeAMM.getPoolId",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "FeeAMM.getPool",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "FeeAMM.checkSufficientLiquidity",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "FeeAMM.mint",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        },
+        {
+          "predicate": "find_public_interfaces_missing_natspec",
+          "location": "FeeAMM.burn",
+          "detail": "public/external function has no NatSpec annotation",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-3-access-control",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "FeeAMM.rebalanceSwap",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "FeeAMM.mint",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_mutating_function_protection_status",
+          "location": "FeeAMM.burn",
+          "detail": "state-mutating function is UNPROTECTED -- callable by anyone per Slither's own is_protected() heuristic -- evidence only, whether the granted access level is the MINIMUM necessary needs a documentation cross-check, not attempted here",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "FeeAMM exposes liquidity-minting, burning, and swap functions to all callers without any access control or role checks. No documentation defines authorized parties. This fails least-privilege enforcement for privileged interactions.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 238.162663936615
+    },
+    {
+      "req_id": "req-3-revocable-permisions",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol (NatSpec)",
+          "detail": "/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol",
+          "detail": "// SPDX-License-Identifier: MIT OR Apache-2.0\npragma solidity >=0.7.6 <0.8.0;\npragma experimental ABIEncoderV2;\n\nimport \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\n/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */\ncontract FeeAMM {\n    uint256 public constant M = 9970;\n    uint256 public constant N = 9985;\n    uint256 public constant SCALE = 10_000;\n    uint256 public constant MIN_LIQUIDITY = 1000;\n\n    struct Pool {\n        uint128 reserveUserToken;\n        uint128 reserveValidatorToken;\n    }\n\n    event Mint(\n        address indexed sender,\n        address indexed to,\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity\n    );\n\n    event Burn(\n        address indexed sender,\n        address userToken,\n        address validatorToken,\n        uint256 amountUserToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity,\n        address indexed to\n    );\n\n    event RebalanceSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    event FeeSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    mapping(bytes32 => Pool) public pools;\n    mapping(bytes32 => uint256) public totalSupply;\n    mapping(bytes32 => mapping(address => uint256)) public liquidityBalances;\n\n    function _requireU128(uint256 x) internal pure {\n        require(x <= type(uint128).max, \"INVALID_AMOUNT\");\n    }\n\n    function getPoolId(\n        address userToken,\n        address validatorToken\n    ) public pure returns (bytes32) {\n        return keccak256(abi.encode(userToken, validatorToken));\n    }\n\n    function getPool(\n        address userToken,\n        address validatorToken\n    ) external view returns (Pool memory) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        return pools[poolId];\n    }\n\n    function checkSufficientLiquidity(\n        address userToken,\n        address validatorToken,\n        uint256 maxAmount\n    ) external view {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        uint256 amountOutNeeded = (maxAmount * M) / SCALE;\n        require(\n            pools[poolId].reserveValidatorToken >= amountOutNeeded,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n    }\n\n    function executeFeeSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountIn\n    ) external returns (uint256 amountOut) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        Pool storage pool = pools[poolId];\n\n        amountOut = (amountIn * M) / SCALE;\n\n        _requireU128(amountIn);\n        _requireU128(amountOut);\n\n        require(\n            pool.reserveValidatorToken >= amountOut,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n\n        IERC20(userToken).transferFrom(msg.sender, address(this), amountIn);\n\n        pool.reserveUserToken += uint128(amountIn);\n        pool.reserveValidatorToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transfer(msg.sender, amountOut);\n\n        emit FeeSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function rebalanceSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountOut,\n        address to\n    ) external returns (uint256 amountIn) {\n        require(amountOut != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        amountIn = (amountOut * N) / SCALE + 1;\n\n        Pool storage pool = pools[poolId];\n\n        _requireU128(amountOut);\n        _requireU128(amountIn);\n\n        if (\n            uint256(pool.reserveValidatorToken) + amountIn > type(uint128).max\n        ) {\n            revert(\"INSUFFICIENT_RESERVES\");\n        }\n\n        require(pool.reserveUserToken >= amountOut, \"INVALID_AMOUNT\");\n\n        pool.reserveValidatorToken += uint128(amountIn);\n        pool.reserveUserToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountIn\n        );\n        IERC20(userToken).transfer(to, amountOut);\n\n        emit RebalanceSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function mint(\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        address to\n    ) external returns (uint256 liquidity) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(amountValidatorToken != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n        uint256 _totalSupply = totalSupply[poolId];\n\n        if (pool.reserveUserToken == 0 && pool.reserveValidatorToken == 0) {\n            if (amountValidatorToken / 2 <= MIN_LIQUIDITY) {\n                revert(\"INSUFFICIENT_LIQUIDITY\");\n            }\n            liquidity = amountValidatorToken / 2 - MIN_LIQUIDITY;\n            totalSupply[poolId] += MIN_LIQUIDITY;\n        } else {\n            uint256 product = (N * uint256(pool.reserveUserToken)) / SCALE;\n            uint256 denom = uint256(pool.reserveValidatorToken) + product;\n            liquidity = (amountValidatorToken * _totalSupply) / denom;\n        }\n\n        if (liquidity == 0) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        _requireU128(amountValidatorToken);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountValidatorToken\n        );\n\n        pool.reserveValidatorToken += uint128(amountValidatorToken);\n\n        totalSupply[poolId] += liquidity;\n        liquidityBalances[poolId][to] += liquidity;\n\n        emit Mint(\n            msg.sender,\n            to,\n            userToken,\n            validatorToken,\n            amountValidatorToken,\n            liquidity\n        );\n    }\n\n    function burn(\n        address userToken,\n        address validatorToken,\n        uint256 liquidity,\n        address to\n    ) external returns (uint256 amountUserToken, uint256 amountValidatorToken) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(liquidity != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n\n        if (liquidityBalances[poolId][msg.sender] < liquidity) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        (amountUserToken, amountValidatorToken) = _calculateBurnAmounts(\n            pool,\n            poolId,\n            liquidity\n        );\n\n        _requireU128(amountUserToken);\n        _requireU128(amountValidatorToken);\n\n        IERC20(userToken).transfer(to, amountUserToken);\n        IERC20(validatorToken).transfer(to, amountValidatorToken);\n\n        liquidityBalances[poolId][msg.sender] -= liquidity;\n        totalSupply[poolId] -= liquidity;\n        pool.reserveUserToken -= uint128(amountUserToken);\n        pool.reserveValidatorToken -= uint128(amountValidatorToken);\n\n        emit Burn(\n            msg.sender,\n            userToken,\n            validatorToken,\n            amountUserToken,\n            amountValidatorToken,\n            liquidity,\n            to\n        );\n    }\n\n    function _calculateBurnAmounts(\n        Pool storage pool,\n        bytes32 poolId,\n        uint256 liquidity\n    )\n        private\n        view\n        returns (uint256 amountUserToken, uint256 amountValidatorToken)\n    {\n        uint256 _totalSupply = totalSupply[poolId];",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No README file was found at the repository root.",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found.",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The contract lacks any access-control mechanism, so there is no way to revoke or transfer permissions; requirement is unmet.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 148.3255808353424
+    },
+    {
+      "req_id": "req-3-external-calls",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.executeFeeSwap",
+          "detail": "external call at node 7 followed by state write at node 8 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.mint",
+          "detail": "external call at node 20 followed by state write at node 23 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.burn",
+          "detail": "external call at node 11 followed by state write at node 13 (CFG-reachable)",
+          "structured": null
+        },
+        {
+          "predicate": "find_state_write_after_external_call",
+          "location": "FeeAMM.burn",
+          "detail": "external call at node 12 followed by state write at node 13 (CFG-reachable)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "burn makes external ERC20 transfers but does not check return values, lacks reentrancy safeguards, updates state after the external calls, and provides no documentation of protections or rationale, violating the requirement for documented and compatible external-call protection.",
+      "confidence": "HIGH",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 130.792151927948
+    },
+    {
+      "req_id": "req-3-consistent-solidity-output",
+      "escalated": false,
+      "evidence": [
+        {
+          "predicate": "find_non_exact_pragma",
+          "location": "pragma solidity>=0.7.6<0.8.0",
+          "detail": "pragma '>=0.7.6<0.8.0' is a range, not an exact pin",
+          "structured": null
+        },
+        {
+          "predicate": "find_non_exact_pragma",
+          "location": "pragma solidity>=0.6.0<0.8.0",
+          "detail": "pragma '>=0.6.0<0.8.0' is a range, not an exact pin",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-R-use-latest-compiler",
+      "escalated": false,
+      "evidence": [
+        {
+          "predicate": "check_compiler_version_is_latest_stable",
+          "location": "compiler config",
+          "detail": "solc 0.7.6 != caller-supplied latest known stable version 0.8.36 (external, time-anchored reference -- not derived from spec text)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": null,
+      "confidence": null
+    },
+    {
+      "req_id": "req-R-clean-code",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol (NatSpec)",
+          "detail": "/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol",
+          "detail": "// SPDX-License-Identifier: MIT OR Apache-2.0\npragma solidity >=0.7.6 <0.8.0;\npragma experimental ABIEncoderV2;\n\nimport \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\n/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */\ncontract FeeAMM {\n    uint256 public constant M = 9970;\n    uint256 public constant N = 9985;\n    uint256 public constant SCALE = 10_000;\n    uint256 public constant MIN_LIQUIDITY = 1000;\n\n    struct Pool {\n        uint128 reserveUserToken;\n        uint128 reserveValidatorToken;\n    }\n\n    event Mint(\n        address indexed sender,\n        address indexed to,\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity\n    );\n\n    event Burn(\n        address indexed sender,\n        address userToken,\n        address validatorToken,\n        uint256 amountUserToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity,\n        address indexed to\n    );\n\n    event RebalanceSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    event FeeSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    mapping(bytes32 => Pool) public pools;\n    mapping(bytes32 => uint256) public totalSupply;\n    mapping(bytes32 => mapping(address => uint256)) public liquidityBalances;\n\n    function _requireU128(uint256 x) internal pure {\n        require(x <= type(uint128).max, \"INVALID_AMOUNT\");\n    }\n\n    function getPoolId(\n        address userToken,\n        address validatorToken\n    ) public pure returns (bytes32) {\n        return keccak256(abi.encode(userToken, validatorToken));\n    }\n\n    function getPool(\n        address userToken,\n        address validatorToken\n    ) external view returns (Pool memory) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        return pools[poolId];\n    }\n\n    function checkSufficientLiquidity(\n        address userToken,\n        address validatorToken,\n        uint256 maxAmount\n    ) external view {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        uint256 amountOutNeeded = (maxAmount * M) / SCALE;\n        require(\n            pools[poolId].reserveValidatorToken >= amountOutNeeded,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n    }\n\n    function executeFeeSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountIn\n    ) external returns (uint256 amountOut) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        Pool storage pool = pools[poolId];\n\n        amountOut = (amountIn * M) / SCALE;\n\n        _requireU128(amountIn);\n        _requireU128(amountOut);\n\n        require(\n            pool.reserveValidatorToken >= amountOut,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n\n        IERC20(userToken).transferFrom(msg.sender, address(this), amountIn);\n\n        pool.reserveUserToken += uint128(amountIn);\n        pool.reserveValidatorToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transfer(msg.sender, amountOut);\n\n        emit FeeSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function rebalanceSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountOut,\n        address to\n    ) external returns (uint256 amountIn) {\n        require(amountOut != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        amountIn = (amountOut * N) / SCALE + 1;\n\n        Pool storage pool = pools[poolId];\n\n        _requireU128(amountOut);\n        _requireU128(amountIn);\n\n        if (\n            uint256(pool.reserveValidatorToken) + amountIn > type(uint128).max\n        ) {\n            revert(\"INSUFFICIENT_RESERVES\");\n        }\n\n        require(pool.reserveUserToken >= amountOut, \"INVALID_AMOUNT\");\n\n        pool.reserveValidatorToken += uint128(amountIn);\n        pool.reserveUserToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountIn\n        );\n        IERC20(userToken).transfer(to, amountOut);\n\n        emit RebalanceSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function mint(\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        address to\n    ) external returns (uint256 liquidity) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(amountValidatorToken != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n        uint256 _totalSupply = totalSupply[poolId];\n\n        if (pool.reserveUserToken == 0 && pool.reserveValidatorToken == 0) {\n            if (amountValidatorToken / 2 <= MIN_LIQUIDITY) {\n                revert(\"INSUFFICIENT_LIQUIDITY\");\n            }\n            liquidity = amountValidatorToken / 2 - MIN_LIQUIDITY;\n            totalSupply[poolId] += MIN_LIQUIDITY;\n        } else {\n            uint256 product = (N * uint256(pool.reserveUserToken)) / SCALE;\n            uint256 denom = uint256(pool.reserveValidatorToken) + product;\n            liquidity = (amountValidatorToken * _totalSupply) / denom;\n        }\n\n        if (liquidity == 0) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        _requireU128(amountValidatorToken);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountValidatorToken\n        );\n\n        pool.reserveValidatorToken += uint128(amountValidatorToken);\n\n        totalSupply[poolId] += liquidity;\n        liquidityBalances[poolId][to] += liquidity;\n\n        emit Mint(\n            msg.sender,\n            to,\n            userToken,\n            validatorToken,\n            amountValidatorToken,\n            liquidity\n        );\n    }\n\n    function burn(\n        address userToken,\n        address validatorToken,\n        uint256 liquidity,\n        address to\n    ) external returns (uint256 amountUserToken, uint256 amountValidatorToken) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(liquidity != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n\n        if (liquidityBalances[poolId][msg.sender] < liquidity) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        (amountUserToken, amountValidatorToken) = _calculateBurnAmounts(\n            pool,\n            poolId,\n            liquidity\n        );\n\n        _requireU128(amountUserToken);\n        _requireU128(amountValidatorToken);\n\n        IERC20(userToken).transfer(to, amountUserToken);\n        IERC20(validatorToken).transfer(to, amountValidatorToken);\n\n        liquidityBalances[poolId][msg.sender] -= liquidity;\n        totalSupply[poolId] -= liquidity;\n        pool.reserveUserToken -= uint128(amountUserToken);\n        pool.reserveValidatorToken -= uint128(amountValidatorToken);\n\n        emit Burn(\n            msg.sender,\n            userToken,\n            validatorToken,\n            amountUserToken,\n            amountValidatorToken,\n            liquidity,\n            to\n        );\n    }\n\n    function _calculateBurnAmounts(\n        Pool storage pool,\n        bytes32 poolId,\n        uint256 liquidity\n    )\n        private\n        view\n        returns (uint256 amountUserToken, uint256 amountValidatorToken)\n    {\n        uint256 _totalSupply = totalSupply[poolId];",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No README file was found at the repository root.",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found.",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "The FeeAMM contract provides only a brief header comment; all functions and core constants are undocumented and use terse names, leaving formulas and assumptions unclear. Lack of NatSpec and descriptive comments reduces ease of understanding, so the code does not meet the clarity good-practice requirement.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 1,
+      "wall_clock_s": 97.30703330039978
+    },
+    {
+      "req_id": "req-R-notify-news",
+      "escalated": true,
+      "evidence": [
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol (NatSpec)",
+          "detail": "/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "FeeAMM.sol",
+          "detail": "// SPDX-License-Identifier: MIT OR Apache-2.0\npragma solidity >=0.7.6 <0.8.0;\npragma experimental ABIEncoderV2;\n\nimport \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\n/**\n * @title FeeAMM\n * @notice Automated Market Maker for fee swaps between TIP-20 USD stablecoins\n * @dev Enables validators who run payment flows on Tempo to exchange fee tokens collected from users for their preferred\n *      stablecoin denomination.\n */\ncontract FeeAMM {\n    uint256 public constant M = 9970;\n    uint256 public constant N = 9985;\n    uint256 public constant SCALE = 10_000;\n    uint256 public constant MIN_LIQUIDITY = 1000;\n\n    struct Pool {\n        uint128 reserveUserToken;\n        uint128 reserveValidatorToken;\n    }\n\n    event Mint(\n        address indexed sender,\n        address indexed to,\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity\n    );\n\n    event Burn(\n        address indexed sender,\n        address userToken,\n        address validatorToken,\n        uint256 amountUserToken,\n        uint256 amountValidatorToken,\n        uint256 liquidity,\n        address indexed to\n    );\n\n    event RebalanceSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    event FeeSwap(\n        address indexed userToken,\n        address indexed validatorToken,\n        address indexed sender,\n        uint256 amountIn,\n        uint256 amountOut\n    );\n\n    mapping(bytes32 => Pool) public pools;\n    mapping(bytes32 => uint256) public totalSupply;\n    mapping(bytes32 => mapping(address => uint256)) public liquidityBalances;\n\n    function _requireU128(uint256 x) internal pure {\n        require(x <= type(uint128).max, \"INVALID_AMOUNT\");\n    }\n\n    function getPoolId(\n        address userToken,\n        address validatorToken\n    ) public pure returns (bytes32) {\n        return keccak256(abi.encode(userToken, validatorToken));\n    }\n\n    function getPool(\n        address userToken,\n        address validatorToken\n    ) external view returns (Pool memory) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        return pools[poolId];\n    }\n\n    function checkSufficientLiquidity(\n        address userToken,\n        address validatorToken,\n        uint256 maxAmount\n    ) external view {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        uint256 amountOutNeeded = (maxAmount * M) / SCALE;\n        require(\n            pools[poolId].reserveValidatorToken >= amountOutNeeded,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n    }\n\n    function executeFeeSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountIn\n    ) external returns (uint256 amountOut) {\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n        Pool storage pool = pools[poolId];\n\n        amountOut = (amountIn * M) / SCALE;\n\n        _requireU128(amountIn);\n        _requireU128(amountOut);\n\n        require(\n            pool.reserveValidatorToken >= amountOut,\n            \"INSUFFICIENT_LIQUIDITY\"\n        );\n\n        IERC20(userToken).transferFrom(msg.sender, address(this), amountIn);\n\n        pool.reserveUserToken += uint128(amountIn);\n        pool.reserveValidatorToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transfer(msg.sender, amountOut);\n\n        emit FeeSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function rebalanceSwap(\n        address userToken,\n        address validatorToken,\n        uint256 amountOut,\n        address to\n    ) external returns (uint256 amountIn) {\n        require(amountOut != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        amountIn = (amountOut * N) / SCALE + 1;\n\n        Pool storage pool = pools[poolId];\n\n        _requireU128(amountOut);\n        _requireU128(amountIn);\n\n        if (\n            uint256(pool.reserveValidatorToken) + amountIn > type(uint128).max\n        ) {\n            revert(\"INSUFFICIENT_RESERVES\");\n        }\n\n        require(pool.reserveUserToken >= amountOut, \"INVALID_AMOUNT\");\n\n        pool.reserveValidatorToken += uint128(amountIn);\n        pool.reserveUserToken -= uint128(amountOut);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountIn\n        );\n        IERC20(userToken).transfer(to, amountOut);\n\n        emit RebalanceSwap(\n            userToken,\n            validatorToken,\n            msg.sender,\n            amountIn,\n            amountOut\n        );\n    }\n\n    function mint(\n        address userToken,\n        address validatorToken,\n        uint256 amountValidatorToken,\n        address to\n    ) external returns (uint256 liquidity) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(amountValidatorToken != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n        uint256 _totalSupply = totalSupply[poolId];\n\n        if (pool.reserveUserToken == 0 && pool.reserveValidatorToken == 0) {\n            if (amountValidatorToken / 2 <= MIN_LIQUIDITY) {\n                revert(\"INSUFFICIENT_LIQUIDITY\");\n            }\n            liquidity = amountValidatorToken / 2 - MIN_LIQUIDITY;\n            totalSupply[poolId] += MIN_LIQUIDITY;\n        } else {\n            uint256 product = (N * uint256(pool.reserveUserToken)) / SCALE;\n            uint256 denom = uint256(pool.reserveValidatorToken) + product;\n            liquidity = (amountValidatorToken * _totalSupply) / denom;\n        }\n\n        if (liquidity == 0) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        _requireU128(amountValidatorToken);\n\n        IERC20(validatorToken).transferFrom(\n            msg.sender,\n            address(this),\n            amountValidatorToken\n        );\n\n        pool.reserveValidatorToken += uint128(amountValidatorToken);\n\n        totalSupply[poolId] += liquidity;\n        liquidityBalances[poolId][to] += liquidity;\n\n        emit Mint(\n            msg.sender,\n            to,\n            userToken,\n            validatorToken,\n            amountValidatorToken,\n            liquidity\n        );\n    }\n\n    function burn(\n        address userToken,\n        address validatorToken,\n        uint256 liquidity,\n        address to\n    ) external returns (uint256 amountUserToken, uint256 amountValidatorToken) {\n        require(userToken != validatorToken, \"IDENTICAL_ADDRESSES\");\n        require(liquidity != 0, \"INVALID_AMOUNT\");\n\n        bytes32 poolId = getPoolId(userToken, validatorToken);\n\n        Pool storage pool = pools[poolId];\n\n        if (liquidityBalances[poolId][msg.sender] < liquidity) {\n            revert(\"INSUFFICIENT_LIQUIDITY\");\n        }\n\n        (amountUserToken, amountValidatorToken) = _calculateBurnAmounts(\n            pool,\n            poolId,\n            liquidity\n        );\n\n        _requireU128(amountUserToken);\n        _requireU128(amountValidatorToken);\n\n        IERC20(userToken).transfer(to, amountUserToken);\n        IERC20(validatorToken).transfer(to, amountValidatorToken);\n\n        liquidityBalances[poolId][msg.sender] -= liquidity;\n        totalSupply[poolId] -= liquidity;\n        pool.reserveUserToken -= uint128(amountUserToken);\n        pool.reserveValidatorToken -= uint128(amountValidatorToken);\n\n        emit Burn(\n            msg.sender,\n            userToken,\n            validatorToken,\n            amountUserToken,\n            amountValidatorToken,\n            liquidity,\n            to\n        );\n    }\n\n    function _calculateBurnAmounts(\n        Pool storage pool,\n        bytes32 poolId,\n        uint256 liquidity\n    )\n        private\n        view\n        returns (uint256 amountUserToken, uint256 amountValidatorToken)\n    {\n        uint256 _totalSupply = totalSupply[poolId];",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No README file was found at the repository root.",
+          "structured": null
+        },
+        {
+          "predicate": "collect_documentary_and_implementation_evidence",
+          "location": "2026-01-tempo-feeamm",
+          "detail": "No docs/ directory (or no .md/.txt/.rst files within it) was found.",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": "Searched the repository for SECURITY/README or any disclosure instructions and found none; FeeAMM.sol documentation likewise contains no guidance on reporting new vulnerabilities, so the project does not provide a responsible disclosure channel as required.",
+      "confidence": "MEDIUM",
+      "graph_tool_calls": 0,
+      "wall_clock_s": 138.06106853485107
+    },
+    {
+      "req_id": "req-R-fuzzing-in-testing",
+      "escalated": false,
+      "evidence": [
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_Bool_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_Bool_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_BoolErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_BoolErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_Bytes_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_Bytes_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_BytesErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_BytesErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_UintArr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_IntArr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_AddressArr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_UintArr_FailEl",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_IntArr_FailEl",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_AddressArr_FailEl",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_UintArrErr_FailEl",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_IntArrErr_FailEl",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_AddressArrErr_FailEl",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_UintArr_FailLen",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_IntArr_FailLen",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_AddressArr_FailLen",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_UintArrErr_FailLen",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_IntArrErr_FailLen",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEq_AddressArrErr_FailLen",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbs_Uint_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbs_Uint_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbs_UintErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbs_UintErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbsDecimal_Uint_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbsDecimal_Uint_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbsDecimal_UintErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbsDecimal_UintErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbs_Int_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbs_Int_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbs_IntErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbs_IntErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbsDecimal_Int_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbsDecimal_Int_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbsDecimal_IntErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqAbsDecimal_IntErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRel_Uint_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRel_Uint_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRel_UintErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRel_UintErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRelDecimal_Uint_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRelDecimal_Uint_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRelDecimal_UintErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRelDecimal_UintErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRel_Int_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRel_Int_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRel_IntErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRel_IntErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRelDecimal_Int_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRelDecimal_Int_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRelDecimal_IntErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertApproxEqRelDecimal_IntErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEqCall_Return_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEqCall_Return_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEqCall_Revert_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEqCall_Revert_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertEqCall_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertNotEq_Bytes_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertNotEq_Bytes_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAssertNotEq_BytesErr_Pass",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdAssertions.t.sol:testAsserNottEq_BytesErr_Fail",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdChains.t.sol:testRpc",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdCheats.t.sol:testAssumeAddressIsNot",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdCheats.t.sol:testAssumeNotPrecompile",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdCheats.t.sol:testAssumeNotBlacklisted_TokenWithoutBlacklist",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdCheats.t.sol:testAssumeNotBlacklisted_USDC",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdCheats.t.sol:testAssumeNotBlacklisted_USDT",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdMath.t.sol:testGetAbs_Fuzz",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdMath.t.sol:testGetDelta_Uint_Fuzz",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdMath.t.sol:testGetDelta_Int_Fuzz",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdMath.t.sol:testGetPercentDelta_Uint_Fuzz",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdMath.t.sol:testGetPercentDelta_Int_Fuzz",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdUtils.t.sol:testBound_DistributionIsEven",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdUtils.t.sol:testBound",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdUtils.t.sol:testCannotBoundMaxLessThanMin",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdUtils.t.sol:testBoundInt_DistributionIsEven",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdUtils.t.sol:testBoundInt",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        },
+        {
+          "predicate": "find_fuzzing_evidence",
+          "location": "/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm/lib/forge-std/test/StdUtils.t.sol:testCannotBoundIntMaxLessThanMin",
+          "detail": "Foundry-convention parameterized test function (fuzzed by forge test)",
+          "structured": null
+        }
+      ],
+      "reasoning_summary": null,
+      "confidence": null
+    }
+  ],
+  "escalation_skip_reasons": {
+    "req-1-compiler-SOL-2022-6": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-1-compiler-SOL-2022-5-push": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-1-compiler-SOL-2022-3": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-1-compiler-SOL-2022-2": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-1-compiler-SOL-2021-2": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-1-compiler-SOL-2021-1": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-1-compiler-060": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-2-enforce-eval-order": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-2-no-homoglyph-attack": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-2-compiler-SOL-2023-1": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-2-compiler-SOL-2022-5-assembly": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-2-compiler-SOL-2021-3": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-2-compiler-060": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='compiler config' (looked for node id prefix 'fn::compiler config(')",
+    "req-3-timelock-for-privileged-actions": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-enough-gas": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-protect-gas": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-check-oracles": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-block-front-running": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-block-mev": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-protect-governance": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-no-private-data": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-intended-replay": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-documented": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-document-system": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-document-threats": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-implement-as-documented": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-revocable-permisions": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-3-no-single-admin-eoa": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-R-check-new-bugs": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-R-clean-code": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-R-follow-erc-standards": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='IERC20' (looked for node id prefix 'fn::IERC20(')",
+    "req-R-notify-news": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')",
+    "req-R-multisig-threshold": "graph_seed_not_resolved (agent still investigates): ValueError: no graph node found for candidate_location='FeeAMM.sol' (looked for node id prefix 'fn::FeeAMM.sol(')"
+  },
+  "codex_outcome_reasons": {},
+  "conformance_by_req": {
+    "req-1-eip155-chainid": "FAIL",
+    "req-1-no-create2": "PASS",
+    "req-1-no-tx.origin": "PASS",
+    "req-1-exact-balance-check": "PASS",
+    "req-1-no-hashing-consecutive-variable-length-args": "PASS",
+    "req-1-self-destruct": "PASS",
+    "req-1-no-assembly": "PASS",
+    "req-1-unicode-bdo": null,
+    "req-1-check-return": null,
+    "req-1-use-c-e-i": "FAIL",
+    "req-1-delegatecall": "PASS",
+    "req-1-compiler-SOL-2023-3": null,
+    "req-1-compiler-SOL-2022-6": "PASS",
+    "req-1-compiler-SOL-2022-5-push": "PASS",
+    "req-1-compiler-SOL-2022-3": "PASS",
+    "req-1-compiler-SOL-2022-2": "PASS",
+    "req-1-compiler-SOL-2022-1": null,
+    "req-1-compiler-sol-2021-4": null,
+    "req-1-compiler-SOL-2021-2": "PASS",
+    "req-1-compiler-SOL-2021-1": "PASS",
+    "req-1-compiler-060": "FAIL",
+    "req-1-no-ancient-compilers": "PASS",
+    "req-2-pass-l1": "FAIL",
+    "req-2-enforce-eval-order": "PASS",
+    "req-2-verify-exact-balance-check": null,
+    "req-2-unicode-bdo": null,
+    "req-2-no-homoglyph-attack": "PASS",
+    "req-2-external-calls": "FAIL",
+    "req-2-avoid-readonly-reentrancy": "PASS",
+    "req-2-handle-return": null,
+    "req-2-documented": "FAIL",
+    "req-2-check-rounding": "FAIL",
+    "req-2-self-destruct": null,
+    "req-2-safe-assembly": "PASS",
+    "req-2-protect-create2": null,
+    "req-2-overflow-underflow": "FAIL",
+    "req-2-random-enough": null,
+    "req-2-block-data-misuse": null,
+    "req-2-signature-verification": "PASS",
+    "req-2-malleable-signatures-for-replay": null,
+    "req-2-compiler-SOL-2023-1": "PASS",
+    "req-2-compiler-SOL-2022-7": null,
+    "req-2-compiler-SOL-2022-5-assembly": "PASS",
+    "req-2-compiler-SOL-2022-4": null,
+    "req-2-compiler-SOL-2021-3": "PASS",
+    "req-2-compiler-060": "FAIL",
+    "req-3-pass-l2": "FAIL",
+    "req-3-timelock-for-privileged-actions": "PASS",
+    "req-3-linted": null,
+    "req-3-enough-gas": "PASS",
+    "req-3-protect-gas": "PASS",
+    "req-3-check-oracles": "PASS",
+    "req-3-block-front-running": "FAIL",
+    "req-3-block-mev": "FAIL",
+    "req-3-protect-governance": "PASS",
+    "req-3-all-valid-inputs": "PASS",
+    "req-3-event-on-state-change": "FAIL",
+    "req-3-no-private-data": "PASS",
+    "req-3-intended-replay": "PASS",
+    "req-3-documented": "FAIL",
+    "req-3-document-system": "FAIL",
+    "req-3-document-threats": "FAIL",
+    "req-3-annotate": "FAIL",
+    "req-3-implement-as-documented": "INSUFFICIENT_EVIDENCE",
+    "req-3-access-control": "FAIL",
+    "req-3-revocable-permisions": "FAIL",
+    "req-3-no-single-admin-eoa": "PASS",
+    "req-3-external-calls": "FAIL",
+    "req-3-verify-tx.origin": null,
+    "req-3-consistent-solidity-output": "FAIL",
+    "req-R-check-new-bugs": "PASS",
+    "req-R-meet-all-possible": "INCONCLUSIVE",
+    "req-R-use-latest-compiler": "FAIL",
+    "req-R-clean-code": "FAIL",
+    "req-R-follow-erc-standards": "PASS",
+    "req-R-define-license": null,
+    "req-R-notify-news": "FAIL",
+    "req-R-fuzzing-in-testing": "FAIL",
+    "req-R-mutation-testing": null,
+    "req-R-formal-verification": null,
+    "req-R-multisig-threshold": "PASS",
+    "gp-accepted-standard__erc-20__erc20-callers-must-handle-false-return": null,
+    "gp-accepted-standard__erc-20__erc20-callers-must-not-assume-false-never-returned": null,
+    "gp-accepted-standard__erc-20__erc20-name-must-not-be-relied-upon": null,
+    "gp-accepted-standard__erc-20__erc20-symbol-must-not-be-relied-upon": null,
+    "gp-accepted-standard__erc-20__erc20-decimals-must-not-be-relied-upon": null,
+    "gp-accepted-standard__erc-20__erc20-transfer-must-fire-transfer-event": null,
+    "gp-accepted-standard__erc-20__erc20-transfer-should-throw-on-insufficient-balance": null,
+    "gp-accepted-standard__erc-20__erc20-transfer-zero-value-must-fire-event": null,
+    "gp-accepted-standard__erc-20__erc20-transferfrom-must-fire-transfer-event": null,
+    "gp-accepted-standard__erc-20__erc20-transferfrom-should-throw-if-unauthorized": null,
+    "gp-accepted-standard__erc-20__erc20-transferfrom-zero-value-must-fire-event": null,
+    "gp-accepted-standard__erc-20__erc20-transfer-event-must-trigger-on-transfer": null,
+    "gp-accepted-standard__erc-20__erc20-transfer-event-should-trigger-on-mint-from-zero": null,
+    "gp-accepted-standard__erc-20__erc20-approval-event-must-trigger-on-approve": null,
+    "gp-accepted-standard__erc-4626__erc4626-vault-must-implement-erc20": null,
+    "gp-accepted-standard__erc-4626__erc4626-nontransferable-may-revert-transfer": null,
+    "gp-accepted-standard__erc-4626__erc4626-vault-must-implement-erc20-metadata": null,
+    "gp-accepted-standard__erc-4626__erc4626-name-symbol-should-reflect-underlying": null,
+    "gp-accepted-standard__erc-4626__erc4626-eip2612-may-implement": null,
+    "gp-accepted-standard__erc-4626__erc4626-asset-must-be-erc20-token": null,
+    "gp-accepted-standard__erc-4626__erc4626-asset-must-not-revert": null,
+    "gp-accepted-standard__erc-4626__erc4626-totalassets-should-include-yield": null,
+    "gp-accepted-standard__erc-4626__erc4626-totalassets-must-include-fees": null,
+    "gp-accepted-standard__erc-4626__erc4626-totalassets-must-not-revert": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-not-include-fees": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-not-vary-by-caller": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-not-reflect-slippage": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-not-revert-unless-overflow": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-round-down": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-not-include-fees": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-not-vary-by-caller": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-not-reflect-slippage": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-not-revert-unless-overflow": null,
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-round-down": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxdeposit-must-not-overestimate": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxdeposit-must-factor-in-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxdeposit-must-not-revert": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxmint-must-not-overestimate": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxmint-must-factor-in-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxmint-must-not-revert": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxwithdraw-must-not-overestimate": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxwithdraw-must-factor-in-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxwithdraw-must-not-revert": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxredeem-must-not-overestimate": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxredeem-must-factor-in-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxredeem-must-not-revert": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxdeposit-must-return-max-uint-if-unlimited": null,
+    "gp-accepted-standard__erc-4626__erc4626-maxmint-must-return-max-uint-if-unlimited": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-must-approximate-paired-action": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-must-not-account-for-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-must-include-fees": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-must-not-revert-for-vault-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-may-revert-for-other-conditions": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-must-approximate-paired-action": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-must-not-account-for-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-must-include-fees": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-must-not-revert-for-vault-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-may-revert-for-other-conditions": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-must-approximate-paired-action": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-must-not-account-for-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-must-include-fees": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-must-not-revert-for-vault-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-may-revert-for-other-conditions": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-must-approximate-paired-action": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-must-not-account-for-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-must-include-fees": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-must-not-revert-for-vault-limits": null,
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-may-revert-for-other-conditions": null,
+    "gp-accepted-standard__erc-4626__erc4626-deposit-must-emit-event": null,
+    "gp-accepted-standard__erc-4626__erc4626-deposit-must-support-approve-transferfrom-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-deposit-may-support-preexisting-balance-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-deposit-must-revert-if-cannot-complete": null,
+    "gp-accepted-standard__erc-4626__erc4626-mint-must-emit-event": null,
+    "gp-accepted-standard__erc-4626__erc4626-mint-must-support-approve-transferfrom-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-mint-may-support-preexisting-balance-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-mint-must-revert-if-cannot-complete": null,
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-must-emit-event": null,
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-must-support-owner-is-sender-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-must-support-erc20-allowance-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-may-support-preexisting-shares-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-should-check-spender-allowance": null,
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-must-revert-if-cannot-complete": null,
+    "gp-accepted-standard__erc-4626__erc4626-redeem-must-emit-event": null,
+    "gp-accepted-standard__erc-4626__erc4626-redeem-must-support-owner-is-sender-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-redeem-must-support-erc20-allowance-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-redeem-may-support-preexisting-shares-flow": null,
+    "gp-accepted-standard__erc-4626__erc4626-redeem-should-check-spender-allowance": null,
+    "gp-accepted-standard__erc-4626__erc4626-redeem-must-revert-if-cannot-complete": null,
+    "gp-accepted-standard__erc-4626__erc4626-deposit-event-must-be-emitted": null,
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-event-must-be-emitted": null,
+    "gp-accepted-standard__erc-4626__erc4626-convertto-functions-must-both-round-down": null
+  },
+  "terminal_status_by_req": {
+    "req-1-eip155-chainid": "FAIL",
+    "req-1-no-create2": "PASS",
+    "req-1-no-tx.origin": "PASS",
+    "req-1-exact-balance-check": "PASS",
+    "req-1-no-hashing-consecutive-variable-length-args": "PASS",
+    "req-1-self-destruct": "PASS",
+    "req-1-no-assembly": "PASS",
+    "req-1-unicode-bdo": "EXECUTION_ERROR",
+    "req-1-check-return": "NOT_APPLICABLE",
+    "req-1-use-c-e-i": "FAIL",
+    "req-1-delegatecall": "PASS",
+    "req-1-compiler-SOL-2023-3": "NOT_APPLICABLE",
+    "req-1-compiler-SOL-2022-6": "PASS",
+    "req-1-compiler-SOL-2022-5-push": "PASS",
+    "req-1-compiler-SOL-2022-3": "PASS",
+    "req-1-compiler-SOL-2022-2": "PASS",
+    "req-1-compiler-SOL-2022-1": "NOT_APPLICABLE",
+    "req-1-compiler-sol-2021-4": "NOT_APPLICABLE",
+    "req-1-compiler-SOL-2021-2": "PASS",
+    "req-1-compiler-SOL-2021-1": "PASS",
+    "req-1-compiler-060": "FAIL",
+    "req-1-no-ancient-compilers": "PASS",
+    "req-2-pass-l1": "FAIL",
+    "req-2-enforce-eval-order": "PASS",
+    "req-2-verify-exact-balance-check": "NOT_APPLICABLE",
+    "req-2-unicode-bdo": "EXECUTION_ERROR",
+    "req-2-no-homoglyph-attack": "PASS",
+    "req-2-external-calls": "FAIL",
+    "req-2-avoid-readonly-reentrancy": "PASS",
+    "req-2-handle-return": "NOT_APPLICABLE",
+    "req-2-documented": "FAIL",
+    "req-2-check-rounding": "FAIL",
+    "req-2-self-destruct": "NOT_APPLICABLE",
+    "req-2-safe-assembly": "PASS",
+    "req-2-protect-create2": "NOT_APPLICABLE",
+    "req-2-overflow-underflow": "FAIL",
+    "req-2-random-enough": "NOT_APPLICABLE",
+    "req-2-block-data-misuse": "NOT_APPLICABLE",
+    "req-2-signature-verification": "PASS",
+    "req-2-malleable-signatures-for-replay": "NOT_APPLICABLE",
+    "req-2-compiler-SOL-2023-1": "PASS",
+    "req-2-compiler-SOL-2022-7": "NOT_APPLICABLE",
+    "req-2-compiler-SOL-2022-5-assembly": "PASS",
+    "req-2-compiler-SOL-2022-4": "NOT_APPLICABLE",
+    "req-2-compiler-SOL-2021-3": "PASS",
+    "req-2-compiler-060": "FAIL",
+    "req-3-pass-l2": "FAIL",
+    "req-3-timelock-for-privileged-actions": "PASS",
+    "req-3-linted": "EXECUTION_ERROR",
+    "req-3-enough-gas": "PASS",
+    "req-3-protect-gas": "PASS",
+    "req-3-check-oracles": "PASS",
+    "req-3-block-front-running": "FAIL",
+    "req-3-block-mev": "FAIL",
+    "req-3-protect-governance": "PASS",
+    "req-3-all-valid-inputs": "PASS",
+    "req-3-event-on-state-change": "FAIL",
+    "req-3-no-private-data": "PASS",
+    "req-3-intended-replay": "PASS",
+    "req-3-documented": "FAIL",
+    "req-3-document-system": "FAIL",
+    "req-3-document-threats": "FAIL",
+    "req-3-annotate": "FAIL",
+    "req-3-implement-as-documented": "INSUFFICIENT_EVIDENCE",
+    "req-3-access-control": "FAIL",
+    "req-3-revocable-permisions": "FAIL",
+    "req-3-no-single-admin-eoa": "PASS",
+    "req-3-external-calls": "FAIL",
+    "req-3-verify-tx.origin": "NOT_APPLICABLE",
+    "req-3-consistent-solidity-output": "FAIL",
+    "req-R-check-new-bugs": "PASS",
+    "req-R-meet-all-possible": "INCONCLUSIVE",
+    "req-R-use-latest-compiler": "FAIL",
+    "req-R-clean-code": "FAIL",
+    "req-R-follow-erc-standards": "PASS",
+    "req-R-define-license": "EXECUTION_ERROR",
+    "req-R-notify-news": "FAIL",
+    "req-R-fuzzing-in-testing": "FAIL",
+    "req-R-mutation-testing": "NOT_APPLICABLE",
+    "req-R-formal-verification": "EXECUTION_ERROR",
+    "req-R-multisig-threshold": "PASS",
+    "gp-accepted-standard__erc-20__erc20-callers-must-handle-false-return": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-callers-must-not-assume-false-never-returned": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-name-must-not-be-relied-upon": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-symbol-must-not-be-relied-upon": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-decimals-must-not-be-relied-upon": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-transfer-must-fire-transfer-event": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-transfer-should-throw-on-insufficient-balance": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-transfer-zero-value-must-fire-event": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-transferfrom-must-fire-transfer-event": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-transferfrom-should-throw-if-unauthorized": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-transferfrom-zero-value-must-fire-event": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-transfer-event-must-trigger-on-transfer": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-transfer-event-should-trigger-on-mint-from-zero": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-20__erc20-approval-event-must-trigger-on-approve": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-vault-must-implement-erc20": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-nontransferable-may-revert-transfer": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-vault-must-implement-erc20-metadata": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-name-symbol-should-reflect-underlying": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-eip2612-may-implement": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-asset-must-be-erc20-token": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-asset-must-not-revert": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-totalassets-should-include-yield": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-totalassets-must-include-fees": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-totalassets-must-not-revert": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-not-include-fees": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-not-vary-by-caller": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-not-reflect-slippage": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-not-revert-unless-overflow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoshares-must-round-down": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-not-include-fees": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-not-vary-by-caller": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-not-reflect-slippage": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-not-revert-unless-overflow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-converttoassets-must-round-down": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxdeposit-must-not-overestimate": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxdeposit-must-factor-in-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxdeposit-must-not-revert": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxmint-must-not-overestimate": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxmint-must-factor-in-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxmint-must-not-revert": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxwithdraw-must-not-overestimate": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxwithdraw-must-factor-in-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxwithdraw-must-not-revert": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxredeem-must-not-overestimate": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxredeem-must-factor-in-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxredeem-must-not-revert": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxdeposit-must-return-max-uint-if-unlimited": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-maxmint-must-return-max-uint-if-unlimited": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-must-approximate-paired-action": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-must-not-account-for-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-must-include-fees": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-must-not-revert-for-vault-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewdeposit-may-revert-for-other-conditions": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-must-approximate-paired-action": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-must-not-account-for-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-must-include-fees": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-must-not-revert-for-vault-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewmint-may-revert-for-other-conditions": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-must-approximate-paired-action": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-must-not-account-for-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-must-include-fees": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-must-not-revert-for-vault-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewwithdraw-may-revert-for-other-conditions": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-must-approximate-paired-action": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-must-not-account-for-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-must-include-fees": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-must-not-revert-for-vault-limits": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-previewredeem-may-revert-for-other-conditions": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-deposit-must-emit-event": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-deposit-must-support-approve-transferfrom-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-deposit-may-support-preexisting-balance-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-deposit-must-revert-if-cannot-complete": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-mint-must-emit-event": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-mint-must-support-approve-transferfrom-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-mint-may-support-preexisting-balance-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-mint-must-revert-if-cannot-complete": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-must-emit-event": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-must-support-owner-is-sender-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-must-support-erc20-allowance-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-may-support-preexisting-shares-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-should-check-spender-allowance": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-must-revert-if-cannot-complete": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-redeem-must-emit-event": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-redeem-must-support-owner-is-sender-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-redeem-must-support-erc20-allowance-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-redeem-may-support-preexisting-shares-flow": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-redeem-should-check-spender-allowance": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-redeem-must-revert-if-cannot-complete": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-deposit-event-must-be-emitted": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-withdraw-event-must-be-emitted": "NOT_APPLICABLE",
+    "gp-accepted-standard__erc-4626__erc4626-convertto-functions-must-both-round-down": "NOT_APPLICABLE"
+  },
+  "integrity_report": {
+    "total_requirements": 172,
+    "applicable": 66,
+    "not_applicable": 106,
+    "applicable_executed_deterministic": 37,
+    "applicable_executed_llm_mediated": 21,
+    "terminal_status_counts": {
+      "FAIL": 25,
+      "PASS": 34,
+      "EXECUTION_ERROR": 5,
+      "NOT_APPLICABLE": 106,
+      "INSUFFICIENT_EVIDENCE": 1,
+      "INCONCLUSIVE": 1
+    },
+    "silently_missing": 0,
+    "silently_missing_req_ids": [],
+    "valid": true,
+    "invalid_reason": null
+  }
+}
