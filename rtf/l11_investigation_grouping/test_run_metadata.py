@@ -54,18 +54,20 @@ def test_unknown_policy_name_rejected():
         check("unknown policy name: rejected", True)
 
 
-def test_known_but_unimplemented_policy_rejected_distinctly():
-    """G1 is a real, named future policy (Phase 5) -- distinguishable
-    from a typo'd/unknown name by raising NotImplementedError, not
-    ValueError."""
+def test_g1_now_implemented_as_of_phase_5_constructs_cleanly():
+    """G1 was a named-but-unimplemented future policy through Phase 4;
+    as of Phase 5 (rtf.l11_investigation_grouping.policies) it's real --
+    constructing a RunMetadata with it must no longer raise."""
+    md = RunMetadata(grouping_policy=GROUPING_POLICY_G1_CONSERVATIVE, cluster_size=4)
+    check("G1 constructs cleanly post-Phase-5", md.grouping_policy == GROUPING_POLICY_G1_CONSERVATIVE)
+
+
+def test_unknown_policy_name_still_rejected_after_phase_5():
     try:
-        RunMetadata(grouping_policy=GROUPING_POLICY_G1_CONSERVATIVE)
-        check("known-but-unimplemented policy: rejected", False, "did not raise")
-    except NotImplementedError:
-        check("known-but-unimplemented policy: rejected", True)
+        RunMetadata(grouping_policy="TOTALLY_MADE_UP_POLICY")
+        check("unknown policy name still rejected", False, "did not raise")
     except ValueError:
-        check("known-but-unimplemented policy: rejected with the WRONG exception type "
-              "(should be NotImplementedError, distinguishable from a typo)", False)
+        check("unknown policy name still rejected", True)
 
 
 def test_constants_are_consistent_with_defaults():

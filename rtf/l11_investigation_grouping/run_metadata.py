@@ -14,11 +14,11 @@ instances` when `instance_expansion_enabled=True`, or the original
 1-requirement-1-investigation path when it's False) -- this is the
 reference/accuracy baseline every later grouping policy is measured
 against, per the plan's explicit instruction not to remove it.
-`G1_CONSERVATIVE`/`G2_CONTEXT_AWARE`/`G3_ADAPTIVE` are declared now as
-named future policies (Phase 5 of the plan) so downstream code/tests can
-reference stable identifiers before those policies exist; using one that
-isn't implemented yet is a `NotImplementedError` at the point of use, not
-silently accepted here.
+`G1_CONSERVATIVE`/`G2_CONTEXT_AWARE`/`G3_ADAPTIVE` (Phase 5,
+`rtf.l11_investigation_grouping.policies`) are now real, implemented
+policies built on top of the Phase 4 grouping engine -- constructing a
+`RunMetadata` with any of them no longer raises. A genuinely unknown
+policy name still raises `ValueError` (never silently accepted).
 """
 from __future__ import annotations
 
@@ -40,7 +40,16 @@ KNOWN_GROUPING_POLICIES = frozenset({
 # name from KNOWN_GROUPING_POLICIES that isn't in this set is a
 # legitimate future policy (safe to name in config/telemetry), but
 # invoking it is not yet supported -- see run_metadata_for_policy.
-IMPLEMENTED_GROUPING_POLICIES = frozenset({GROUPING_POLICY_G0_UNGROUPED})
+IMPLEMENTED_GROUPING_POLICIES = frozenset({
+    GROUPING_POLICY_G0_UNGROUPED, GROUPING_POLICY_G1_CONSERVATIVE,
+    GROUPING_POLICY_G2_CONTEXT_AWARE, GROUPING_POLICY_G3_ADAPTIVE,
+})
+"""As of Phase 5 (`rtf.l11_investigation_grouping.policies`), all 4 named
+policies have a real implementation -- see that module for each one's
+exact parameterization of the Phase 4 grouping engine. Kept as a
+separate, manually-updated set here (not derived by importing policies.py)
+to avoid a circular import: policies.py already imports the policy name
+constants from this module."""
 
 # Bumped only when the underlying mechanism actually changes -- lets a
 # later analysis distinguish "same policy name, different behavior

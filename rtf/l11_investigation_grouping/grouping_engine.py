@@ -175,6 +175,8 @@ def cluster_properties(
     properties: list[PropertyMetadata],
     min_score_to_group: float = STRONG_POSITIVE_WEIGHT,
     max_cluster_size: int | None = None,
+    max_context_size: int | None = None,
+    hard_gate=None,
 ) -> list[Cluster]:
     """Deterministic greedy agglomerative clustering.
 
@@ -187,15 +189,25 @@ def cluster_properties(
     and every existing member, a conservative choice: a cluster is only
     as compatible with a newcomer as its weakest existing member is).
     A merge is blocked (regardless of score) if: any pairwise score
-    within the resulting cluster would be a hard veto, or the merge
-    would exceed `max_cluster_size`.
+    within the resulting cluster would be a hard veto, the merge would
+    exceed `max_cluster_size`, the merge's `estimated_context_size` would
+    exceed `max_context_size`, or (when `hard_gate` is given) any pair
+    within the resulting cluster fails `hard_gate(a, b)`.
 
     `min_score_to_group`: only pairs scoring at or above this threshold
     are ever considered for merging -- defaults to exactly one strong
     positive signal's worth (a single strong-positive-signal match is
     the minimum bar to even consider grouping; ties/weak-only overlap
-    never merges on its own). Phase 5 policies will pass their own
-    threshold presets here rather than relying on this default.
+    never merges on its own).
+
+    `hard_gate`, when given, is an ADDITIONAL required condition
+    (`Callable[[PropertyMetadata, PropertyMetadata], bool]`) checked
+    alongside the score threshold, not instead of it -- both must pass.
+    This is how Phase 5's G1 ("conservative": same requirement AND same
+    category AND same contract, a strict boolean AND the additive score
+    alone cannot faithfully express, since other signal combinations
+    could reach the same numeric total) is built on top of this same
+    engine rather than needing a separate implementation.
 
     Returns one `Cluster` per group, covering every input property
     exactly once (singletons included) -- `cluster_properties` never
@@ -246,6 +258,15 @@ def cluster_properties(
                 score, veto, reasons = pairwise_min_score(clusters[i], clusters[j])
                 if veto:
                     continue
+                if hard_gate is not None and not all(
+                    hard_gate(by_id[pid_a], by_id[pid_b])
+                    for pid_a in clusters[i] for pid_b in clusters[j]
+                ):
+                    continue
+                if max_context_size is not None:
+                    merged_members = [by_id[pid] for pid in clusters[i] + clusters[j]]
+                    if _estimate_context_size(merged_members) > max_context_size:
+                        continue
                 if score > best_score or (
                     score == best_score and best_pair is not None
                     and (clusters[i][0], clusters[j][0]) < (clusters[best_pair[0]][0], clusters[best_pair[1]][0])
