@@ -304,6 +304,19 @@ def run_one_audit(
             print(f"[{audit_id}] entry {rel_path}: INTEGRITY CHECK FAILED -- "
                   f"{artifacts.integrity_report.invalid_reason}", flush=True)
 
+        # Phase 1 of the grouped-investigation-architecture plan: record
+        # how many distinct investigation INSTANCES actually ran, not
+        # just how many requirements escalated -- these differ once
+        # instance_expansion_enabled=True (rtf.l10_property_derivation)
+        # lets one requirement produce several. `instance_results` is
+        # only non-empty under that flag; when it's off (the default),
+        # instances == escalations, one per requirement, exactly the
+        # pre-expansion baseline.
+        num_investigation_instances = (
+            sum(len(v) for v in artifacts.instance_results.values())
+            if artifacts.instance_results else artifacts.stage_metrics.bundles_escalated_to_codex
+        )
+
         per_entry_summaries.append({
             "entry": rel_path, "wall_s": dt, "codex_cost": artifacts.total_codex_cost_usd,
             "stage_metrics": asdict(artifacts.stage_metrics),
@@ -315,6 +328,8 @@ def run_one_audit(
                                     for k, v in artifacts.run.routed.items()},
             "terminal_status_by_req": {k: compute_terminal_status(v) for k, v in artifacts.run.routed.items()},
             "integrity_report": artifacts.integrity_report.to_dict(),
+            "run_metadata": artifacts.run_metadata.as_dict(),
+            "num_investigation_instances": num_investigation_instances,
         })
         (artifacts_dir / f"entry_{i:02d}_{Path(rel_path).stem}_stage.json").write_text(
             json.dumps(per_entry_summaries[-1], indent=2, default=str))

@@ -59,6 +59,7 @@ from rtf.l8_llm_judgment_layer.judgment_layer import LLMJudgmentLayer
 from rtf.l10_property_derivation.derive_investigations import (
     InvestigationInstance, aggregate_instance_verdicts, expand_investigation_instances,
 )
+from rtf.l11_investigation_grouping.run_metadata import RunMetadata, default_run_metadata
 from rtf.l12_evaluation.codex_bridge import build_codex_prompt_inputs, resolve_conformance_from_arm_g
 from rtf.l12_evaluation.evidence_ranking import rank_evidence
 from rtf.l12_evaluation.failure_taxonomy import OperationalStatus
@@ -318,6 +319,14 @@ class PipelineArtifacts:
     the full per-instance detail for callers that want it (a future
     report_generator.py enhancement, not built in this pass -- see
     RTF_ETHTRUST_TRANSLATION_AUDIT.md's Phase 2/3 discussion)."""
+    run_metadata: RunMetadata = field(default_factory=default_run_metadata)
+    """Phase 1 of the grouped-investigation-architecture plan: stable,
+    comparable-across-runs experimental configuration (grouping_policy,
+    cluster_size, planner_version, context_version,
+    investigation_prompt_version) -- see
+    `rtf.l11_investigation_grouping.run_metadata`. Defaults to
+    `default_run_metadata()` (G0_UNGROUPED, no planner/context yet),
+    which honestly describes every run before this field existed."""
 
 
 def _run_escalations_concurrent(
@@ -858,4 +867,5 @@ def run_pipeline_e2e(
         graph_seed_resolved=graph_seed_resolved,
         generated_bundles=generated_bundles,
         instance_results=instance_results,
+        run_metadata=default_run_metadata(),
     )
