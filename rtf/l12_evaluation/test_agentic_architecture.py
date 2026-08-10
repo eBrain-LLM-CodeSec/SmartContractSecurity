@@ -19,6 +19,7 @@ from unittest.mock import patch
 from rtf.l8_llm_judgment_layer.bundle_agent_experiment.arm_g_codex import (
     ArmGResult,
     prepare_full_repo_investigation_dir,
+    write_extra_investigation_files,
 )
 from rtf.l12_evaluation import pipeline_e2e
 from rtf.l12_evaluation.registry import AGENT_REQUIRED_REQ_IDS, DETERMINISTIC_COMPLETE_REQ_IDS, REGISTRY
@@ -149,6 +150,48 @@ def test_full_repo_copy_excludes_git_but_includes_everything_else():
         check("full-repo copy: nested src/Contract.sol present", (investigation_dir / "src" / "Contract.sol").exists(), "")
         check("full-repo copy: docs/spec.md present", (investigation_dir / "docs" / "spec.md").exists(), "")
         check("full-repo copy: .git excluded", not (investigation_dir / ".git").exists(), "")
+
+
+def test_write_extra_investigation_files_places_content_at_relative_paths():
+    """The grouped-investigation architecture's own injection point
+    (rtf.l11_investigation_grouping.context_artifacts) -- written AFTER
+    the full-repo copy so nothing here can be clobbered by it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        investigation_dir = Path(tmp) / "investigation"
+        investigation_dir.mkdir()
+        (investigation_dir / "src").mkdir()
+        (investigation_dir / "src" / "Contract.sol").write_text("contract C {}")
+
+        written = write_extra_investigation_files(investigation_dir, {
+            ".rtf/context/protocol_context.md": "# protocol\n",
+            ".rtf/context/requirements/req-x.md": "# requirement req-x\n",
+            ".rtf/plans/cluster_000.md": "# plan\n",
+        })
+        check("3 files written", len(written) == 3, written)
+        check("protocol context placed correctly",
+              (investigation_dir / ".rtf" / "context" / "protocol_context.md").read_text() == "# protocol\n")
+        check("requirement context placed correctly (nested dir auto-created)",
+              (investigation_dir / ".rtf" / "context" / "requirements" / "req-x.md").read_text() == "# requirement req-x\n")
+        check("cluster plan placed correctly",
+              (investigation_dir / ".rtf" / "plans" / "cluster_000.md").read_text() == "# plan\n")
+        check("pre-existing repo content untouched",
+              (investigation_dir / "src" / "Contract.sol").read_text() == "contract C {}")
+
+
+def test_write_extra_investigation_files_none_writes_nothing():
+    with tempfile.TemporaryDirectory() as tmp:
+        investigation_dir = Path(tmp) / "investigation"
+        investigation_dir.mkdir()
+        written = write_extra_investigation_files(investigation_dir, None)
+        check("None extra_files: writes nothing, returns empty list, no crash", written == [], written)
+
+
+def test_write_extra_investigation_files_empty_dict_writes_nothing():
+    with tempfile.TemporaryDirectory() as tmp:
+        investigation_dir = Path(tmp) / "investigation"
+        investigation_dir.mkdir()
+        written = write_extra_investigation_files(investigation_dir, {})
+        check("empty dict: writes nothing", written == [], written)
 
 
 # --- 4/9 + 7/9: no candidate_location precondition, graph ambiguity/failure never blocks ---
@@ -369,6 +412,9 @@ def main() -> int:
         test_agent_required_always_invokes_agent_when_evidence_exists,
         test_full_repo_copy_includes_content_beyond_8000_chars,
         test_full_repo_copy_excludes_git_but_includes_everything_else,
+        test_write_extra_investigation_files_places_content_at_relative_paths,
+        test_write_extra_investigation_files_none_writes_nothing,
+        test_write_extra_investigation_files_empty_dict_writes_nothing,
         test_agent_invoked_even_when_graph_seed_never_resolves,
         test_ambiguous_graph_seed_does_not_block_agent_invocation,
         test_prompt_forbids_premature_insufficient_evidence,

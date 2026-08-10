@@ -144,11 +144,32 @@ def prepare_full_repo_investigation_dir(repo_root: Path, investigation_dir: Path
     return investigation_dir
 
 
+def write_extra_investigation_files(investigation_dir: Path, extra_files: dict[str, str] | None) -> list[Path]:
+    """Writes each {relative_path: content} pair into `investigation_dir`,
+    creating parent directories as needed. Extracted from
+    `run_arm_g_bundle` as its own testable function for the same reason
+    `prepare_full_repo_investigation_dir` was: unit-testable without a
+    real Codex binary/API key. A None or empty `extra_files` writes
+    nothing and returns `[]` -- every existing `run_arm_g_bundle` caller
+    (which never passes this argument) sees no behavior change. Returns
+    the list of paths actually written, for callers/tests that want to
+    verify placement without re-deriving it from `extra_files.keys()`.
+    """
+    written: list[Path] = []
+    for relative_path, content in (extra_files or {}).items():
+        dest = investigation_dir / relative_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8")
+        written.append(dest)
+    return written
+
+
 def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Path,
                       api_key: str, model: str, case_id: str,
                       entry_file: Path, repo_root: Path, candidate_location: str,
                       solc_path_dir: str, solc_remaps: list[str] | None,
-                      prompt: str, scratch_root: Path, timeout_s: int = 300) -> ArmGResult:
+                      prompt: str, scratch_root: Path, timeout_s: int = 300,
+                      extra_files: dict[str, str] | None = None) -> ArmGResult:
     """Runs one graph-gated-but-not-graph-RESTRICTED Codex investigation.
 
     Per the "revisit the RTF architecture" directive: the agent gets REAL,
@@ -179,6 +200,16 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
 
     investigation_dir = scratch_root / f"{case_id}_gview"
     prepare_full_repo_investigation_dir(repo_root, investigation_dir)
+
+    # Written AFTER the full-repo copy so nothing here can be clobbered
+    # by it, and BEFORE the codex call so the agent can read these from
+    # turn one. Used by the grouped-investigation architecture
+    # (rtf.l11_investigation_grouping.context_artifacts) to place its
+    # protocol-context/requirement-context/cluster-plan Markdown files
+    # (relative paths like ".rtf/context/protocol_context.md") inside
+    # the agent's own investigation copy -- every other caller passes
+    # None (the default) and sees no behavior change.
+    write_extra_investigation_files(investigation_dir, extra_files)
 
     # A separate, GUARANTEED-empty neutral cwd for the graph MCP server's
     # own solc compile (see graph_mcp_server.py's GRAPH_SOLC_CWD docstring
