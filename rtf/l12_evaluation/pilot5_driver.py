@@ -33,6 +33,8 @@ from rtf.l12_evaluation.pipeline_e2e import compute_terminal_status, run_pipelin
 from rtf.l12_evaluation.report_generator import generate_audit_md  # noqa: E402
 from rtf.l12_evaluation.metrics import ApplicabilityState, ConformanceState, EvidenceItem, OperationalStatus, RoutedRequirementResult, TargetRunResult  # noqa: E402
 from rtf.l12_evaluation.run_grader import run_grader  # noqa: E402
+from rtf.l12_evaluation.run_rtf import build_context_for_evmbench_target  # noqa: E402
+from rtf.standards.routing import build_standards_routed_requirements  # noqa: E402
 import asyncio  # noqa: E402
 
 CODEX_BIN = Path("/scratch/md5344/.claude/jobs/318205ae/tmp/codex_bin/codex")
@@ -146,6 +148,7 @@ def run_one_audit(
     stage_totals = StageMetrics()
     all_raw_l8 = {}
     all_codex_results = {}
+    all_generated_bundles = {}
     infra_failures = []
 
     remaining_ceiling = per_audit_codex_ceiling_usd
@@ -166,6 +169,34 @@ def run_one_audit(
                         stage_totals.final_decisions[kk] = stage_totals.final_decisions.get(kk, 0) + vv
                 else:
                     setattr(stage_totals, k, getattr(stage_totals, k, 0) + v)
+            fail_req_ids = [fdet["req_id"] for fdet in saved.get("fail_details", [])]
+            resumed_bundles: dict = {}
+            if any(rid.startswith("gp-accepted-standard__") for rid in fail_req_ids):
+                # Resuming an entry with generated (ERC-standard-derived) FAIL
+                # findings: the saved stage.json doesn't persist bundle text
+                # (only req_id/evidence/reasoning), and this resume path
+                # otherwise skips run_pipeline_e2e entirely (by design -- no
+                # re-spending). Regenerate the bundles for FREE by re-running
+                # ONLY the deterministic, already-tested standards pipeline
+                # (compile + discover + generate; zero Codex/LLM calls) --
+                # not a re-derivation of anything Codex decided, purely the
+                # same source-driven text build_standards_routed_requirements
+                # would have produced originally.
+                entry_solc_version = _solc_version_for(rel_path, default_solc_version, path_prefix_overrides)
+                resume_ctx, resume_compile_error = build_context_for_evmbench_target(
+                    repo_root / rel_path.lstrip("./"), repo_root, entry_solc_version,
+                )
+                if resume_ctx.slither is not None and resume_ctx.repo_root is not None:
+                    _, _, resumed_bundles = build_standards_routed_requirements(
+                        repo_root=resume_ctx.repo_root,
+                        entry_sol_file=repo_root / rel_path.lstrip("./"),
+                        slither=resume_ctx.slither,
+                    )
+                else:
+                    print(f"[{audit_id}] entry {rel_path}: could not recompile to regenerate bundles for "
+                          f"resumed generated FAIL findings ({resume_compile_error!r}) -- their audit.md "
+                          f"entries will fall back to the bare req_id string, not a crash", flush=True)
+
             for fdet in saved.get("fail_details", []):
                 key = f"{fdet['req_id']}::{rel_path}"
                 evidence = tuple(EvidenceItem(**e) for e in fdet["evidence"])
@@ -174,6 +205,8 @@ def run_one_audit(
                     operational_status=OperationalStatus.OK, conformance_state=ConformanceState.FAIL,
                     evidence=evidence,
                 )
+                if fdet["req_id"] in resumed_bundles:
+                    all_generated_bundles[key] = resumed_bundles[fdet["req_id"]]
                 if fdet["escalated"]:
                     all_codex_results[key] = SimpleNamespace(
                         graph_tool_calls=fdet["graph_tool_calls"], wall_clock_s=fdet["wall_clock_s"],
@@ -228,6 +261,8 @@ def run_one_audit(
                 continue
             key = f"{req_id}::{rel_path}"
             merged_routed[key] = r
+            if req_id in artifacts.generated_bundles:
+                all_generated_bundles[key] = artifacts.generated_bundles[req_id]
             escalated = req_id in artifacts.codex_results
             if escalated:
                 cr = artifacts.codex_results[req_id]
@@ -281,6 +316,7 @@ def run_one_audit(
     fake.run = TargetRunResult(audit_id=audit_id, routed=merged_routed)
     fake.codex_results = all_codex_results
     fake.raw_l8_judgments = all_raw_l8
+    fake.generated_bundles = all_generated_bundles
 
     audit_md = generate_audit_md(fake, audit_title=audit_id)
     audit_md_path = artifacts_dir / "audit.md"
