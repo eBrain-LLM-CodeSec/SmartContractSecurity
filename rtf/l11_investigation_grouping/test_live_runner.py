@@ -158,7 +158,7 @@ def test_run_live_writes_expected_extra_files_and_calls_mock_once_per_cluster():
         ]})
 
     with tempfile.TemporaryDirectory() as tmp:
-        verdicts, results, cost = run_cluster_investigations_live(
+        verdicts, results, cost, raw_entries = run_cluster_investigations_live(
             [cluster], by_id, "# protocol\n", {"req-x": "# req-x\n"},
             audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
             codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
@@ -175,6 +175,9 @@ def test_run_live_writes_expected_extra_files_and_calls_mock_once_per_cluster():
         check("f1 resolves PASS", verdicts["f1"].conformance_state == ConformanceState.PASS, verdicts["f1"])
         check("f2 resolves FAIL", verdicts["f2"].conformance_state == ConformanceState.FAIL, verdicts["f2"])
         check("cost accumulated", cost == 0.01, cost)
+        check("raw_entries has the real evidence text for f2's FAIL",
+              raw_entries.get("f2", {}).get("evidence") == "found it", raw_entries.get("f2"))
+        check("raw_entries has both property ids", set(raw_entries.keys()) == {"f1", "f2"}, raw_entries.keys())
 
 
 def test_run_live_incomplete_response_triggers_split_and_both_halves_investigated():
@@ -209,7 +212,7 @@ def test_run_live_incomplete_response_triggers_split_and_both_halves_investigate
         ]})
 
     with tempfile.TemporaryDirectory() as tmp:
-        verdicts, results, cost = run_cluster_investigations_live(
+        verdicts, results, cost, raw_entries = run_cluster_investigations_live(
             [cluster], by_id, "# protocol\n", {"req-x": "# req-x\n"},
             audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
             codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
@@ -239,7 +242,7 @@ def test_run_live_cost_ceiling_stops_further_clusters():
         ]}, cost_usd=100.0)
 
     with tempfile.TemporaryDirectory() as tmp:
-        verdicts, results, cost = run_cluster_investigations_live(
+        verdicts, results, cost, raw_entries = run_cluster_investigations_live(
             [c1, c2], by_id, "# protocol\n", {"req-x": "# req-x\n"},
             audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
             codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
@@ -268,7 +271,7 @@ def test_run_live_crashing_cluster_does_not_kill_the_run():
         ]})
 
     with tempfile.TemporaryDirectory() as tmp:
-        verdicts, results, cost = run_cluster_investigations_live(
+        verdicts, results, cost, raw_entries = run_cluster_investigations_live(
             [c1, c2], by_id, "# protocol\n", {"req-x": "# req-x\n"},
             audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
             codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),

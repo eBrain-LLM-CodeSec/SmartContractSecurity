@@ -178,9 +178,14 @@ def run_cluster_investigations_live(
     max_split_depth: int = 2,
     budget: ClusterBudget | None = None,
     run_arm_g_bundle_fn=None,
-) -> tuple[dict[str, PropertyVerdict], dict[str, object], float]:
+) -> tuple[dict[str, PropertyVerdict], dict[str, object], float, dict[str, dict]]:
     """The live (or, under test, mocked) execution loop. Returns
-    (property_verdicts, arm_g_results_by_case_id, total_cost_usd).
+    (property_verdicts, arm_g_results_by_case_id, total_cost_usd,
+    raw_property_entries_by_id) -- the last is the raw per-property JSON
+    entry each property_id's LATEST (post-split, if any) response
+    contained, for callers building a human-readable report that wants
+    the actual evidence/reasoning text, not just the resolved
+    ConformanceState.
 
     `run_arm_g_bundle_fn` defaults to the real
     `arm_g_codex.run_arm_g_bundle` -- resolved lazily inside this
@@ -202,6 +207,7 @@ def run_cluster_investigations_live(
 
     all_verdicts: dict[str, PropertyVerdict] = {}
     all_results: dict[str, object] = {}
+    all_raw_entries: dict[str, dict] = {}
     total_cost = 0.0
     entry_slug = entry_sol_file.stem
 
@@ -250,6 +256,10 @@ def run_cluster_investigations_live(
         response = getattr(result, "final_decision", None)
         validation = validate_cluster_response(list(cluster.property_ids), response)
         resolved = resolve_property_verdicts(response) if isinstance(response, dict) else {}
+        if isinstance(response, dict):
+            for entry in response.get("properties", []):
+                if isinstance(entry, dict) and entry.get("property_id"):
+                    all_raw_entries[entry["property_id"]] = entry
 
         split_reason = detect_split_reason(
             cluster, properties_by_id, budget=budget, validation_result=validation, resolved_verdicts=resolved,
@@ -268,7 +278,7 @@ def run_cluster_investigations_live(
     for cluster in clusters:
         _investigate(cluster, 0)
 
-    return all_verdicts, all_results, total_cost
+    return all_verdicts, all_results, total_cost, all_raw_entries
 
 
 def aggregate_properties_to_requirements(
