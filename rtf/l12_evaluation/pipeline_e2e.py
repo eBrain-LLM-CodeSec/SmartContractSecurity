@@ -56,6 +56,9 @@ from rtf.l5_predicates.compile_helper import _collect_remappings
 from rtf.l8_llm_judgment_layer.bundle_agent_experiment.arm_g_codex import ArmGResult, build_arm_g_prompt, run_arm_g_bundle
 from rtf.l8_llm_judgment_layer.graph_navigation import resolve_seed_node
 from rtf.l8_llm_judgment_layer.judgment_layer import LLMJudgmentLayer
+from rtf.l10_property_derivation.derive_investigations import (
+    InvestigationInstance, aggregate_instance_verdicts, expand_investigation_instances,
+)
 from rtf.l12_evaluation.codex_bridge import build_codex_prompt_inputs, resolve_conformance_from_arm_g
 from rtf.l12_evaluation.evidence_ranking import rank_evidence
 from rtf.l12_evaluation.failure_taxonomy import OperationalStatus
@@ -304,6 +307,17 @@ class PipelineArtifacts:
     up a real title/obligation text for a generated req_id instead of
     falling back to the bare req_id string, without report_generator.py
     needing to import anything from rtf.standards itself."""
+    instance_results: dict = field(default_factory=dict)
+    """req_id -> list[ArmGResult], populated ONLY when
+    `instance_expansion_enabled=True` was passed to `run_pipeline_e2e`
+    (empty dict otherwise, for every existing caller). `codex_results`
+    above still holds exactly one REPRESENTATIVE ArmGResult per escalated
+    req_id (the first FAIL if any instance failed, else the first
+    completed instance) so every existing consumer of `codex_results`
+    (report_generator.py, metrics) keeps working unchanged; this field is
+    the full per-instance detail for callers that want it (a future
+    report_generator.py enhancement, not built in this pass -- see
+    RTF_ETHTRUST_TRANSLATION_AUDIT.md's Phase 2/3 discussion)."""
 
 
 def _run_escalations_concurrent(
@@ -331,6 +345,9 @@ def _run_escalations_concurrent(
     escalation_skip_reasons: dict[str, str],
     codex_outcome_reasons: dict[str, str],
     graph_seed_resolved: dict[str, bool],
+    instance_expansion_enabled: bool = False,
+    max_instances_per_requirement: int = 6,
+    instance_results: dict | None = None,
 ) -> float:
     """Concurrent counterpart to `run_pipeline_e2e`'s serial escalation
     loop. Two phases, deliberately kept separate:
@@ -362,9 +379,35 @@ def _run_escalations_concurrent(
     when the ceiling is crossed mid-batch. A wider (but still bounded, and
     explicitly documented) version of the same limitation the serial path
     already has.
+
+    `instance_expansion_enabled` (default False, see
+    `rtf.l10_property_derivation.derive_investigations`): when False, this
+    function's behavior is UNCHANGED from before that module existed --
+    each requirement produces exactly one escalation item, exactly as
+    always. When True, a requirement whose own normative text has
+    multiple MUST/MUST NOT sentences, or whose own ranked evidence spans
+    multiple distinct locations, is expanded into several scoped
+    investigation instances (bounded by `max_instances_per_requirement`),
+    and their individual verdicts are combined back into ONE final
+    conformance_state per requirement via
+    `derive_investigations.aggregate_instance_verdicts` (FAIL-wins, same
+    precedence `compute_aggregation_requirements` already uses for
+    combining verdicts across DIFFERENT requirements). This keeps the
+    disabled path byte-behavior-identical to before, and makes the
+    enabled path's aggregation a strict, tested generalization (a
+    single-instance requirement's "aggregate" is just that one verdict,
+    unchanged -- see `test_aggregate_single_instance_passes_through`).
+
+    `codex_results[req_id]` remains exactly one ArmGResult per escalated
+    req_id even under expansion (the representative one: the first FAIL
+    if any instance failed, else the first completed instance) -- every
+    existing consumer of `codex_results` keeps working unchanged. The
+    full per-instance detail is written to `instance_results[req_id]`
+    (a list of ArmGResult, only when `instance_results` is passed in).
     """
     escalation_items: list[dict] = []
     pg: ProgramGraph | None = None
+    entry_slug = entry_sol_file.stem
 
     for req_id, result in routed.items():
         if result.applicability_state != ApplicabilityState.APPLICABLE:
@@ -376,40 +419,72 @@ def _run_escalations_concurrent(
 
         updated = result
         ranked = rank_evidence(list(updated.evidence), project_root)
-        candidate_location = ranked[0].item.location if ranked else ""
+        top_candidate_location = ranked[0].item.location if ranked else ""
 
-        graph_seed_resolved[req_id] = False
-        try:
-            if pg is None:
-                if ctx.slither is None:
-                    raise RuntimeError(
-                        f"no compiled Slither object available (compile_error={compile_error!r})"
-                    )
-                pg = ProgramGraph.from_slither(ctx.slither)
-            if candidate_location:
-                resolve_seed_node(pg, candidate_location)
-                graph_seed_resolved[req_id] = True
-        except Exception as e:  # noqa: BLE001 -- resolution failure is informational only, never blocks the agent
-            escalation_skip_reasons[req_id] = f"graph_seed_not_resolved (agent still investigates): {type(e).__name__}: {e}"
-
-        prompt_inputs = build_codex_prompt_inputs(
-            req_id, candidate_location, updated, project_root, None,
+        # Base prompt inputs (requirement text, context bundle, evidence
+        # bundle) are the SAME for every instance of this requirement --
+        # only `candidate_location` and (for a multi-clause requirement)
+        # the focused clause vary per instance. Built once here, reused
+        # below, exactly matching the un-expanded path's own single call.
+        base_prompt_inputs = build_codex_prompt_inputs(
+            req_id, top_candidate_location, updated, project_root, None,
             bundle_record=generated_bundles.get(req_id),
         )
-        prompt = build_arm_g_prompt(
-            prompt_inputs.requirement_text, prompt_inputs.context_bundle_text,
-            prompt_inputs.candidate_location, prompt_inputs.evidence_bundle_text,
-            prompt_inputs.unresolved_facts,
-        )
-        entry_slug = entry_sol_file.stem
-        escalation_items.append({
-            "req_id": req_id, "updated": updated,
-            "case_id": f"{audit_id}__{entry_slug}__{req_id}",
-            "candidate_location": candidate_location, "prompt": prompt,
-        })
+
+        if not instance_expansion_enabled:
+            instances = [InvestigationInstance(
+                req_id=req_id, instance_id=req_id, candidate_location=top_candidate_location,
+                focused_clause=None, clause_index=0, location_index=0,
+            )]
+        else:
+            locations_in_rank_order = [r.item.location for r in ranked]
+            instances = expand_investigation_instances(
+                req_id, base_prompt_inputs.requirement_text, locations_in_rank_order,
+                max_total_instances=max_instances_per_requirement,
+            )
+
+        for instance in instances:
+            graph_seed_resolved[req_id] = False
+            try:
+                if pg is None:
+                    if ctx.slither is None:
+                        raise RuntimeError(
+                            f"no compiled Slither object available (compile_error={compile_error!r})"
+                        )
+                    pg = ProgramGraph.from_slither(ctx.slither)
+                if instance.candidate_location:
+                    resolve_seed_node(pg, instance.candidate_location)
+                    graph_seed_resolved[req_id] = True
+            except Exception as e:  # noqa: BLE001 -- resolution failure is informational only, never blocks the agent
+                escalation_skip_reasons[req_id] = f"graph_seed_not_resolved (agent still investigates): {type(e).__name__}: {e}"
+
+            requirement_text = base_prompt_inputs.requirement_text
+            if instance.focused_clause is not None:
+                requirement_text = (
+                    f"{requirement_text}\n\nFor THIS SPECIFIC investigation, focus "
+                    f"specifically on the following part of the requirement above "
+                    f"(the requirement has multiple distinct obligations; other "
+                    f"instances cover the others):\n{instance.focused_clause}"
+                )
+            prompt = build_arm_g_prompt(
+                requirement_text, base_prompt_inputs.context_bundle_text,
+                instance.candidate_location, base_prompt_inputs.evidence_bundle_text,
+                base_prompt_inputs.unresolved_facts,
+            )
+            escalation_items.append({
+                "req_id": req_id, "updated": updated, "instance": instance,
+                "case_id": f"{audit_id}__{entry_slug}__{instance.instance_id}",
+                "candidate_location": instance.candidate_location, "prompt": prompt,
+            })
 
     remaps = _collect_remappings(project_root)
     total_codex_cost = 0.0
+    # Buffered per-req_id, finalized into new_routed only once every
+    # instance for that req_id has been attempted (completed, crashed, or
+    # skipped by the cost ceiling) -- see aggregate_instance_verdicts.
+    # With expansion disabled, every req_id has exactly one instance, so
+    # this buffering is a no-op wrapper around the pre-existing behavior.
+    pending_states: dict[str, list[ConformanceState]] = {}
 
     def _invoke(item: dict):
         return run_arm_g_bundle(
@@ -421,6 +496,22 @@ def _run_escalations_concurrent(
             scratch_root=scratch_root, timeout_s=codex_timeout_s,
         )
 
+    def _record_representative(req_id: str, codex_result) -> None:
+        """Keeps the first result seen for `req_id` as the representative
+        `codex_results[req_id]`, UNLESS/UNTIL a FAIL result arrives, which
+        always takes over (and is never displaced by a later non-FAIL) --
+        so the representative result is always a FAIL when one exists,
+        matching the aggregated conformance_state's own FAIL-wins rule.
+        """
+        existing = codex_results.get(req_id)
+        is_fail = bool(codex_result.final_decision and codex_result.final_decision.get("decision") == "FAIL")
+        existing_is_fail = bool(existing is not None and existing.final_decision
+                                 and existing.final_decision.get("decision") == "FAIL")
+        if existing is None or (is_fail and not existing_is_fail):
+            codex_results[req_id] = codex_result
+        if instance_results is not None:
+            instance_results.setdefault(req_id, []).append(codex_result)
+
     i = 0
     while i < len(escalation_items):
         if cost_ceiling_usd is not None and total_codex_cost >= cost_ceiling_usd:
@@ -428,7 +519,7 @@ def _run_escalations_concurrent(
                 req_id = item["req_id"]
                 metrics.codex_investigations_skipped_cost_ceiling += 1
                 escalation_skip_reasons[req_id] = "cost_ceiling_reached"
-                new_routed[req_id] = replace(item["updated"], conformance_state=ConformanceState.INCONCLUSIVE)
+                pending_states.setdefault(req_id, []).append(ConformanceState.INCONCLUSIVE)
             break
 
         batch = escalation_items[i:i + max_workers]
@@ -439,15 +530,14 @@ def _run_escalations_concurrent(
             for future in as_completed(future_to_item):
                 item = future_to_item[future]
                 req_id = item["req_id"]
-                updated = item["updated"]
                 try:
                     codex_result = future.result()
                 except Exception as e:  # noqa: BLE001 -- one investigation crashing must not kill the batch/run
                     escalation_skip_reasons[req_id] = f"codex_invocation_crashed: {type(e).__name__}: {e}"
-                    new_routed[req_id] = replace(updated, conformance_state=ConformanceState.INCONCLUSIVE)
+                    pending_states.setdefault(req_id, []).append(ConformanceState.INCONCLUSIVE)
                     continue
 
-                codex_results[req_id] = codex_result
+                _record_representative(req_id, codex_result)
                 total_codex_cost += codex_result.cost_usd
                 metrics.bundles_escalated_to_codex += 1
                 if codex_result.timed_out:
@@ -458,11 +548,16 @@ def _run_escalations_concurrent(
                 outcome = resolve_conformance_from_arm_g(codex_result.final_decision, codex_result.timed_out)
                 if outcome.reason is not None:
                     codex_outcome_reasons[req_id] = outcome.reason
-                new_routed[req_id] = RoutedRequirementResult(
-                    req_id=req_id, applicability_state=updated.applicability_state,
-                    operational_status=updated.operational_status,
-                    conformance_state=outcome.conformance_state, evidence=updated.evidence,
-                )
+                pending_states.setdefault(req_id, []).append(outcome.conformance_state)
+
+    for req_id, states in pending_states.items():
+        updated = routed[req_id]
+        final_state = aggregate_instance_verdicts(states)
+        new_routed[req_id] = RoutedRequirementResult(
+            req_id=req_id, applicability_state=updated.applicability_state,
+            operational_status=updated.operational_status,
+            conformance_state=final_state, evidence=updated.evidence,
+        )
 
     return total_codex_cost
 
@@ -488,8 +583,28 @@ def run_pipeline_e2e(
     only_req_ids: set[str] | None = None,
     max_concurrent_investigations: int = 1,
     extra_solc_args: list[str] | None = None,
+    instance_expansion_enabled: bool = False,
+    max_instances_per_requirement: int = 6,
 ) -> PipelineArtifacts:
     """Runs the full L1->L8->(escalation)->Arm G chain for one real target.
+
+    `instance_expansion_enabled` (default False): opt-in use of
+    `rtf.l10_property_derivation.derive_investigations` to split a
+    multi-clause requirement into its constituent properties and/or
+    expand a requirement's evidence across multiple distinct locations
+    into multiple scoped investigations, instead of the original single
+    top-ranked-location collapse (see that module's docstring for the
+    full rationale -- built from `RTF_ETHTRUST_TRANSLATION_AUDIT.md`'s
+    findings). REQUIRES `max_concurrent_investigations >= 1` (routed
+    through `_run_escalations_concurrent` even at `max_workers=1`, since
+    only that path knows how to fan a single requirement out into several
+    escalation items and aggregate their verdicts back together -- the
+    original serial path, `_run_escalations_serial`'s inline code below,
+    is deliberately left untouched and does not support this). Off by
+    default: no existing caller's cost or behavior changes unless this is
+    explicitly passed, matching how `max_concurrent_investigations` was
+    itself introduced as opt-in. See `PipelineArtifacts.instance_results`
+    for the full per-instance detail this produces.
 
     `max_concurrent_investigations`: defaults to 1 -- EXACTLY the original
     serial behavior (unchanged code path, see `_run_escalations_serial`).
@@ -559,11 +674,16 @@ def run_pipeline_e2e(
     escalation_skip_reasons: dict[str, str] = {}
     codex_outcome_reasons: dict[str, str] = {}
     graph_seed_resolved: dict[str, bool] = {}
+    instance_results: dict = {}
     total_codex_cost = 0.0
     pg: ProgramGraph | None = None  # built lazily, once, only if an escalation actually happens
 
     new_routed = dict(run.routed)
-    if max_concurrent_investigations <= 1:
+    # Instance expansion only exists in the concurrent path (see that
+    # function's own docstring) -- force routing there even at
+    # max_workers=1 when explicitly requested, so expansion never
+    # silently no-ops because concurrency itself wasn't also requested.
+    if max_concurrent_investigations <= 1 and not instance_expansion_enabled:
         # Original serial path -- byte-for-byte unchanged from before
         # `max_concurrent_investigations` existed, so every existing test
         # (which calls this function without that parameter, defaulting to
@@ -689,10 +809,13 @@ def run_pipeline_e2e(
             codex_bin=codex_bin, python_bin=python_bin, mcp_server_script=mcp_server_script,
             api_key=api_key, codex_model=codex_model, solc_path_dir=solc_path_dir,
             scratch_root=scratch_root, codex_timeout_s=codex_timeout_s,
-            cost_ceiling_usd=cost_ceiling_usd, max_workers=max_concurrent_investigations,
+            cost_ceiling_usd=cost_ceiling_usd, max_workers=max(1, max_concurrent_investigations),
             metrics=metrics, codex_results=codex_results,
             escalation_skip_reasons=escalation_skip_reasons,
             codex_outcome_reasons=codex_outcome_reasons, graph_seed_resolved=graph_seed_resolved,
+            instance_expansion_enabled=instance_expansion_enabled,
+            max_instances_per_requirement=max_instances_per_requirement,
+            instance_results=instance_results,
         )
 
     # Pure-aggregation requirements (req-2-pass-l1/req-3-pass-l2/
@@ -734,4 +857,5 @@ def run_pipeline_e2e(
         standards_report=standards_report,
         graph_seed_resolved=graph_seed_resolved,
         generated_bundles=generated_bundles,
+        instance_results=instance_results,
     )

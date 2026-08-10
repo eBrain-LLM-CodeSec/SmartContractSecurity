@@ -1,7 +1,7 @@
 {
   "req_id": "req-2-compiler-060",
   "bundle": {
-    "self": "Use a Modern Compiler Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets the requirement [M] Compiler Bug Check Constructor Payment from the EEA EthTrust Security Levels Specification Version 2, as an Overriding Requirement,",
+    "self": "Use a Modern Compiler Tested code MUST NOT use a Solidity compiler version older than 0.8.0, unless it meets the requirement [M] Compiler Bug Check Constructor Payment from the EEA EthTrust Security Levels Specification Version 2, as an Overriding Requirement, AND Tested code MUST NOT use a Solidity compiler version older than 0.6.0, unless it meets all the following requirements from the EEA EthTrust Security Levels Specification Version 1, as Overriding Requirements: [M] Compiler Bug SOL-2020-2, [M] Compiler Bug SOL-2019-2 in assembly {}, [M] Compiler Bug Check Identity Calls, [M] Validate ecrecover() input, [M] Compiler Bug No Zero Ether Send, and [M] Declare storage Explicitly.",
     "definitions": [
       {
         "id": "dfn-overriding-requirement",
@@ -50,6 +50,6 @@
   ],
   "traversal_depth_reached": 2,
   "expansion_cap_hit": false,
-  "assembled_at": "2026-08-05T22:59:56Z",
-  "bundle_hash": "f450458fd2e57a25d695b54523f65e85ad2918e59a6d6a607dded89aefe5000b"
+  "assembled_at": "2026-08-10T07:18:25Z",
+  "bundle_hash": "2062c728b2b9114a2e9845cda120f03ea298cfc344e1e28ce18a656b4d6081b0"
 }

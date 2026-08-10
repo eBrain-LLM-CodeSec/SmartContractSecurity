@@ -190,22 +190,66 @@ def classify_set_of_overriding_requirements(primary_html: str, tail_after_primar
     return rels, False
 
 
+_SENTENCE_TERMINAL_CHARS = (".", "!", "?")
+
+# Bare connective words the spec sometimes places alone in a sibling <p> or
+# <b> to join two normative clauses across block boundaries (e.g.
+# req-2-compiler-060: "...as an Overriding Requirement,</p><p><b>AND</b></p>
+# <p>Tested code MUST NOT..."). A clause ending in one of these, even with
+# terminal-looking punctuation stripped away, is still mid-sentence. Checked
+# case-insensitively against the LAST word only, not as a substring, so real
+# words like "command" or "further" are never caught.
+_DANGLING_CONNECTIVES = {"and", "or", "nor", "unless", "but", "provided"}
+
+
 def _looks_incomplete(text: str) -> bool:
     """True if `text` doesn't yet read as a complete normative clause.
-    Three real cases found in the spec (AR-005):
+    Real cases found in the spec (AR-005, AR-027):
     (1) No RFC2119 keyword at all yet -- the original, narrower check.
-    (2) Header ends with ':' -- introduces a <ul> needed to complete the
-        sentence, even though a keyword already appears earlier in the
-        header (e.g. req-2-documented: 'MUST document the need for each
-        instance of:').
-    (3) A keyword is present but DANGLING -- essentially nothing follows it
+    (2) A keyword is present but DANGLING -- essentially nothing follows it
         in this block (e.g. req-2-self-destruct's header ends "... MUST</p>"
         with the actual predicate only starting in a following <ul>).
+    (3) The accumulated text does not end in real sentence-terminal
+        punctuation ('.', '!', '?'). AR-027: the original version of this
+        function instead tried to special-case "ends with ':'" (introduces
+        a <ul>) and treated anything else with a keyword-plus-long-tail as
+        complete. That silently mis-classified several genuinely incomplete
+        clauses as complete, each confirmed by direct comparison against
+        the raw spec HTML:
+          - req-2-documented: extension stopped right after gluing on the
+            enumerated <ul>, because the accumulated text (ending in
+            "...pseudo-randomness,") already had a keyword with a long
+            tail -- silently dropping two further MUST obligations that
+            exist only in a later sibling <p> ("and MUST describe how the
+            Tested Code protects against misuse...").
+          - req-2-external-calls, req-2-protect-create2, req-2-self-destruct,
+            req-2-malleable-signatures-for-replay: each ends with "...unless
+            it meets the Set of Overriding Requirements" (or similar) with
+            NO terminal punctuation at all, immediately followed by the
+            actual enumerated Overriding-Requirement <ul> that completes
+            the same sentence -- previously left off entirely.
+        A real English sentence never legitimately ends on a bare comma,
+        colon, dash, or connective word -- requiring real terminal
+        punctuation is a strictly more correct generalization of the
+        colon-specific check it replaces, not a narrower one: every case
+        the old ':'-check caught is also caught here (a colon is not
+        terminal punctuation either).
+    (4) The accumulated text's last word (case-insensitive) is a bare
+        dangling connective (see `_DANGLING_CONNECTIVES`) -- e.g.
+        req-2-compiler-060's "...Overriding Requirement,</p><p><b>AND</b></p>":
+        after rule (3) forces extension past the comma, the next sibling
+        block is a standalone "AND", which itself has no terminal
+        punctuation either, but a naive re-check could still mis-fire if a
+        future spec revision ever puts terminal punctuation after a bare
+        connective marker -- checking the connective explicitly, not just
+        terminal punctuation, is the more robust of the two and catches
+        this class directly regardless.
     """
     stripped = strip_tags(text).strip()
     if not stripped:
         return True
-    if stripped.endswith(":"):
+    last_word = re.findall(r"[A-Za-z]+", stripped)
+    if last_word and last_word[-1].lower() in _DANGLING_CONNECTIVES:
         return True
     matches = list(RFC2119_RE.finditer(text))
     if not matches:
@@ -220,6 +264,8 @@ def _looks_incomplete(text: str) -> bool:
     tail_start = close_idx + len("</em>") if close_idx != -1 else matches[-1].end()
     tail_plain = strip_tags(text[tail_start:]).strip()
     if len(tail_plain) < 3:
+        return True
+    if stripped[-1] not in _SENTENCE_TERMINAL_CHARS:
         return True
     return False
 
