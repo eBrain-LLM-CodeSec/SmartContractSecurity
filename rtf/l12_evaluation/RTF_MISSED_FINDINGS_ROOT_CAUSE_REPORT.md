@@ -178,3 +178,105 @@ That one **generic, outcome-oriented question is a strict superset** of concern 
 3. **Reasoning failure (C) — the rarest, but real.** Two clean cases (forte H-05, phi H-03) where an investigation asked close to the exact right question against the exact right code and got the verdict wrong. These are the only misses attributable to the agent itself reasoning incorrectly, as opposed to the requirement/scope never giving it the right question to ask in the first place.
 
 **What this does NOT show**: zero of the 12 misses are attributable to the redesigned agentic architecture's own known-fixed failure modes (bounded-L8 gating, fixed source-excerpt truncation, missing `candidate_location`) — every investigated file was reachable with full access, and most vulnerable lines were directly read by at least one investigation. The misses are about *what question was asked*, not *whether the agent could see the code*.
+
+---
+
+## Revision (new taxonomy, informed by the RTF-vs-EthTrust translation-fidelity audit)
+
+**Why this revision exists.** The A-E rubric above conflates two
+genuinely different things under "E — requirement-coverage limitation":
+(1) EthTrust's own text truly has no requirement whose *intent* covers
+a given bug, and (2) EthTrust *does* have a requirement whose intent
+plausibly covers it, but RTF's current translation of that requirement
+into a concrete investigation question is too narrow, too collapsed to
+one generic instance, or the file was never scoped for investigation at
+all. `RTF_ETHTRUST_TRANSLATION_AUDIT.md` re-read the actual EthTrust v3
+spec text (independent of this report, independent of EVMbench) for the
+broad Level-Q functional-correctness requirements and the block-data/
+signature/rounding Level-M requirements, and found concrete,
+code-level evidence for exactly this collapse: `Implement as Documented`/
+`Process All Inputs` are translated into a single generic investigation
+per requirement (or a doc-text-diff check), never into a per-function
+"does this function's actual behavior match its own intended
+mathematical/protocol contract" property. Four architectural fixes
+followed directly from that finding — property/clause derivation and
+multi-instance expansion (`rtf/l10_property_derivation/`), repo-
+structure-derived scope discovery (`rtf/l12_evaluation/scope_discovery.py`),
+6-state coverage telemetry (`rtf/l12_evaluation/coverage_telemetry.py`),
+and a harness-enforced counterexample-search requirement before
+`CONFIRMED_SATISFACTION` (`ARM_G_PROMPT_v3.md` / `reasoning_rigor.py`) —
+each built and unit/synthetic-tested *before* this reclassification
+pass, from the spec text and architecture alone, per the standing rule
+that EVMbench may only be used to *measure* whether a change helps, not
+to justify one after the fact. This section applies that rule: it
+re-reads each of the 12 misses against what is now known, and states
+plainly, for each, which claims are **confirmed** (an implemented,
+tested mechanism directly and empirically closes the gap) versus
+**plausible but unconfirmed** (a real, evidenced hypothesis that would
+require a new paid run against the fixed pipeline to actually verify —
+not done here, per the same rule: EVMbench reruns are a later,
+explicitly-authorized step, not bundled into this analysis).
+
+**New taxonomy:**
+
+| Code | Meaning |
+|---|---|
+| `TRUE_ETH_TRUST_GAP` | No EthTrust requirement's *intent*, even generously read, covers this bug |
+| `RTF_TRANSLATION_GAP` | A requirement's intent covers it, but RTF's derived investigation question is too narrow to ask it |
+| `RTF_APPLICABILITY_GAP` | The requirement should have fired on this location and didn't |
+| `RTF_INSTANTIATION_GAP` | The requirement fired, but only as one generic/global investigation instead of one per relevant site |
+| `RTF_SCOPE_EXPLORATION_GAP` | The vulnerable file was never in RTF's investigation scope at all, or was in scope but never actually opened by the one relevant investigation |
+| `RTF_REASONING_GAP` | The agent read the right code under a directly-relevant question and reasoned incorrectly (old Class C) |
+| `MIXED` | More than one of the above, genuinely |
+
+### Reclassification table
+
+| Finding | Old class | New class | Status | Rationale |
+|---|---|---|---|---|
+| forte H-01 (`sqrt` exponent order) | D | **RTF_TRANSLATION_GAP** | Plausible, unconfirmed | The agent read the exact buggy lines under `req-2-enforce-eval-order` (statement-ordering hazards) and correctly answered *that* narrow question. EthTrust Level [Q]'s own preamble text (re-read in the translation audit) frames the whole level as verifying "functional correctness ... can be verified" against intended behavior — `Implement as Documented`'s intent covers "does this function compute the mathematically correct result," but RTF's current instantiation of that requirement never derives a per-function correctness check; it only does a doc-vs-text comparison. A property-derivation pass that turns `Implement as Documented` into "for each arithmetic function, does its actual operation sequence match its documented/intended formula" would ask exactly this question. Not yet run against forte to confirm. |
+| forte H-02 (`sqrt(0)` halts via `stop()`) | E (B-adjacent) | **RTF_TRANSLATION_GAP** | Plausible, unconfirmed | Same underlying gap as H-01, different function: no requirement currently asks "does this specific arithmetic function behave correctly for the zero input," only whether *some* `require()` exists near a parameter (`req-3-all-valid-inputs`'s current instantiation) — a presence check, not a behavioral-correctness check. `Implement as Documented`'s broadened per-function reading, same as H-01, is the natural home. |
+| forte H-03 (`ln()` no sign check) | B | **RTF_SCOPE_EXPLORATION_GAP** | Confirmed mechanism exists, not yet re-tested | The one requirement tasked with exactly this question (`req-3-all-valid-inputs`) never opened `Ln.sol` at all — a pure "never looked here" gap, not a translation or coverage problem. This is squarely the failure mode `ARM_G_PROMPT_v3.md`'s counterexample-search requirement targets generically (an agent forced to state what a boundary-input violation would look like and actively check for it is far less likely to skip a whole file its own requirement should cover) — plausible, not proven, since this specific mechanism wasn't isolated and re-run against forte. |
+| forte H-04 (`eq()` bit-pattern comparison) | E | **RTF_TRANSLATION_GAP**, secondarily `TRUE_ETH_TRUST_GAP` | Plausible, unconfirmed, genuinely harder call | Symmetric with H-01/H-02 under the broadened `Implement as Documented` reading (comparison operators are part of a function's implemented contract too) — but representation-invariant equality for a *custom packed floating-point format* is a more benchmark-specific concept than EthTrust, a general smart-contract standard, was plausibly written with in mind. Kept as genuinely mixed rather than forced into one bucket. |
+| forte H-05 (`toPackedFloat` boundary precision loss) | C | **RTF_REASONING_GAP** | Confirmed mechanism exists, not yet re-tested | The cleanest reasoning failure in the set (exact function, exact near-equivalent question, exact buggy line, wrong verdict — `CONFIRMED_SATISFACTION` with no counterexample check). This is the single most direct real-world match for what `ARM_G_PROMPT_v3.md` now requires: a genuine boundary-value counterexample search ("does a mantissa at the 38/72-digit boundary lose precision") before returning PASS. Strong candidate for being fixed by Phase 5 alone; not yet re-tested. |
+| phi H-01 (`signatureClaim` missing chainId check, `PhiFactory.sol`) | A/B | **RTF_SCOPE_EXPLORATION_GAP** | **Confirmed** | `discover_scope_files` (`rtf/l12_evaluation/scope_discovery.py`), run directly against the real phi checkout (`test_scope_discovery.py`'s real-regression tests), returns `PhiFactory.sol` as one of 9 first-class scope entries — the exact file this run's manually-curated `scope_files` list dropped. This is the single most concretely confirmed reclassification in this table: the fix exists, is tested, and directly recovers the missing entry. Whether re-running phi with the fixed scope actually *catches* H-01 (i.e. whether some requirement, once given `PhiFactory.sol` as a real entry, asks the right chainId question) is a separate, unconfirmed claim — a new paid run, not attempted here. |
+| phi H-02 (`createArt` signature doesn't bind `CreateConfig`) | B/E | **MIXED**: `RTF_SCOPE_EXPLORATION_GAP` (primary, confirmed) + `RTF_TRANSLATION_GAP` (secondary, unconfirmed) | Partially confirmed | Same scope-recovery fact as H-01 applies first. Even with `PhiFactory.sol` properly scoped, `req-2-signature-verification`'s current instantiation only checks the `ecrecover`/`address(0)` mechanism, not "does the signed payload authorize every mutable field it's later used to set" — a real, but more generous, reading of "properly verify signatures to ensure authenticity" (the requirement's own text, re-read in the translation audit) that RTF does not currently derive. |
+| phi H-03 (`shareBalance` EnumerableMap DoS) | C | **RTF_REASONING_GAP** | Unchanged | In-scope the whole time (`Cred.sol` was the one designated entry); a real reasoning error, no scope/translation angle applies. |
+| phi H-04/H-07 (forced `endTime` extension) | A/B/E | **RTF_SCOPE_EXPLORATION_GAP** | **Confirmed** | Same confirmed scope-recovery fact as H-01 — `PhiFactory.sol`'s absence as a designated entry is the dominant, directly-fixed cause. |
+| canto H-01 (block.number/timestamp unit mismatch) | E (borderline C) | **MIXED**, leaning `TRUE_ETH_TRUST_GAP` | Unconfirmed either way | canto's own `scope.txt` (verified directly, `test_scope_discovery.py`) genuinely lists only `LendingLedger.sol` — this was NOT a scoping gap, confirming the original report's own framing. `req-2-block-data-misuse`'s PASS verdict is a correct application of its MEV-scoped text. The `Implement as Documented` broadened-reading argument applies here too in principle (does `update_market`'s actual behavior match its intended epoch-tracking protocol) but is a real stretch absent any documentation this session found describing that intended protocol precisely enough to derive the check from — kept honest as leaning toward a true corpus gap rather than asserting a translation fix would obviously catch it. |
+| canto H-02 (`nextEpoch` loop-index off-by-one) | E/B | **MIXED**, leaning `TRUE_ETH_TRUST_GAP` | Unconfirmed either way | Same reasoning as H-01 — a pure implementation-arithmetic bug (loop-index vs. epoch-aligned value) with no natural EthTrust mechanism-home even under a generous reading; the `Implement as Documented` argument is weaker here than for forte's per-function bugs, since there is no single well-scoped "function contract" this violates in the same direct way. |
+
+### Summary of the revision
+
+| New class | Count (of 12, rows overlap for MIXED) | Confirmed vs. plausible |
+|---|---|---|
+| `RTF_SCOPE_EXPLORATION_GAP` (sole or primary) | 4 | phi H-01/H-04/H-07 **confirmed** (scope_discovery.py empirically recovers the file); forte H-03 plausible |
+| `RTF_TRANSLATION_GAP` (sole or secondary) | 5 | forte H-01/H-02/H-04, phi H-02 (secondary) — all plausible, none re-run |
+| `RTF_REASONING_GAP` | 2 | forte H-05, phi H-03 — forte H-05 plausibly addressed by Phase 5, unconfirmed; phi H-03 unchanged |
+| `TRUE_ETH_TRUST_GAP` (sole or leaning) | 2 | canto H-01, H-02 — genuinely the hardest calls, kept honest as unresolved rather than forced |
+
+**Answering the standing question directly** ("is RTF failing because
+EthTrust lacks the requirement, or because RTF fails to translate broad
+functional requirements into concrete properties"), **for this specific
+12-finding sample**: the dominant, most consequential, and most
+concretely fixable pattern is RTF-side, not a true standard-coverage
+gap. One entire failure mode (scope exploration, 4 of 12 misses,
+including the single largest cluster in the whole sample) now has an
+implemented, empirically-verified fix. A second failure mode
+(translation narrowness of the broad Level-Q functional-correctness
+requirements) has strong, spec-text-grounded evidence behind it for at
+least 4 more misses, though unconfirmed by a rerun. Only 2 of the 12
+misses — both in canto, both genuinely subtle implementation-arithmetic
+bugs with no natural named mechanism anywhere in EthTrust's text — hold
+up as real candidates for "EthTrust itself doesn't cover this," and even
+those are reported with the honest caveat that a translation-side fix
+was not ruled out, only judged a stretch.
+
+**What would actually confirm or refute this revision**: re-running
+`2025-04-forte`, `2024-08-phi`, and `2024-01-canto` through the now-fixed
+pipeline (`discover_scope_files`, the property-derivation/instance-
+expansion stage, and the v3 counterexample-search requirement all
+enabled) and checking whether the specific findings marked "plausible,
+unconfirmed" above actually flip to DETECTED. That is a real, paid,
+multi-audit run — deliberately not launched as part of this analysis
+pass, per the standing rule that EVMbench evaluation comes only after
+all implementation work, and only to measure, never to justify.
