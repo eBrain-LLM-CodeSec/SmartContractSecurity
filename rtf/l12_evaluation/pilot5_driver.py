@@ -34,6 +34,7 @@ from rtf.l12_evaluation.report_generator import generate_audit_md  # noqa: E402
 from rtf.l12_evaluation.metrics import ApplicabilityState, ConformanceState, EvidenceItem, OperationalStatus, RoutedRequirementResult, TargetRunResult  # noqa: E402
 from rtf.l12_evaluation.run_grader import run_grader  # noqa: E402
 from rtf.l12_evaluation.run_rtf import build_context_for_evmbench_target  # noqa: E402
+from rtf.l12_evaluation.scope_discovery import discover_scope_files  # noqa: E402
 from rtf.standards.routing import build_standards_routed_requirements  # noqa: E402
 import asyncio  # noqa: E402
 
@@ -379,7 +380,7 @@ def run_one_audit(
 if __name__ == "__main__":
     audit_id = sys.argv[1]
     repo_root = Path(sys.argv[2])
-    scope_file = Path(sys.argv[3])
+    scope_file_arg = sys.argv[3]
     artifacts_dir = Path(sys.argv[4])
     ceiling = float(sys.argv[5]) if len(sys.argv) > 5 else 3.0
     default_solc_version = sys.argv[6] if len(sys.argv) > 6 else "0.8.20"
@@ -387,7 +388,18 @@ if __name__ == "__main__":
     max_concurrent_investigations = int(sys.argv[8]) if len(sys.argv) > 8 else 1
     path_prefix_overrides = json.loads(overrides_json)
 
-    scope_files = [l.strip() for l in scope_file.read_text().splitlines() if l.strip()]
+    if scope_file_arg == "auto":
+        # Repo-structure-derived scope discovery (rtf.l12_evaluation.
+        # scope_discovery): prefers the audit's own scope.txt when
+        # present, else a heuristic repo scan -- see that module's
+        # docstring for why this exists (a real, found-by-inspection gap:
+        # a manually-curated scope_files list can silently under-cover a
+        # repo's own documented in-scope files, e.g. 2024-08-phi's
+        # PhiFactory.sol never got its own entry in an earlier run here).
+        scope_files = discover_scope_files(repo_root)
+        print(f"[{audit_id}] scope 'auto' -> {len(scope_files)} file(s) discovered: {scope_files}", flush=True)
+    else:
+        scope_files = [l.strip() for l in Path(scope_file_arg).read_text().splitlines() if l.strip()]
     # Scoped to THIS run's own job tmp (falls back to the historical
     # job-318205ae location only if invoked outside a job context) --
     # a hardcoded fixed job's tmp dir here has no lifetime guarantee and
