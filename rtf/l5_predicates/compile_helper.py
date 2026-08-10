@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
+import tomllib
 from pathlib import Path
 
 from slither import Slither
@@ -43,8 +44,33 @@ def compile_source(solidity_code: str, solc_version: str = "0.8.20", extra_args:
         return Slither(str(sol_path), **({} if not extra_args else {"solc_args": " ".join(extra_args)}))
 
 
+def _foundry_toml_remapping_lines(foundry_toml_path: Path) -> list[str]:
+    """Some Foundry projects declare remappings directly in
+    `[profile.default].remappings` inside `foundry.toml` instead of (or as
+    well as) a standalone `remappings.txt` -- confirmed empirically
+    necessary, not a defensive guess: a real EVMbench target
+    (2026-01-tempo-feeamm) has NO remappings.txt at all, only
+    `foundry.toml`'s own `remappings = ["@openzeppelin/contracts/=lib/
+    openzeppelin-contracts/contracts/", ...]`; without parsing this, that
+    import is unresolvable and compilation fails outright. Returns the
+    same "prefix=relpath" line format `remappings.txt` uses, so callers
+    can treat both sources identically.
+    """
+    try:
+        with foundry_toml_path.open("rb") as f:
+            data = tomllib.load(f)
+    except (tomllib.TOMLDecodeError, OSError):
+        return []
+    profile = data.get("profile", {}).get("default", {})
+    remappings = profile.get("remappings")
+    if not isinstance(remappings, list):
+        return []
+    return [str(r) for r in remappings if isinstance(r, str) and "=" in r]
+
+
 def _collect_remappings(project_root: Path) -> list[str]:
-    """Recursively find every `remappings.txt` under `project_root`
+    """Recursively find every `remappings.txt` AND every `foundry.toml`
+    with a `[profile.default].remappings` array under `project_root`
     (Foundry projects nest one per vendored `lib/` dependency, each
     written relative to ITS OWN directory) and merge them into a single
     flat list of absolute-path remappings solc can consume directly,
@@ -57,25 +83,33 @@ def _collect_remappings(project_root: Path) -> list[str]:
     prb-math/`, `vault/lib/brokentoken/`, `vault/lib/pt-v5-liquidator/`)
     -- using only the top-level one fails to resolve nested imports like
     `prb-math/SD59x18.sol`, which only pt-v5-prize-pool's OWN nested
-    remappings.txt declares.
+    remappings.txt declares. A separate real target (2026-01-tempo-feeamm)
+    declares its remappings ONLY in `foundry.toml`, with no
+    `remappings.txt` at all -- see `_foundry_toml_remapping_lines`.
 
-    Shallower files are walked first and a prefix already seen from a
-    shallower file is kept over a deeper redefinition -- not a perfect
-    reproduction of Foundry's own context-aware remapping resolution
-    (which resolves remappings per-importing-file, not globally), but a
-    defensible, simple approximation: the project's OWN top-level choice
-    for a given prefix should generally take precedence over a vendored
-    dependency's internal one.
+    Shallower files are walked first (both kinds interleaved by directory
+    depth) and a prefix already seen from a shallower file is kept over a
+    deeper redefinition -- not a perfect reproduction of Foundry's own
+    context-aware remapping resolution (which resolves remappings
+    per-importing-file, not globally), but a defensible, simple
+    approximation: the project's OWN top-level choice for a given prefix
+    should generally take precedence over a vendored dependency's
+    internal one.
     """
     remap_files = sorted(
-        project_root.rglob("remappings.txt"),
+        list(project_root.rglob("remappings.txt")) + list(project_root.rglob("foundry.toml")),
         key=lambda p: len(p.relative_to(project_root).parts),
     )
     seen_prefixes: set[str] = set()
     merged: list[str] = []
     for rf in remap_files:
         base = rf.parent
-        for line in rf.read_text(encoding="utf-8", errors="replace").splitlines():
+        lines = (
+            _foundry_toml_remapping_lines(rf)
+            if rf.name == "foundry.toml"
+            else rf.read_text(encoding="utf-8", errors="replace").splitlines()
+        )
+        for line in lines:
             line = line.strip()
             if not line or "=" not in line:
                 continue
@@ -88,7 +122,10 @@ def _collect_remappings(project_root: Path) -> list[str]:
     return merged
 
 
-def compile_evmbench_target(entry_sol_file: Path, project_root: Path, solc_version: str) -> Slither:
+def compile_evmbench_target(
+    entry_sol_file: Path, project_root: Path, solc_version: str,
+    extra_solc_args: list[str] | None = None,
+) -> Slither:
     """Compile a real, multi-file EVMbench audit target directly via
     solc, WITHOUT needing `forge`/Foundry installed.
 
@@ -111,6 +148,31 @@ def compile_evmbench_target(entry_sol_file: Path, project_root: Path, solc_versi
     via `_collect_remappings` -- both confirmed necessary by direct,
     repeated trial against a real target, not assumed.
 
+    `--allow-paths` is always widened to include `project_root` itself,
+    on top of crytic-compile's own default (`.` + the entry file's own
+    directory) -- confirmed necessary, not a defensive guess: a real
+    EVMbench target (2025-04-forte) has a plain relative import that
+    escapes its own directory into a sibling one
+    (`import {Uint512} from "../lib/Uint512.sol";` in `src/Float128.sol`,
+    reaching a top-level `lib/Uint512.sol`), which solc's default
+    allow-paths otherwise rejects as outside the allowed set. Purely a
+    widening of which paths solc may READ (never write), not a semantic
+    or codegen change -- safe to always apply.
+
+    `extra_solc_args`, when given, are passed through verbatim to solc
+    (e.g. `["--via-ir", "--optimize"]` -- solc's own error message says
+    `--via-ir` alone is insufficient for a genuine stack-too-deep case,
+    "while enabling the optimizer" is required alongside it; confirmed by
+    trial against both a synthetic fixture and the real target below).
+    Deliberately opt-in, never auto-detected or silently added: unlike
+    `--allow-paths`, `--via-ir`/`--optimize` change codegen (and which
+    compiler diagnostics surface), so a caller must choose them
+    explicitly for a specific target known to need it (confirmed real,
+    not hypothetical: 2024-01-canto's own `foundry.toml` declares
+    `via-ir=true` and `optimizer=true`, and its `GaugeController.sol`
+    fails with solc's own "Stack too deep. Try compiling with --via-ir"
+    error otherwise) rather than have it silently applied everywhere.
+
     Raises if compilation fails, same discipline as `compile_source`.
     """
     remaps = _collect_remappings(project_root)
@@ -118,10 +180,16 @@ def compile_evmbench_target(entry_sol_file: Path, project_root: Path, solc_versi
     subprocess.run([SOLC_SELECT, "use", solc_version], check=True, capture_output=True, text=True, env=env)
     os.environ["PATH"] = env["PATH"]
 
+    allow_paths = f".,{entry_sol_file.resolve().parent},{project_root.resolve()}"
+    solc_args_parts = ["--allow-paths", allow_paths]
+    if extra_solc_args:
+        solc_args_parts.extend(extra_solc_args)
+
     with tempfile.TemporaryDirectory() as neutral_cwd:
         return Slither(
             str(entry_sol_file.resolve()),
             solc_remaps=remaps,
             cwd=neutral_cwd,
             compile_force_framework="solc",
+            solc_args=" ".join(solc_args_parts),
         )
