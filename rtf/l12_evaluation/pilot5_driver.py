@@ -120,7 +120,14 @@ def run_one_audit(
     path_prefix_overrides: dict[str, str] | None = None,
     l8_cache_dir: Path | None = None,
     max_concurrent_investigations: int = 1,
+    extra_solc_args: list[str] | None = None,
 ) -> dict:
+    """`extra_solc_args`, when given, applies uniformly to every entry in
+    this call (e.g. `["--via-ir", "--optimize"]` for a target whose own
+    foundry.toml requires it) -- flat, not per-path, since callers that
+    need per-path granularity within one multi-entry audit don't exist
+    yet; add a prefix-keyed override dict here (mirroring
+    `path_prefix_overrides`) if that need arises."""
     path_prefix_overrides = path_prefix_overrides or {}
     from a4v.llm import ChatClient
     from rtf.l8_llm_judgment_layer.judgment_layer import LLMJudgmentLayer
@@ -244,6 +251,7 @@ def run_one_audit(
                 scratch_root=scratch_root, escalation_enabled=True, codex_timeout_s=900,
                 cost_ceiling_usd=remaining_ceiling,
                 max_concurrent_investigations=max_concurrent_investigations,
+                extra_solc_args=extra_solc_args,
             )
         except Exception as e:  # noqa: BLE001 -- one entry's crash must not kill the whole audit
             infra_failures.append({"entry": rel_path, "error": f"{type(e).__name__}: {e}",

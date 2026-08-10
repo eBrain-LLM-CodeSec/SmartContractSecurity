@@ -487,6 +487,7 @@ def run_pipeline_e2e(
     known_limitations: dict[str, str] | None = None,
     only_req_ids: set[str] | None = None,
     max_concurrent_investigations: int = 1,
+    extra_solc_args: list[str] | None = None,
 ) -> PipelineArtifacts:
     """Runs the full L1->L8->(escalation)->Arm G chain for one real target.
 
@@ -521,7 +522,9 @@ def run_pipeline_e2e(
     metrics = StageMetrics()
     unconditioned_map = load_unconditioned_map(CORPUS_PATH)
     requirement_levels = load_requirement_levels(CORPUS_PATH)
-    ctx, compile_error = build_context_for_evmbench_target(entry_sol_file, project_root, solc_version)
+    ctx, compile_error = build_context_for_evmbench_target(
+        entry_sol_file, project_root, solc_version, extra_solc_args=extra_solc_args,
+    )
 
     run, _raw = run_rtf(ctx, audit_id, unconditioned_map, known_limitations)
 

@@ -285,6 +285,7 @@ def build_context_for_evmbench_target(
     solc_version: str,
     sol_source_paths: list[Path] | None = None,
     sol_test_paths: list[Path] | None = None,
+    extra_solc_args: list[str] | None = None,
 ) -> tuple[RunContext, str | None]:
     """Compile a real EVMbench target and build its RunContext. Returns
     (ctx, compilation_error_or_None) -- compilation failure does not
@@ -292,9 +293,14 @@ def build_context_for_evmbench_target(
     callers can still run source-text-only predicates
     (`sol_source_paths`-only ones) even when Slither compilation itself
     fails, rather than losing the whole run to one failure.
+
+    `extra_solc_args`, when given, passes straight through to
+    `compile_evmbench_target` (e.g. `["--via-ir", "--optimize"]` for a
+    target whose own foundry.toml requires it -- see that function's
+    docstring). Deliberately opt-in per-call, not auto-detected.
     """
     try:
-        slither = compile_evmbench_target(entry_sol_file, project_root, solc_version)
+        slither = compile_evmbench_target(entry_sol_file, project_root, solc_version, extra_solc_args=extra_solc_args)
         error = None
     except Exception as e:  # noqa: BLE001
         slither = None
