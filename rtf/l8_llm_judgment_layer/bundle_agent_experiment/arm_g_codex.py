@@ -26,12 +26,16 @@ from rtf.l8_llm_judgment_layer.bundle_agent_experiment.arm_c_codex import (
     _extract_touched_files, codex_login, compute_cost,
 )
 
-ARM_G_PROMPT_PATH = Path(__file__).parent / "ARM_G_PROMPT_v2.md"
-"""v2: full-repository access, no graph-gated visibility restriction --
-see ARM_G_PROMPT_v2.md's own header for why this supersedes v1. v1 is
-kept on disk (not deleted) as the historical record of the earlier
-graph-gated-navigation research design; nothing in the live pipeline
-loads it anymore."""
+ARM_G_PROMPT_PATH = Path(__file__).parent / "ARM_G_PROMPT_v3.md"
+"""v3: full-repository access (unchanged from v2) PLUS a required,
+generic (not property-specific) counterexample-search step before the
+agent may return `stop_reason: CONFIRMED_SATISFACTION` -- see
+ARM_G_PROMPT_v3.md's own header and `reasoning_rigor.py` for the
+harness-side enforcement that backs this up (a PASS without a genuine
+`counterexample_search` is downgraded, not just discouraged by prompt
+text alone). v1/v2 are kept on disk (not deleted) as the historical
+record of earlier prompt-contract iterations; nothing in the live
+pipeline loads them anymore."""
 
 
 def load_frozen_arm_g_prompt() -> str:

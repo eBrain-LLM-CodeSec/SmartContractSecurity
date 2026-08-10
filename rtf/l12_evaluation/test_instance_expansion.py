@@ -26,9 +26,25 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(f"{name}: {detail}")
 
 
+_FAKE_COUNTEREXAMPLE_SEARCH = {
+    "attempted": True,
+    "violation_scenario_considered": "test-fixture violation scenario, long enough to pass the rigor check",
+    "checks_performed": "test-fixture checks performed, long enough to pass the rigor check",
+    "found_violation": False,
+}
+
+
 def _fake_codex_result(case_id: str, decision: str = "PASS", cost_usd: float = 0.001) -> ArmGResult:
+    final_decision = {"decision": decision, "reasoning_summary": "test"}
+    if decision == "PASS":
+        # See test_concurrent_escalation.py's identical fixture note --
+        # codex_bridge's Phase 5 rigor check downgrades a PASS with no
+        # counterexample_search, so these mocks opt in to a well-formed
+        # one by default (rigor enforcement has its own dedicated tests
+        # in test_codex_bridge.py; this file tests instance expansion).
+        final_decision["counterexample_search"] = _FAKE_COUNTEREXAMPLE_SEARCH
     return ArmGResult(
-        case_id=case_id, final_decision={"decision": decision, "reasoning_summary": "test"},
+        case_id=case_id, final_decision=final_decision,
         reasoning_text="test", actual_shell_commands=1, actual_shell_files_touched=[],
         revealed_files=[], graph_tool_calls=0, graph_unresolved_events=[], max_hop_depth_seen=None,
         divergent_files=[], input_tokens=10, cached_input_tokens=0, output_tokens=10,

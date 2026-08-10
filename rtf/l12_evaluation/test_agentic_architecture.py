@@ -25,6 +25,7 @@ from rtf.l12_evaluation.registry import AGENT_REQUIRED_REQ_IDS, DETERMINISTIC_CO
 
 VAULT_SOL = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "multi_contract" / "Vault.sol"
 ARM_G_PROMPT_V2 = Path(__file__).resolve().parents[1] / "l8_llm_judgment_layer" / "bundle_agent_experiment" / "ARM_G_PROMPT_v2.md"
+ARM_G_PROMPT_V3 = Path(__file__).resolve().parents[1] / "l8_llm_judgment_layer" / "bundle_agent_experiment" / "ARM_G_PROMPT_v3.md"
 
 PASSES: list[str] = []
 FAILURES: list[str] = []
@@ -220,8 +221,8 @@ def test_ambiguous_graph_seed_does_not_block_agent_invocation():
 # --- 5/9: INSUFFICIENT_EVIDENCE only after genuine exploration -------------
 
 def test_prompt_forbids_premature_insufficient_evidence():
-    text = ARM_G_PROMPT_V2.read_text(encoding="utf-8")
-    check("ARM_G_PROMPT_v2.md exists (the active, full-repo-access prompt)", ARM_G_PROMPT_V2.exists(), "")
+    text = ARM_G_PROMPT_V3.read_text(encoding="utf-8")
+    check("ARM_G_PROMPT_v3.md exists (the active, full-repo-access + counterexample-search prompt)", ARM_G_PROMPT_V3.exists(), "")
     check("prompt explicitly forbids returning INSUFFICIENT_EVIDENCE without genuine exploration",
           "Do not return `INSUFFICIENT_EVIDENCE`" in text or "genuinely tried to locate" in text, "")
     check("prompt explicitly grants full repository access (not graph-gated-only)",
@@ -230,13 +231,25 @@ def test_prompt_forbids_premature_insufficient_evidence():
           "You do not have unrestricted repository browsing" not in text, "")
 
 
-def test_arm_g_codex_loads_v2_prompt_not_v1():
+def test_prompt_requires_counterexample_search_before_confirmed_satisfaction():
+    text = ARM_G_PROMPT_V3.read_text(encoding="utf-8")
+    check("prompt requires a counterexample search before CONFIRMED_SATISFACTION",
+          "REQUIRED COUNTEREXAMPLE SEARCH" in text and "CONFIRMED_SATISFACTION" in text, "")
+    check("prompt's output schema includes counterexample_search",
+          "counterexample_search" in text, "")
+    check("counterexample-search requirement is generic (not scoped to one property/req_id)",
+          "applies to EVERY requirement, generically" in text, "")
+
+
+def test_arm_g_codex_loads_v3_prompt_not_v2():
     from rtf.l8_llm_judgment_layer.bundle_agent_experiment import arm_g_codex
-    check("arm_g_codex.py's active prompt path is v2", arm_g_codex.ARM_G_PROMPT_PATH.name == "ARM_G_PROMPT_v2.md",
+    check("arm_g_codex.py's active prompt path is v3", arm_g_codex.ARM_G_PROMPT_PATH.name == "ARM_G_PROMPT_v3.md",
           arm_g_codex.ARM_G_PROMPT_PATH.name)
     loaded = arm_g_codex.load_frozen_arm_g_prompt()
-    check("loaded prompt text is the v2 content (full repository access)",
+    check("loaded prompt text is the v3 content (full repository access)",
           "full, normal access to the repository" in loaded, "")
+    check("loaded prompt text requires counterexample search",
+          "counterexample_search" in loaded, "")
 
 
 # --- 6/9: non-function-shaped requirements can still be investigated -------
@@ -359,7 +372,8 @@ def main() -> int:
         test_agent_invoked_even_when_graph_seed_never_resolves,
         test_ambiguous_graph_seed_does_not_block_agent_invocation,
         test_prompt_forbids_premature_insufficient_evidence,
-        test_arm_g_codex_loads_v2_prompt_not_v1,
+        test_prompt_requires_counterexample_search_before_confirmed_satisfaction,
+        test_arm_g_codex_loads_v3_prompt_not_v2,
         test_graph_mcp_server_get_seed_never_raises_on_empty_or_bad_hint,
         test_deterministic_complete_and_agent_required_partition_registry_exactly,
         test_deterministic_predicates_produce_the_same_evidence_as_before,

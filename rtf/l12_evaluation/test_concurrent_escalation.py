@@ -33,9 +33,27 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(f"{name}: {detail}")
 
 
+_FAKE_COUNTEREXAMPLE_SEARCH = {
+    "attempted": True,
+    "violation_scenario_considered": "test-fixture violation scenario, long enough to pass the rigor check",
+    "checks_performed": "test-fixture checks performed, long enough to pass the rigor check",
+    "found_violation": False,
+}
+
+
 def _fake_codex_result(req_id: str, decision: str = "PASS", cost_usd: float = 0.001) -> ArmGResult:
+    final_decision = {"decision": decision, "reasoning_summary": "test"}
+    if decision == "PASS":
+        # A PASS mock must include a well-formed counterexample_search or
+        # codex_bridge.resolve_conformance_from_arm_g's Phase 5 rigor
+        # check downgrades it to INCONCLUSIVE, same as a real under-
+        # rigorous PASS would be -- see test_codex_bridge.py for that
+        # behavior's own dedicated tests; these fixtures exist to test
+        # concurrency/attribution, not rigor enforcement, so they opt in
+        # to a well-formed search by default.
+        final_decision["counterexample_search"] = _FAKE_COUNTEREXAMPLE_SEARCH
     return ArmGResult(
-        case_id=f"test__{req_id}", final_decision={"decision": decision, "reasoning_summary": "test"},
+        case_id=f"test__{req_id}", final_decision=final_decision,
         reasoning_text="test", actual_shell_commands=1, actual_shell_files_touched=[],
         revealed_files=[], graph_tool_calls=0, graph_unresolved_events=[], max_hop_depth_seen=None,
         divergent_files=[], input_tokens=10, cached_input_tokens=0, output_tokens=10,

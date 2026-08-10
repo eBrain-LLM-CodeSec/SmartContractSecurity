@@ -24,6 +24,7 @@ from rtf.l12_evaluation.evidence_ranking import (
     apply_evidence_budget, build_evidence_bundles, rank_evidence, render_bundles_for_prompt,
 )
 from rtf.l12_evaluation.metrics import ConformanceState, RoutedRequirementResult
+from rtf.l8_llm_judgment_layer.bundle_agent_experiment.reasoning_rigor import counterexample_search_is_sufficient
 from rtf.l8_llm_judgment_layer.judgment_layer import render_context_bundle_text
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -140,6 +141,15 @@ def resolve_conformance_from_arm_g(final_decision: dict | None, timed_out: bool)
     "codex_no_decision") attached -- this must stay visible in stage
     metrics, never silently collapsed into a bare INCONCLUSIVE
     indistinguishable from a real one the model itself returned.
+
+    A `decision: PASS` is additionally checked against
+    `reasoning_rigor.counterexample_search_is_sufficient` (see
+    ARM_G_PROMPT_v3.md) -- a PASS without a genuine, non-placeholder
+    counterexample search is downgraded to INCONCLUSIVE with reason
+    `insufficient_reasoning_rigor:<specific code>`, never silently
+    trusted. FAIL/INCONCLUSIVE/INSUFFICIENT_EVIDENCE decisions are
+    untouched by this check (the prompt's own schema note: the
+    counterexample field is not required for those).
     """
     if timed_out:
         return CodexJudgmentOutcome(ConformanceState.INCONCLUSIVE, "codex_timeout", None)
@@ -149,4 +159,11 @@ def resolve_conformance_from_arm_g(final_decision: dict | None, timed_out: bool)
     state = _DECISION_TO_CONFORMANCE.get(decision)
     if state is None:
         return CodexJudgmentOutcome(ConformanceState.INCONCLUSIVE, f"codex_unknown_decision:{decision}", None)
+    if state == ConformanceState.PASS:
+        sufficient, rigor_reason = counterexample_search_is_sufficient(final_decision)
+        if not sufficient:
+            return CodexJudgmentOutcome(
+                ConformanceState.INCONCLUSIVE, f"insufficient_reasoning_rigor:{rigor_reason}",
+                final_decision.get("reasoning_summary"),
+            )
     return CodexJudgmentOutcome(state, None, final_decision.get("reasoning_summary"))
