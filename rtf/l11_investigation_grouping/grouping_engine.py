@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata
+from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata, shares_callgraph_region
 from rtf.l11_investigation_grouping.taxonomy import is_unsafe_combination
 
 # Signal weights -- deliberately simple, additive, and fully documented;
@@ -84,13 +84,7 @@ def compatibility_score(a: PropertyMetadata, b: PropertyMetadata) -> Compatibili
     strong(bool(set(a.relevant_state_variables) & set(b.relevant_state_variables)), "shared_state_variables")
     strong(bool(set(a.relevant_types) & set(b.relevant_types)), "shared_types")
     strong(bool(set(a.relevant_constants) & set(b.relevant_constants)), "shared_constants")
-    shared_callgraph_region = bool(
-        set(a.callgraph_neighbors) & set(b.callgraph_neighbors)
-        or (a.target_function and b.target_function and (
-            f"fn::{b.target_contract}.{b.target_function}" in a.callgraph_neighbors
-            or f"fn::{a.target_contract}.{a.target_function}" in b.callgraph_neighbors
-        ))
-    )
+    shared_callgraph_region = shares_callgraph_region(a, b)
     strong(shared_callgraph_region, "same_callgraph_region")
     strong(bool(set(a.candidate_locations) & set(b.candidate_locations)), "overlapping_candidate_locations")
 

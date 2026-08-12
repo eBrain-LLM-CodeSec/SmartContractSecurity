@@ -34,7 +34,7 @@ from rtf.l11_investigation_grouping.live_runner import (
     aggregate_properties_to_requirements, build_property_pool,
     prepare_cluster_investigations, run_cluster_investigations_live,
 )
-from rtf.l11_investigation_grouping.property_metadata import filter_properties_to_scope
+from rtf.l11_investigation_grouping.property_metadata import forward_out_of_scope_context, split_properties_by_scope
 from rtf.l11_investigation_grouping.run_metadata import (
     GROUPING_POLICY_G0_UNGROUPED, GROUPING_POLICY_G2_CONTEXT_AWARE, RunMetadata,
 )
@@ -117,7 +117,8 @@ def run_config_entry(
             pg = None
 
         properties = build_property_pool(run.routed, repo_root, generated_bundles, pg=pg, slither=ctx.slither)
-        properties = filter_properties_to_scope(properties, scope_files)
+        in_scope_properties, out_of_scope_properties = split_properties_by_scope(properties, scope_files)
+        properties = forward_out_of_scope_context(in_scope_properties, out_of_scope_properties)
 
         if not properties:
             new_routed = compute_aggregation_requirements(dict(run.routed), requirement_levels)

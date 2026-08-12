@@ -23,7 +23,7 @@ would misrepresent a real classification.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from rtf.l10_property_derivation.derive_investigations import InvestigationInstance
 from rtf.l12_evaluation.metrics import EvidenceItem
@@ -95,6 +95,21 @@ class PropertyMetadata:
     """Phase 6's investigation-complexity score -- always None from this
     module, for the same reason."""
     source_provenance: str = ""
+    requirement_explanatory_text: str = ""
+    """This property's PARENT requirement's `explanatory_text` (the
+    spec's own informative prose following the normative sentence --
+    see rtf/l1_corpus's "Explanatory/informative content extraction"),
+    captured verbatim at derivation time regardless of whether this
+    property ends up in-scope or not. Read by `forward_out_of_scope_
+    context` when this property is later dropped for being out-of-
+    scope but is call-graph-adjacent to a property that IS kept --
+    empty string when the corpus has no explanatory text for this
+    requirement."""
+    related_out_of_scope_context: tuple[str, ...] = ()
+    """Populated post-hoc by `forward_out_of_scope_context`, never at
+    derivation time: background guidance forwarded from OTHER,
+    out-of-scope properties this one is call-graph-adjacent to. Always
+    empty on a freshly `derive_property_metadata`'d instance."""
 
 
 def _structured_symbols_and_types(evidence: EvidenceItem | None) -> tuple[tuple[str, ...], tuple[str, ...]]:
@@ -226,6 +241,7 @@ def derive_property_metadata(
         reasoning_category=None,
         estimated_complexity=None,
         source_provenance=provenance,
+        requirement_explanatory_text=requirement_record.get("explanatory_text", ""),
     )
 
 
@@ -262,6 +278,29 @@ def _paths_match(candidate: str, scope_file: str) -> bool:
     return c == s or c.endswith("/" + s) or s.endswith("/" + c)
 
 
+def split_properties_by_scope(
+    properties: list[PropertyMetadata], scope_files: list[str],
+) -> tuple[list[PropertyMetadata], list[PropertyMetadata]]:
+    """Same in-scope test `filter_properties_to_scope` uses, but returns
+    BOTH halves (kept, dropped) instead of discarding the dropped one --
+    needed so `forward_out_of_scope_context` can still see what was
+    filtered out. See `filter_properties_to_scope`'s docstring for the
+    actual scoping rule; this is a strict superset of that function's
+    behavior, not a separate rule.
+    """
+    if not scope_files:
+        return list(properties), []
+    kept: list[PropertyMetadata] = []
+    dropped: list[PropertyMetadata] = []
+    for prop in properties:
+        candidates = _property_target_files(prop)
+        if not candidates or any(_paths_match(c, s) for c in candidates for s in scope_files):
+            kept.append(prop)
+        else:
+            dropped.append(prop)
+    return kept, dropped
+
+
 def filter_properties_to_scope(
     properties: list[PropertyMetadata], scope_files: list[str],
 ) -> list[PropertyMetadata]:
@@ -275,12 +314,82 @@ def filter_properties_to_scope(
     scope by this filter and are always kept, since they're inherently
     about the whole compiled unit rather than one specific (possibly
     wrong) file. A no-op when `scope_files` is empty.
+
+    Dropping a property here means it is never independently
+    investigated/gradeable -- correct per the audit's own declared
+    scope. It does NOT mean the property's requirement is necessarily
+    irrelevant background for something that IS in scope; see
+    `forward_out_of_scope_context` for that separate concern.
     """
-    if not scope_files:
-        return list(properties)
-    kept = []
-    for prop in properties:
-        candidates = _property_target_files(prop)
-        if not candidates or any(_paths_match(c, s) for c in candidates for s in scope_files):
-            kept.append(prop)
+    kept, _dropped = split_properties_by_scope(properties, scope_files)
     return kept
+
+
+def shares_callgraph_region(a: PropertyMetadata, b: PropertyMetadata) -> bool:
+    """True if two properties' one-hop callgraph neighborhoods overlap,
+    or either directly names the other's own target function as a
+    neighbor. The same real, structural "these two functions are one
+    call apart" signal is meaningful for two different purposes: the
+    grouping engine's own compatibility scoring
+    (`rtf.l11_investigation_grouping.grouping_engine.compatibility_
+    score`, which reuses this exact function rather than reimplementing
+    it) and `forward_out_of_scope_context` below.
+    """
+    if set(a.callgraph_neighbors) & set(b.callgraph_neighbors):
+        return True
+    if a.target_function and b.target_function:
+        if f"fn::{b.target_contract}.{b.target_function}" in a.callgraph_neighbors:
+            return True
+        if f"fn::{a.target_contract}.{a.target_function}" in b.callgraph_neighbors:
+            return True
+    return False
+
+
+def forward_out_of_scope_context(
+    kept: list[PropertyMetadata], dropped: list[PropertyMetadata],
+) -> list[PropertyMetadata]:
+    """For each KEPT (in-scope) property, finds every DROPPED (out-of-
+    scope) property it shares a real callgraph edge with (see
+    `shares_callgraph_region`) and, when that dropped property's parent
+    requirement carries spec explanatory text, forwards that text into
+    the kept property's `related_out_of_scope_context` -- clearly
+    attributed to its source requirement and explicitly caveated as
+    coming from an out-of-scope target, never presented as if it were
+    itself an in-scope finding.
+
+    This does NOT re-admit the dropped property as its own
+    investigatable check -- only its background guidance travels, one
+    hop, to a property that IS in scope and genuinely call-graph-
+    adjacent to it. Root-cased by a real case: canto's H-01
+    (LendingLedger.update_market passing a block-number-scale `epoch`
+    to GaugeController.gauge_relative_weight_write, which internally
+    treats it as a timestamp) -- GaugeController is out of scope per
+    canto's own scope.txt, so `req-2-block-data-misuse`'s properties
+    (which name this exact failure pattern, "block.number / 14 as a
+    proxy for elapsed seconds") get dropped, but `update_market`'s own
+    in-scope properties are one callgraph hop away from them and should
+    still see that guidance.
+
+    Deduplicated per (kept property, source requirement_id): multiple
+    dropped instances of the same requirement (one per candidate
+    location) would otherwise repeat identical guidance.
+    """
+    result: list[PropertyMetadata] = []
+    for k in kept:
+        seen_req_ids: set[str] = set()
+        forwarded: list[str] = []
+        for d in dropped:
+            if not d.requirement_explanatory_text or d.requirement_id in seen_req_ids:
+                continue
+            if not shares_callgraph_region(k, d):
+                continue
+            seen_req_ids.add(d.requirement_id)
+            forwarded.append(
+                f"[Background from out-of-scope requirement {d.requirement_id} "
+                f"(target `{d.target_contract}.{d.target_function}` is outside this "
+                f"audit's declared scope, so it is not itself an investigatable finding "
+                f"here) -- forwarded because it is call-graph-adjacent to this property's "
+                f"own target: {d.requirement_explanatory_text}"
+            )
+        result.append(replace(k, related_out_of_scope_context=tuple(forwarded)) if forwarded else k)
+    return result

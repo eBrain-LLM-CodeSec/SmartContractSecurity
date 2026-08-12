@@ -239,6 +239,8 @@ def generate_cluster_plan_md(
         req_ctx_path = requirement_context_paths.get(m.requirement_id)
         if req_ctx_path:
             lines.append(f"- Requirement context: `{req_ctx_path}`")
+        for note in m.related_out_of_scope_context:
+            lines.append(f"- {note}")
         lines.append("")
 
     lines.append("## Investigation procedure\n")

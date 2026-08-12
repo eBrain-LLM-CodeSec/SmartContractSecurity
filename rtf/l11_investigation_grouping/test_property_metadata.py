@@ -11,7 +11,8 @@ from dataclasses import replace
 from a4v.graph import ProgramGraph
 from rtf.l10_property_derivation.derive_investigations import InvestigationInstance
 from rtf.l11_investigation_grouping.property_metadata import (
-    derive_property_metadata, filter_properties_to_scope, parse_contract_function,
+    derive_property_metadata, filter_properties_to_scope, forward_out_of_scope_context,
+    parse_contract_function, shares_callgraph_region, split_properties_by_scope,
 )
 from rtf.l12_evaluation.metrics import EvidenceItem
 from rtf.l5_predicates.compile_helper import compile_source
@@ -241,6 +242,95 @@ def test_scope_filter_is_noop_with_empty_scope_files():
     props = [_synthetic_property("Address._revert", relevant_files=("lib/openzeppelin-contracts/contracts/utils/Address.sol",))]
     kept = filter_properties_to_scope(props, [])
     check("scope filter: empty scope_files is a no-op (keeps everything)", kept == props)
+
+
+# --- split_properties_by_scope / shares_callgraph_region / forward_out_of_scope_context ---
+
+def test_split_properties_by_scope_matches_filter_for_kept_half():
+    props = [
+        _synthetic_property("Vault.withdraw", relevant_files=("src/Vault.sol",)),
+        _synthetic_property("Address._revert", relevant_files=("lib/openzeppelin-contracts/contracts/utils/Address.sol",)),
+    ]
+    kept, dropped = split_properties_by_scope(props, ["src/Vault.sol"])
+    check("split: kept half matches filter_properties_to_scope", kept == filter_properties_to_scope(props, ["src/Vault.sol"]))
+    check("split: dropped half is exactly the complement", dropped == [props[1]], dropped)
+
+
+def test_shares_callgraph_region_true_on_overlap():
+    a = replace(_synthetic_property("A.f"), callgraph_neighbors=("fn::B.g", "fn::C.h"))
+    b = replace(_synthetic_property("B.g"), callgraph_neighbors=("fn::A.f",))
+    check("shares_callgraph_region: overlapping neighbor sets -> True", shares_callgraph_region(a, b))
+
+
+def test_shares_callgraph_region_true_when_one_names_the_others_own_target():
+    a = replace(_synthetic_property("A.f"), callgraph_neighbors=("fn::B.g",), target_contract="A", target_function="f")
+    b = replace(_synthetic_property("B.g"), callgraph_neighbors=(), target_contract="B", target_function="g")
+    check("shares_callgraph_region: a names b's own target function -> True", shares_callgraph_region(a, b))
+
+
+def test_shares_callgraph_region_false_when_unrelated():
+    a = replace(_synthetic_property("A.f"), callgraph_neighbors=("fn::X.y",), target_contract="A", target_function="f")
+    b = replace(_synthetic_property("B.g"), callgraph_neighbors=("fn::Z.w",), target_contract="B", target_function="g")
+    check("shares_callgraph_region: no overlap, no cross-mention -> False", not shares_callgraph_region(a, b))
+
+
+def test_forward_out_of_scope_context_forwards_adjacent_dropped_guidance():
+    kept_prop = replace(
+        _synthetic_property("LendingLedger.update_market"),
+        target_contract="LendingLedger", target_function="update_market",
+        callgraph_neighbors=("fn::GaugeController.gauge_relative_weight_write",),
+    )
+    dropped_prop = replace(
+        _synthetic_property("GaugeController._get_weight"),
+        target_contract="GaugeController", target_function="_get_weight",
+        callgraph_neighbors=("fn::GaugeController.gauge_relative_weight_write",),
+        requirement_id="req-2-block-data-misuse",
+        requirement_explanatory_text="using block.number / 14 as a proxy for elapsed seconds is a technique to avoid",
+    )
+    result = forward_out_of_scope_context([kept_prop], [dropped_prop])
+    check("forward: exactly one kept property returned", len(result) == 1, result)
+    note_text = "\n".join(result[0].related_out_of_scope_context)
+    check("forward: source requirement_id named", "req-2-block-data-misuse" in note_text, note_text)
+    check("forward: out-of-scope target named", "GaugeController._get_weight" in note_text, note_text)
+    check("forward: the actual guidance text is present", "block.number / 14" in note_text, note_text)
+    check("forward: explicitly caveated as out-of-scope, not itself a finding target",
+          "not itself an investigatable finding" in note_text, note_text)
+
+
+def test_forward_out_of_scope_context_skips_non_adjacent_dropped_properties():
+    kept_prop = replace(_synthetic_property("A.f"), target_contract="A", target_function="f", callgraph_neighbors=("fn::X.y",))
+    unrelated_dropped = replace(
+        _synthetic_property("Z.w"), target_contract="Z", target_function="w", callgraph_neighbors=("fn::Q.r",),
+        requirement_explanatory_text="unrelated guidance that should never be forwarded",
+    )
+    result = forward_out_of_scope_context([kept_prop], [unrelated_dropped])
+    check("forward: non-adjacent dropped property contributes nothing", result[0].related_out_of_scope_context == (), result[0].related_out_of_scope_context)
+
+
+def test_forward_out_of_scope_context_dedupes_per_source_requirement():
+    kept_prop = replace(_synthetic_property("A.f"), target_contract="A", target_function="f", callgraph_neighbors=("fn::B.g",))
+    dropped_loc0 = replace(
+        _synthetic_property("B.g::loc0"), target_contract="B", target_function="g", callgraph_neighbors=("fn::A.f",),
+        requirement_id="req-x", requirement_explanatory_text="guidance for req-x",
+    )
+    dropped_loc1 = replace(
+        _synthetic_property("B.g::loc1"), target_contract="B", target_function="g", callgraph_neighbors=("fn::A.f",),
+        requirement_id="req-x", requirement_explanatory_text="guidance for req-x",
+    )
+    result = forward_out_of_scope_context([kept_prop], [dropped_loc0, dropped_loc1])
+    check("forward: same source requirement_id forwarded only once, not duplicated",
+          len(result[0].related_out_of_scope_context) == 1, result[0].related_out_of_scope_context)
+
+
+def test_forward_out_of_scope_context_skips_dropped_properties_with_no_explanatory_text():
+    kept_prop = replace(_synthetic_property("A.f"), target_contract="A", target_function="f", callgraph_neighbors=("fn::B.g",))
+    dropped_no_text = replace(
+        _synthetic_property("B.g"), target_contract="B", target_function="g", callgraph_neighbors=("fn::A.f",),
+        requirement_explanatory_text="",
+    )
+    result = forward_out_of_scope_context([kept_prop], [dropped_no_text])
+    check("forward: dropped property with empty explanatory_text contributes nothing",
+          result[0].related_out_of_scope_context == (), result[0].related_out_of_scope_context)
 
 
 def main() -> int:
