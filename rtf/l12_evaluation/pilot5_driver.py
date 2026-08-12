@@ -42,7 +42,7 @@ CODEX_BIN = Path("/scratch/md5344/.claude/jobs/318205ae/tmp/codex_bin/codex")
 PYTHON_BIN = REPO_ROOT / ".venv/bin/python3"
 MCP_SERVER = REPO_ROOT / "rtf/l8_llm_judgment_layer/bundle_agent_experiment/graph_mcp_server.py"
 API_KEY = Path("/scratch/md5344/evmbench/run/task5_secrets/openrouter.key").read_text().strip()
-CODEX_MODEL = "openai/gpt-5.1-codex-max"
+CODEX_MODEL = "z-ai/glm-5.2"
 
 _SOLC_SELECT_ARTIFACTS = Path.home() / ".solc-select" / "artifacts"
 _SOLC_BIN_DIR_CACHE: dict[str, str] = {}
