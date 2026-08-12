@@ -95,6 +95,15 @@ def build_codex_prompt_inputs(
         bundle_record = json.loads(bundle_path.read_text(encoding="utf-8"))
     bundle = bundle_record["bundle"]
 
+    # NOTE: the corpus now also carries `explanatory_text` (the spec's
+    # informative prose following the normative sentence -- see
+    # PARSING_NOTES.md's "Explanatory/informative content extraction"
+    # section) at `corpus_by_req_id()[req_id]["explanatory_text"]`. Not
+    # wired into this (old, non-grouped) prompt path yet -- deliberately
+    # deferred, since this pipeline has no existing seam for it (unlike
+    # `context_artifacts.generate_requirement_context_md`'s pre-built
+    # `explanatory_text` param, already wired for the L11 grouped
+    # pipeline via `live_runner.py`). Available for a future pass.
     requirement_text = corpus_by_req_id().get(req_id, {}).get("normative_text", bundle["self"])
     context_bundle_text = render_context_bundle_text(bundle)
 

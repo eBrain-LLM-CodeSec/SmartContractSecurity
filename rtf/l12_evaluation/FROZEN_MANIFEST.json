@@ -1,7 +1,7 @@
 {
-  "framework_version": "0.2.0-evidence-enrichment",
-  "git_commit": "9c60ffa239b9e04c60a38c889a06b748ede9a2e5",
-  "timestamp": "2026-08-06T19:01:29Z",
+  "framework_version": "0.4.0-explanatory-text-extraction",
+  "git_commit": "2f7f20d99c3adb12dddb4cf6b198cb14800e7aa6",
+  "timestamp": "2026-08-12T17:57:31Z",
   "freeze_items": {
     "1_spec_snapshot": {
       "path": "standards/ethtrust/ethtrust-sl.raw.html",
@@ -9,11 +9,11 @@
     },
     "2_requirement_corpus": {
       "path": "rtf/l1_corpus/requirement_corpus.json",
-      "sha256": "86b9182a536f5c21a5d046aab7333bc13cb460237d77d9fef4088e1f6d4e507e"
+      "sha256": "cb74d7cb12f5dbca1edb2577bea7ef87c512fd46a451748b80cc87aac8e26c9e"
     },
     "3_context_bundles": {
       "path": "rtf/l2_context_bundles",
-      "sha256": "0e75bb772ef81e3183d1157b5e8d1c5df0ca64bcc33496d90a2dba166ad0b430",
+      "sha256": "664ac1b87a897b3ec44033408102b4959f9566b8904c6c4d23a0130b9ec7922d",
       "file_count": 81
     },
     "4_applicability_classifications": {
@@ -33,11 +33,11 @@
     },
     "7_custom_predicates": {
       "path": "rtf/l5_predicates/predicates.py",
-      "sha256": "fbe8f0a970da6777506b02a7334f31c59e87c58cd53ef608df44980c8dd6cb4f"
+      "sha256": "e3c05b50d906b46caaf802f3a53dcca1c23f45608c32b4f81a8a1f208771647d"
     },
     "8_llm_prompt_schema_model": {
       "path": "rtf/l8_llm_judgment_layer",
-      "sha256": "13902ffb47cc9816276835b8e65242194a09333b480293424b400f4f86859a90",
+      "sha256": "a6846be0a7a3978b52d29290ec097b2ec7c6afc728fd510b1fefef458eec2688",
       "prompt_version": "rtf-l8-v1"
     },
     "9_m_level_classifications": {

@@ -118,3 +118,119 @@ simplification doesn't get silently relied on downstream.
 Every `req_id` target inside `overriding_requirements`/
 `referenced_requirements` was checked against the 81-requirement corpus
 after both bug fixes above: **zero dangling references remain.**
+
+## Explanatory/informative content extraction
+
+Root-caused via a real missed vulnerability in a paid audit run (canto,
+config D, EthTrust requirement `req-2-block-data-misuse`): the parser
+previously captured *only* the single bolded normative sentence for
+each requirement into `normative_text`, stopping exactly at that
+sentence's own `</p>`. Everything the spec says immediately after —
+explanatory paragraphs, `div.warning`/`div.note` boxes,
+`aside.example`/`div.example` code examples, `<dl>` definition lists,
+and "See also the Related Requirements [...]" cross-references — was
+silently dropped. For `req-2-block-data-misuse`, that dropped text
+names the exact bug pattern later missed in the real audit: *"using
+block.number / 14 as a proxy for elapsed seconds"* (SWC-116). This
+section documents the fix.
+
+**New fields, additive only.** `normative_text` and every field derived
+from it (`modality`, `conditioned_scope_clause`, `overriding_
+requirements`, `referenced_requirements`, `definitions_referenced`,
+`exceptions_referenced`, `enumerated_terms`) are completely untouched —
+verified byte-identical for all 81 requirements (see the superset diff
+in `test_parse_spec.py` / `verify_explanatory_extraction.py`). This is
+required, not a style choice: `rtf/l10_property_derivation/derive_
+investigations.py`'s `derive_clauses()` sentence-splits `normative_text`
+and treats every resulting sentence as its own investigatable property
+— folding explanatory prose into that same string would inject
+non-normative sentences into the split, diluting the per-requirement
+investigation-instance cap with junk clauses.
+
+Three new fields per requirement record:
+- `explanatory_text: str` — a single flattened, whitespace-normalized
+  rendering of every informative block following the normative
+  sentence, in document order. Named to match `context_artifacts.
+  generate_requirement_context_md`'s pre-existing (previously unused)
+  `explanatory_text` parameter.
+- `explanatory_blocks: list[dict]` — the structured source
+  `explanatory_text` renders from:
+  `{block_type, block_id, example_title, text, code,
+  code_language_hint, raw_html}`, one entry per top-level block.
+  `block_type` is one of `paragraph`, `list`, `definition_list`,
+  `warning`, `note`, `example`, `illegal_example`, `unclassified`.
+  Kept structured (not just flattened) so code examples survive
+  verbatim with whitespace preserved (`strip_tags_preserve_whitespace`,
+  distinct from the whitespace-collapsing `strip_tags` used for prose).
+- `informative_tail_referenced_requirements: list[dict]` —
+  `{req_id, link_text}`, every `#req-` cross-reference found anywhere
+  in the tail (via the existing `REQ_LINK_RE`, scanned over the whole
+  tail rather than trying to isolate a "See also" paragraph by phrasing
+  — that phrasing isn't consistent enough to pattern-match reliably).
+  Deliberately a separate field from the existing `referenced_
+  requirements` (which stays scoped to the primary sentence only), so a
+  future consumer (e.g. a new grouping-engine compatibility signal) can
+  use it unambiguously without conflating primary-clause references
+  with tail cross-references. Not deduplicated, matching `referenced_
+  requirements`'s own existing behavior.
+
+Corpus-level: `explanatory_tail_block_counts` — total block count per
+`block_type` across all 81 requirements, for the independent audit
+below.
+
+**Attribution when content sits between two requirements.** Every
+informative block is attributed to its nearest-*preceding* requirement
+only, reusing the existing `next_boundary_after_start` boundary
+computation (already used, unchanged, for `full_block`). Checked
+directly against the one case that looked like it might need shared
+attribution (`req-2-random-enough`'s and `req-2-block-data-misuse`'s
+examples, both about block-data predictability): their HTML blocks do
+NOT actually overlap — each requirement's tail is cleanly bounded and
+each already cross-references the other via its own `informative_
+tail_referenced_requirements`. Single-attribution loses nothing here.
+
+**A real gap found and fixed while verifying this against the raw
+HTML, not anticipated by the original design:** `req-R-mutation-
+testing`'s tail uses a `<dl>` (definition list: `<dt>term</dt><dd>
+description, possibly with a nested &lt;ul&gt;</dd>` pairs) to lay out
+its four Mutation Operator categories — a structurally distinct shape
+from `<ul>` that the classifier didn't originally recognize. Added a
+dedicated `definition_list` block type (`DT_DD_PAIR_RE`, flattening
+each nested `<ul>` into the same rendered text) rather than letting it
+fall through to `unclassified`.
+
+**Corrected block-occurrence counts** (measured directly against the
+raw HTML, superseding earlier approximate figures from an earlier pass
+of this investigation): `div.warning` = 8 total in the document (6
+attributable to a requirement's own tail; the other 2 sit inside
+sections that aren't a requirement's immediate tail), `div.note` = 12,
+`aside.example`/`div.example` = 22 combined (21 `aside`, 1 rare nested
+`div`), `div.illegal-example` = 0 real occurrences (the class exists
+only in the document's `<style>` block, not in body content — designed
+for, expected to log zero, not an error).
+
+**Known limitation, disclosed rather than silently accepted.** A
+handful of short connective fragments that sit *between* two
+recognized blocks but aren't themselves wrapped in a recognized tag
+(e.g. `req-1-delegatecall`'s "or it meets the Set of Overriding
+Requirements", bridging its two alternative override-list branches)
+are logged to `parsing_notes` (`issue: "unclassified_informative_text_
+before_block"`) with a 200-char preview, but are not themselves added
+as a block to `explanatory_blocks`/`explanatory_text`. In the one case
+found in the live corpus, this fragment is part of a requirement's own
+normative override-list structure (already flagged separately as
+`set_of_overriding_requirements_mentioned_but_no_adjacent_ul_found`
+before this change), not lost informative prose — but this is a
+disclosed simplification for the general case, not a guarantee that no
+future spec text could be lost this way. If `explanatory_tail_block_
+counts` or a future parse shows this occurring more often, revisit
+capturing these fragments as their own `unclassified` block rather
+than log-only.
+
+**Independent verification.** `rtf/l1_corpus/verify_explanatory_
+extraction.py` re-counts every `warning`/`note`/`example`/
+`illegal-example`-classed block document-wide using Python's stdlib
+`html.parser.HTMLParser` (a real tokenizer, independent of this
+parser's own regex-based classifier) and reconciles the total against
+`explanatory_tail_block_counts`, accounting individually for any block
+that exists in the document but outside any requirement's own tail.

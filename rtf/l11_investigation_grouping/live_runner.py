@@ -139,7 +139,9 @@ def prepare_cluster_investigations(
                 "title": rep.requirement_semantic_intent or req_id,
                 "normative_text": rep.property_text, "section": {},
             }
-        requirement_context_by_req_id[req_id] = generate_requirement_context_md(record)
+        requirement_context_by_req_id[req_id] = generate_requirement_context_md(
+            record, explanatory_text=record.get("explanatory_text") or None
+        )
 
     return clusters, properties_by_id, protocol_context_md, requirement_context_by_req_id
 

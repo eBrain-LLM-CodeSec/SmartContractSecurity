@@ -79,8 +79,18 @@ def _framework_version() -> str:
     Any future bump must cite one of the plan's permitted reasons in a
     new Assumptions Register entry the same way, never "improves
     EVMbench performance" alone.
+
+    Bumped 0.2.0-evidence-enrichment -> 0.4.0-explanatory-text-extraction
+    per AR-028: the L1 corpus parser now also captures each requirement's
+    informative tail (explanatory paragraphs, warning/note/example
+    boxes, Related-Requirements cross-references), previously silently
+    dropped -- root-caused via a real missed vulnerability in a paid
+    audit run. AR-027 recorded an intended "0.3.0-translation-fidelity-
+    audit" bump that was never actually applied here (a real, disclosed
+    mismatch between the register and this file, corrected now rather
+    than perpetuated); this bump supersedes both prior values in one step.
     """
-    return "0.2.0-evidence-enrichment"
+    return "0.4.0-explanatory-text-extraction"
 
 
 def compute_manifest() -> dict:

@@ -22,6 +22,18 @@ prior spec versions is intentionally excluded from the current corpus.
 This is intentionally a standalone script, not a package import, so it
 can be re-run to regenerate the corpus if the spec snapshot changes
 (bumping framework_version) without importing framework internals.
+
+Also extracts each requirement's full informative "tail" -- the
+explanatory paragraphs, warning/note/example boxes, and Related-
+Requirements cross-references that follow the bolded normative
+sentence in the real spec -- into `explanatory_text`/`explanatory_
+blocks`/`informative_tail_referenced_requirements`. Previously only
+the bolded sentence was captured; `RTF_ETHTRUST_TRANSLATION_AUDIT.md`
+found this drops real, on-point guidance (e.g. req-2-block-data-
+misuse's tail names the exact "block.number / 14 as a proxy for
+elapsed seconds" bug pattern later missed in a real audit run). This
+is purely additive: `normative_text` and every field derived from it
+are untouched.
 """
 from __future__ import annotations
 
@@ -29,6 +41,7 @@ import hashlib
 import json
 import re
 from datetime import datetime, timezone
+from html import unescape as html_unescape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -75,9 +88,271 @@ SET_OVERRIDES_FOR_RE = re.compile(
 )
 SIBLING_BLOCK_RE = re.compile(r"\s*(<ul>.*?</ul>|<p>.*?</p>)", re.S)
 
+# --- Informative-tail extraction (explanatory paragraphs, warning/note/
+# example boxes, "Related Requirements" cross-refs that follow a
+# requirement's own primary normative sentence -- see PARSING_NOTES.md's
+# "Explanatory/informative content extraction" section for the full
+# rationale and the real audit gap this closes) ---
+TAIL_BLOCK_OPEN_RE = re.compile(r"<(div|aside|ul|dl|p)\b([^>]*)>")
+CLASS_ATTR_RE = re.compile(r'class="([^"]*)"')
+ID_ATTR_RE = re.compile(r'id="([^"]*)"')
+EXAMPLE_TITLE_RE = re.compile(r'<span class="example-title">:?\s*(.*?)</span>', re.S)
+PRE_CODE_RE = re.compile(r"<pre[^>]*>\s*<code([^>]*)>(.*?)</code>\s*</pre>", re.S)
+DT_DD_PAIR_RE = re.compile(r"<dt>(.*?)</dt>\s*<dd>(.*?)</dd>", re.S)
+UL_INNER_RE = re.compile(r"<ul>(.*?)</ul>", re.S)
+
 
 def strip_tags(html_fragment: str) -> str:
     return WS_RE.sub(" ", TAG_RE.sub("", html_fragment)).strip()
+
+
+def strip_tags_preserve_whitespace(html_fragment: str) -> str:
+    """Like `strip_tags`, but does NOT collapse whitespace and DOES
+    unescape entities. Needed specifically for <pre><code> content
+    (e.g. the Scribble fuzzing-spec example under req-R-fuzzing-in-
+    testing): collapsing newlines/indentation the way `strip_tags` does
+    for prose would destroy the code's readability, and leaving
+    entities like `&lt;`/`&gt;` un-unescaped would corrupt the source
+    text `strip_tags` never needs to touch (prose doesn't round-trip
+    through entity-escaped operators)."""
+    return html_unescape(TAG_RE.sub("", html_fragment)).strip("\n")
+
+
+def extract_balanced_tag(html: str, tag_name: str, open_end: int, hard_limit: int) -> tuple[str, int, bool]:
+    """Depth-tracking scan for the CONTENT of a `<tag_name ...>...
+    </tag_name>` block, given `open_end` (the position right after the
+    already-matched OPENING tag) and a `hard_limit` (the requirement's
+    own tail boundary, never crossed). Correctly handles nesting -- e.g.
+    a `div.warning` wrapping an `aside.example` wrapping a further
+    `div` (a real shape found under req-2-random-enough) -- which a
+    naive non-greedy `<div ...>.*?</div>` regex would truncate at the
+    FIRST nested closing tag, silently losing content. This is exactly
+    the bug class PARSING_NOTES.md's two prior real parsing bugs were.
+    Returns (inner_content, position_right_after_the_matching_closing_
+    tag, was_truncated) -- `was_truncated=True` means no matching close
+    was found before `hard_limit`; the caller must log a parsing_notes
+    entry in that case, never silently truncate without one.
+    """
+    tag_re = re.compile(rf"</?{tag_name}\b[^>]*>", re.I)
+    depth = 1
+    for m in tag_re.finditer(html, open_end, hard_limit):
+        if m.group(0).startswith("</"):
+            depth -= 1
+            if depth == 0:
+                return html[open_end : m.start()], m.end(), False
+        else:
+            depth += 1
+    return html[open_end:hard_limit], hard_limit, True
+
+
+def classify_informative_tail(html: str, tail_start: int, tail_end: int, req_id: str) -> tuple[list[dict], list[dict]]:
+    """Walks the informative tail following a requirement's own primary
+    normative sentence (from `tail_start` -- right after that sentence's
+    closing </p> -- up to `tail_end`, the next requirement/heading
+    boundary) and classifies every top-level block found: plain <p>
+    (explanatory prose), <ul> (an enumerated list), <div>/<aside>
+    carrying a `warning`/`note`/`example`/`illegal-example` class token
+    (checked as an exact token, not a substring match, so e.g.
+    "warning-title" never matches "warning"). Anything that doesn't fit
+    a recognized shape is captured as `block_type: "unclassified"` and
+    logged to `notes` -- never silently dropped. Returns
+    (blocks, parsing_notes_entries), both in document order.
+    """
+    blocks: list[dict] = []
+    notes: list[dict] = []
+    pos = tail_start
+    while pos < tail_end:
+        m = TAIL_BLOCK_OPEN_RE.search(html, pos, tail_end)
+        if not m:
+            leftover = strip_tags(html[pos:tail_end])
+            if leftover:
+                notes.append(
+                    {
+                        "req_id": req_id,
+                        "issue": "unclassified_informative_trailing_text",
+                        "note": f"Non-empty text after the last recognized informative block: {leftover[:200]!r}",
+                    }
+                )
+            break
+        if m.start() > pos:
+            between = strip_tags(html[pos : m.start()])
+            if between:
+                notes.append(
+                    {
+                        "req_id": req_id,
+                        "issue": "unclassified_informative_text_before_block",
+                        "note": f"Text found between two recognized informative blocks: {between[:200]!r}",
+                    }
+                )
+
+        tag_name = m.group(1)
+        attrs = m.group(2)
+        block_id_m = ID_ATTR_RE.search(attrs)
+        block_id = block_id_m.group(1) if block_id_m else None
+
+        if tag_name == "p":
+            close_idx = html.find("</p>", m.end())
+            if close_idx == -1 or close_idx >= tail_end:
+                notes.append(
+                    {
+                        "req_id": req_id,
+                        "issue": "unbalanced_tag_in_informative_block",
+                        "note": "A <p> in the informative tail has no closing </p> before the requirement boundary; truncated at the boundary.",
+                    }
+                )
+                fragment, end_pos = html[m.end() : tail_end], tail_end
+            else:
+                fragment, end_pos = html[m.end() : close_idx], close_idx + len("</p>")
+            blocks.append(
+                {
+                    "block_type": "paragraph", "block_id": block_id, "example_title": None,
+                    "text": strip_tags(fragment), "code": None, "code_language_hint": None,
+                    "raw_html": html[m.start() : end_pos],
+                }
+            )
+            pos = end_pos
+        elif tag_name == "ul":
+            close_idx = html.find("</ul>", m.end())
+            if close_idx == -1 or close_idx >= tail_end:
+                notes.append(
+                    {
+                        "req_id": req_id,
+                        "issue": "unbalanced_tag_in_informative_block",
+                        "note": "A <ul> in the informative tail has no closing </ul> before the requirement boundary; truncated at the boundary.",
+                    }
+                )
+                fragment, end_pos = html[m.end() : tail_end], tail_end
+            else:
+                fragment, end_pos = html[m.end() : close_idx], close_idx + len("</ul>")
+            items = [strip_tags(li) for li in LI_RE.findall(fragment)]
+            blocks.append(
+                {
+                    "block_type": "list", "block_id": block_id, "example_title": None,
+                    "text": "\n".join(f"- {it}" for it in items if it), "code": None, "code_language_hint": None,
+                    "raw_html": html[m.start() : end_pos],
+                }
+            )
+            pos = end_pos
+        elif tag_name == "dl":
+            # A definition list of <dt>term</dt><dd>description</dd> pairs
+            # (e.g. req-R-mutation-testing's "Mutation Operators" taxonomy)
+            # -- a real, distinct shape from <ul>, found directly while
+            # verifying this extraction against the raw HTML (not
+            # anticipated by the original design). Each <dd> may itself
+            # wrap a nested <ul>; that's flattened into the same rendered
+            # text rather than dropped.
+            fragment, end_pos, was_truncated = extract_balanced_tag(html, tag_name, m.end(), tail_end)
+            if was_truncated:
+                notes.append(
+                    {
+                        "req_id": req_id,
+                        "issue": "unbalanced_tag_in_informative_block",
+                        "note": "A <dl> in the informative tail has no matching closing tag before the requirement boundary; truncated at the boundary.",
+                    }
+                )
+            lines = []
+            for pair_m in DT_DD_PAIR_RE.finditer(fragment):
+                term = strip_tags(pair_m.group(1))
+                dd_html = pair_m.group(2)
+                ul_m = UL_INNER_RE.search(dd_html)
+                if ul_m:
+                    intro = strip_tags(dd_html[: ul_m.start()])
+                    items = [strip_tags(li) for li in LI_RE.findall(ul_m.group(1)) if strip_tags(li)]
+                    dd_text = intro
+                    if items:
+                        dd_text += ("\n" if intro else "") + "\n".join(f"  - {it}" for it in items)
+                else:
+                    dd_text = strip_tags(dd_html)
+                if term or dd_text:
+                    lines.append(f"{term}: {dd_text}" if term else dd_text)
+            blocks.append(
+                {
+                    "block_type": "definition_list", "block_id": block_id, "example_title": None,
+                    "text": "\n".join(lines), "code": None, "code_language_hint": None,
+                    "raw_html": html[m.start() : end_pos],
+                }
+            )
+            pos = end_pos
+        else:  # div or aside
+            class_m = CLASS_ATTR_RE.search(attrs)
+            classes = set(class_m.group(1).split()) if class_m else set()
+            fragment, end_pos, was_truncated = extract_balanced_tag(html, tag_name, m.end(), tail_end)
+            if was_truncated:
+                notes.append(
+                    {
+                        "req_id": req_id,
+                        "issue": "unbalanced_tag_in_informative_block",
+                        "note": f"A <{tag_name}> in the informative tail has no matching closing tag before the requirement boundary; truncated at the boundary.",
+                    }
+                )
+            if "warning" in classes:
+                block_type = "warning"
+            elif "note" in classes:
+                block_type = "note"
+            elif "illegal-example" in classes:
+                block_type = "illegal_example"
+            elif "example" in classes:
+                block_type = "example"
+            else:
+                block_type = "unclassified"
+                notes.append(
+                    {
+                        "req_id": req_id,
+                        "issue": "unclassified_div_or_aside_class_in_informative_tail",
+                        "note": f"<{tag_name}> with class(es) {sorted(classes)!r} did not match any recognized informative-block type.",
+                    }
+                )
+
+            example_title = None
+            code = None
+            code_language_hint = None
+            text_source = fragment
+            if block_type in ("example", "illegal_example"):
+                title_m = EXAMPLE_TITLE_RE.search(fragment)
+                if title_m:
+                    example_title = strip_tags(title_m.group(1))
+                code_m = PRE_CODE_RE.search(fragment)
+                if code_m:
+                    code_attrs = code_m.group(1)
+                    lang_m = CLASS_ATTR_RE.search(code_attrs)
+                    code_language_hint = lang_m.group(1) if lang_m else None
+                    code = strip_tags_preserve_whitespace(code_m.group(2))
+                    text_source = fragment[: code_m.start()] + fragment[code_m.end() :]
+
+            blocks.append(
+                {
+                    "block_type": block_type, "block_id": block_id, "example_title": example_title,
+                    "text": strip_tags(text_source), "code": code, "code_language_hint": code_language_hint,
+                    "raw_html": html[m.start() : end_pos],
+                }
+            )
+            pos = end_pos
+    return blocks, notes
+
+
+def render_explanatory_text(blocks: list[dict]) -> str:
+    """Flattens `explanatory_blocks` (in document order) into the single
+    `explanatory_text` string `context_artifacts.generate_requirement_
+    context_md`'s existing `explanatory_text` parameter expects.
+    Warning/note/example blocks are prefixed so their kind survives
+    even in the flattened form; empty blocks contribute nothing."""
+    chunks = []
+    for b in blocks:
+        bt = b["block_type"]
+        if bt == "warning":
+            chunk = f"[Warning] {b['text']}" if b["text"] else ""
+        elif bt == "note":
+            chunk = f"[Note] {b['text']}" if b["text"] else ""
+        elif bt in ("example", "illegal_example"):
+            label = b["example_title"] or b["block_id"] or "?"
+            chunk = f"[Example: {label}] {b['text']}" if b["text"] else f"[Example: {label}]"
+            if b["code"]:
+                chunk += f"\nCode:\n{b['code']}"
+        else:
+            chunk = b["text"]
+        if chunk:
+            chunks.append(chunk)
+    return "\n\n".join(chunks)
 
 
 def find_section_context(headings: list[tuple[int, str, str, str]], pos: int) -> dict | None:
@@ -426,6 +701,16 @@ def parse() -> dict:
         definitions = sorted({d for d, _ in DFN_LINK_RE.findall(primary_rest)})
         enumerated_terms = sorted({strip_tags(c) for c in CODE_RE.findall(primary_rest)})
 
+        explanatory_blocks, tail_notes = classify_informative_tail(
+            html, primary_paragraph_end, next_boundary_after_start, req_id
+        )
+        parsing_notes.extend(tail_notes)
+        explanatory_text = render_explanatory_text(explanatory_blocks)
+        informative_tail_referenced_requirements = [
+            {"req_id": m.group(1), "link_text": strip_tags(m.group(2))}
+            for m in REQ_LINK_RE.finditer(html[primary_paragraph_end:next_boundary_after_start])
+        ]
+
         full_block = html[start:next_boundary_after_start]
 
         bibrefs = sorted({b for b, _ in BIBREF_RE.findall(full_block)})
@@ -468,11 +753,19 @@ def parse() -> dict:
                     ],
                 },
                 "enumerated_terms": enumerated_terms,
+                "explanatory_text": explanatory_text,
+                "explanatory_blocks": explanatory_blocks,
+                "informative_tail_referenced_requirements": informative_tail_referenced_requirements,
                 "maturity": "DRAFT_TRANSLATION",
             }
         )
 
     metadata = json.loads((SPEC_HTML.parent / "metadata.json").read_text())
+
+    explanatory_tail_block_counts: dict[str, int] = {}
+    for r in records:
+        for b in r["explanatory_blocks"]:
+            explanatory_tail_block_counts[b["block_type"]] = explanatory_tail_block_counts.get(b["block_type"], 0) + 1
 
     corpus = {
         "spec_version": metadata["spec_version"],
@@ -488,6 +781,7 @@ def parse() -> dict:
             "p": sum(1 for r in records if r["wrapper_tag"] == "p"),
             "div": sum(1 for r in records if r["wrapper_tag"] == "div"),
         },
+        "explanatory_tail_block_counts": explanatory_tail_block_counts,
         "requirements": records,
         "parsing_notes": parsing_notes,
     }
