@@ -92,7 +92,9 @@ _reg("req-2-compiler-SOL-2023-1", PredicateSpec(P.check_compiler_version_in_rang
 _reg("req-2-overflow-underflow", PredicateSpec(P.find_unprotected_arithmetic, ("slither",)))
 _reg("req-2-external-calls", PredicateSpec(P.find_state_write_after_external_call, ("slither",)))
 _reg("req-2-documented", PredicateSpec(P.find_documented_trigger_sites, ("slither",), {}, passes_req_id=False))
-_reg("req-2-block-data-misuse", PredicateSpec(P.find_block_data_usage, ("slither",)))
+_reg("req-2-block-data-misuse",
+     PredicateSpec(P.find_block_data_usage, ("slither",)),
+     PredicateSpec(P.find_cross_boundary_block_data_argument, ("slither",)))
 _reg("req-2-random-enough", PredicateSpec(P.find_block_data_usage, ("slither",)))
 _reg("req-2-check-rounding", PredicateSpec(P.find_division_in_value_context, ("slither",)))
 _reg("req-2-signature-verification",

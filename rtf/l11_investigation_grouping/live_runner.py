@@ -46,6 +46,7 @@ def build_property_pool(
     slither=None,
     max_locations: int = 5,
     max_total_instances: int = 6,
+    scope_files: list[str] | None = None,
 ) -> list[PropertyMetadata]:
     """Derives the full atomic-property pool for every applicable,
     evidence-backed, not-yet-resolved requirement in `routed` -- exactly
@@ -55,6 +56,13 @@ def build_property_pool(
     been escalated under the pre-grouping architecture, property for
     property, just decomposed into `PropertyMetadata` instead of
     collapsed to one candidate_location per requirement.
+
+    `scope_files`, when given, is forwarded to `rank_evidence` so an
+    in-scope location doesn't lose the top-`max_locations` cut to a
+    same-scored, alphabetically-earlier, out-of-scope sibling contract
+    (see `evidence_ranking.is_in_declared_scope`'s docstring for the
+    real case this closes). Optional and purely additive -- omitting it
+    reproduces prior ranking exactly.
     """
     generated_bundles = generated_bundles or {}
     properties: list[PropertyMetadata] = []
@@ -68,7 +76,7 @@ def build_property_pool(
         if not result.evidence or result.operational_status.value != "OK":
             continue
 
-        ranked = rank_evidence(list(result.evidence), project_root)
+        ranked = rank_evidence(list(result.evidence), project_root, scope_files=scope_files)
         locations = [r.item.location for r in ranked]
         top_location = locations[0] if locations else ""
 

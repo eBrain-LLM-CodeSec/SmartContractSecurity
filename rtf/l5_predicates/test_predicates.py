@@ -486,6 +486,106 @@ def test_block_data_usage_covers_prevrandao_gap():
     check("block_data: does not flag code with no block-data reads", len(r_neg) == 0, r_neg)
 
 
+def test_cross_boundary_block_data_argument_direct_call():
+    # A calls B.g() directly, and B.g() itself reads block.timestamp --
+    # A should be flagged as a caller reaching a block-data-sensitive
+    # function one hop away, even though A never reads block.timestamp
+    # itself.
+    src = """
+    pragma solidity ^0.8.20;
+    contract B {
+        function g() public view returns (uint) { return block.timestamp; }
+    }
+    contract A {
+        B public b;
+        constructor(B _b) { b = _b; }
+        function callsIntoB() public view returns (uint) { return b.g(); }
+    }
+    """
+    slither = _write_and_compile(src)
+    findings = P.find_cross_boundary_block_data_argument(slither)
+    locations = {f["location"] for f in findings}
+    check("cross-boundary: caller one hop from a block-data-sensitive function is flagged",
+          "A.callsIntoB" in locations, findings)
+    check("cross-boundary: the flagged function's own detail names the real target",
+          any(f["location"] == "A.callsIntoB" and "B.g" in f["detail"] for f in findings), findings)
+
+
+def test_cross_boundary_block_data_argument_transitive_call():
+    # A -> B.middle() -> B.inner() (reads block.timestamp) -- A is TWO
+    # hops away, not one. This is the real shape that motivated the
+    # predicate: LendingLedger.update_market -> GaugeController.
+    # gauge_relative_weight_write -> GaugeController._get_weight/_get_sum.
+    src = """
+    pragma solidity ^0.8.20;
+    contract B {
+        function inner() public view returns (uint) { return block.timestamp; }
+        function middle() public view returns (uint) { return inner(); }
+    }
+    contract A {
+        B public b;
+        constructor(B _b) { b = _b; }
+        function callsIntoB() public view returns (uint) { return b.middle(); }
+    }
+    """
+    slither = _write_and_compile(src)
+    findings = P.find_cross_boundary_block_data_argument(slither)
+    locations = {f["location"] for f in findings}
+    check("cross-boundary: caller TWO hops from a block-data-sensitive function is still flagged (transitive)",
+          "A.callsIntoB" in locations, findings)
+
+
+def test_cross_boundary_block_data_argument_negative_case():
+    # A calls B.g(), but B.g() never touches block-data at all -- A must
+    # NOT be flagged.
+    src = """
+    pragma solidity ^0.8.20;
+    contract B {
+        function g(uint x) public pure returns (uint) { return x + 1; }
+    }
+    contract A {
+        B public b;
+        constructor(B _b) { b = _b; }
+        function callsIntoB() public view returns (uint) { return b.g(1); }
+    }
+    """
+    slither = _write_and_compile(src)
+    findings = P.find_cross_boundary_block_data_argument(slither)
+    locations = {f["location"] for f in findings}
+    check("cross-boundary: a caller into a NON-block-data-sensitive function is not flagged",
+          "A.callsIntoB" not in locations, findings)
+
+
+def test_cross_boundary_block_data_argument_also_flags_a_function_that_reads_block_data_itself():
+    # Real bug found live: a function that BOTH reads block.number
+    # itself AND transitively reaches another block-data-sensitive
+    # function must still get the cross-boundary finding -- excluding
+    # "already flagged" callers let a real in-scope location lose a
+    # ranking tie it needed the extra evidence to survive.
+    src = """
+    pragma solidity ^0.8.20;
+    contract B {
+        function inner() public view returns (uint) { return block.timestamp; }
+    }
+    contract A {
+        B public b;
+        uint public lastBlock;
+        constructor(B _b) { b = _b; }
+        function callsIntoBAndReadsBlockNumber() public returns (uint) {
+            lastBlock = block.number;
+            return b.inner();
+        }
+    }
+    """
+    slither = _write_and_compile(src)
+    direct = P.find_block_data_usage(slither, "req-2-block-data-misuse")
+    cross = P.find_cross_boundary_block_data_argument(slither)
+    check("cross-boundary: the function IS also flagged directly (reads block.number itself)",
+          any(f["location"] == "A.callsIntoBAndReadsBlockNumber" for f in direct), direct)
+    check("cross-boundary: the SAME function ALSO gets the cross-boundary finding, not excluded",
+          any(f["location"] == "A.callsIntoBAndReadsBlockNumber" for f in cross), cross)
+
+
 def test_udvt_narrower_than_32_bytes():
     positive = "pragma solidity ^0.8.20;\ntype Foo is uint96;\ncontract C {}"
     negative = "pragma solidity ^0.8.20;\ntype Foo is uint256;\ncontract C {}"
@@ -1273,6 +1373,10 @@ def main() -> int:
         test_unprotected_arithmetic,
         test_state_write_after_external_call_ordering,
         test_block_data_usage_covers_prevrandao_gap,
+        test_cross_boundary_block_data_argument_direct_call,
+        test_cross_boundary_block_data_argument_transitive_call,
+        test_cross_boundary_block_data_argument_negative_case,
+        test_cross_boundary_block_data_argument_also_flags_a_function_that_reads_block_data_itself,
         test_udvt_narrower_than_32_bytes,
         test_state_write_without_event,
         test_non_exact_pragma,

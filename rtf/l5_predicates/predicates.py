@@ -573,6 +573,109 @@ def find_block_data_usage(slither: Slither, req_id: str) -> list[dict]:
     return findings
 
 
+def find_cross_boundary_block_data_argument(
+    slither: Slither, req_id: str = "req-2-block-data-misuse", max_hops: int = 4,
+) -> list[dict]:
+    """Targeted, mechanical extension of `find_block_data_usage`. That
+    predicate flags a function only at the LOCATION where it itself
+    reads block.timestamp/block.number/etc -- it can never ask "is the
+    CALLER passing the right kind of value into this". This predicate
+    flags the CALLER's own location instead, whenever it calls (directly
+    or transitively, within `max_hops` call-graph hops) into a function
+    `find_block_data_usage` already flagged.
+
+    Grounded directly in req-2-block-data-misuse's own normative text
+    and explanatory guidance (never in EVMbench): the requirement's spec
+    text names, as its own worked example, "using block.number / 14 as
+    a proxy for elapsed seconds" -- a value computed in ONE place and
+    misused according to a DIFFERENT function's assumption about what it
+    represents. A property derived only at the block-data-reading
+    function's own location can never pose that question; it's only
+    askable from the caller's side. This predicate identifies WHERE to
+    ask it -- like every predicate in this module, it does not verify
+    the argument's actual semantic correctness itself (that judgment
+    belongs to the investigating agent), it only locates the real
+    candidate.
+
+    Root-cased by a real audit run: LendingLedger.update_market computes
+    `epoch` from block.number and passes it to GaugeController.
+    gauge_relative_weight_write, which forwards it into _get_weight/
+    _get_sum -- functions `find_block_data_usage` already flags via
+    their own `t > block.timestamp` comparisons, two call-graph hops
+    away from update_market. Without this predicate, no property is
+    ever derived AT update_market asking whether `epoch`'s semantics
+    match what the callee expects.
+
+    Mechanical, not exhaustive: uses Slither's own `internal_calls`/
+    `high_level_calls` per function to build a direct-callee adjacency
+    map, then a breadth-first search up to `max_hops` (capped, matching
+    this project's own convention elsewhere for bounding a search rather
+    than letting it run unbounded) to test reachability.
+
+    Deliberately does NOT skip a function that's already flagged by
+    `find_block_data_usage` for its own direct read: real audit
+    behavior showed this location can still be crowded out of the
+    per-requirement evidence pool's top-`max_locations` cut by other
+    functions with far more raw block-data reads (e.g. a checkpoint
+    function with a dozen block.timestamp reads outranking a caller
+    with four block.number reads) -- adding a second, independent
+    evidence item for the SAME location, grounded in a different signal
+    (call-graph reachability, not a raw read count), gives it another,
+    real chance to survive that ranking rather than silently relying on
+    its own direct-read evidence alone.
+    """
+    flagged = {
+        tuple(f["location"].split(".", 1))
+        for f in find_block_data_usage(slither, req_id)
+    }
+
+    adjacency: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            key = (contract.name, func.name)
+            callees: set[tuple[str, str]] = set()
+            for call_op in func.internal_calls:
+                callee = getattr(call_op, "function", None)
+                callee_contract = getattr(callee, "contract", None) if callee else None
+                if callee is not None and callee_contract is not None:
+                    callees.add((callee_contract.name, callee.name))
+            for target_contract, call_op in func.high_level_calls:
+                callee = getattr(call_op, "function", None)
+                if callee is not None:
+                    callees.add((target_contract.name, callee.name))
+            adjacency[key] = callees
+
+    def reaches_flagged(start: tuple[str, str]) -> tuple[str, str] | None:
+        visited = {start}
+        frontier = [start]
+        for _ in range(max_hops):
+            next_frontier = []
+            for node in frontier:
+                for callee in adjacency.get(node, ()):
+                    if callee in flagged:
+                        return callee
+                    if callee not in visited:
+                        visited.add(callee)
+                        next_frontier.append(callee)
+            frontier = next_frontier
+            if not frontier:
+                break
+        return None
+
+    findings = []
+    for contract in slither.contracts:
+        for func in contract.functions_and_modifiers_declared:
+            key = (contract.name, func.name)
+            target = reaches_flagged(key)
+            if target is not None:
+                findings.append({
+                    "req_id": req_id, "location": f"{contract.name}.{func.name}",
+                    "detail": f"calls (directly or transitively, within {max_hops} hops) into "
+                              f"block-data-sensitive function {target[0]}.{target[1]}",
+                })
+    return findings
+
+
 def find_unprotected_arithmetic(slither: Slither, req_id: str = "req-2-overflow-underflow") -> list[dict]:
     """req-2-overflow-underflow (M) trigger, per its own L6 record:
     arithmetic in `unchecked {}` blocks, or in code compiled <0.8.0

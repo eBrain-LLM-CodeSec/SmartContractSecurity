@@ -29,6 +29,7 @@ from .evidence_ranking import (
     apply_evidence_budget,
     build_evidence_bundles,
     concrete_operation_named,
+    is_in_declared_scope,
     is_priority_contract,
     rank_evidence,
     structured_specificity_score,
@@ -67,6 +68,53 @@ def test_is_priority_contract_distinguishes_src_from_lib() -> None:
 
 def test_is_priority_contract_returns_none_without_repo_root() -> None:
     check("priority: no repo_root -> None (neutral), not False", is_priority_contract("Anything.fn", None) is None)
+
+
+def test_is_in_declared_scope_distinguishes_scope_files_from_siblings() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write(root, "src/Ledger.sol", "contract Ledger { function record() public {} }")
+        _write(root, "src/SiblingHelper.sol", "contract SiblingHelper { function help() public {} }")
+
+        check("in-scope: declared scope_files entry is in scope",
+              is_in_declared_scope("Ledger.record", root, ["src/Ledger.sol"]) is True)
+        check("in-scope: same-repo sibling NOT in declared scope_files is False, not True",
+              is_in_declared_scope("SiblingHelper.help", root, ["src/Ledger.sol"]) is False)
+        check("in-scope: unknown contract name -> None (not False)",
+              is_in_declared_scope("Nonexistent.foo", root, ["src/Ledger.sol"]) is None)
+        check("in-scope: no scope_files given -> None (neutral)",
+              is_in_declared_scope("Ledger.record", root, None) is None)
+        check("in-scope: no repo_root -> None (neutral)",
+              is_in_declared_scope("Ledger.record", None, ["src/Ledger.sol"]) is None)
+
+
+def test_rank_evidence_scope_tiebreak_is_opt_in_and_backward_compatible() -> None:
+    # The real bug this closes: is_priority_contract alone can't
+    # distinguish two same-repo, non-vendored contracts, so equally-
+    # scored items fall through to the alphabetical location tiebreak --
+    # an accident of contract naming with zero relationship to actual
+    # audit relevance (confirmed live: canto's in-scope LendingLedger.
+    # update_market lost req-2-block-data-misuse's top-N cut entirely to
+    # several same-scored, alphabetically-earlier, declared-OUT-of-scope
+    # GaugeController locations).
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write(root, "src/AAAOutOfScope.sol", "contract AAAOutOfScope { function f() public {} }")
+        _write(root, "src/ZZZInScope.sol", "contract ZZZInScope { function g() public {} }")
+
+        out_of_scope_item = EvidenceItem(predicate="p", location="AAAOutOfScope.f", detail="reads block.timestamp")
+        in_scope_item = EvidenceItem(predicate="p", location="ZZZInScope.g", detail="reads block.timestamp")
+
+        without_scope = rank_evidence([out_of_scope_item, in_scope_item], repo_root=root)
+        check("rank_evidence: WITHOUT scope_files, tied scores fall back to alphabetical location (prior behavior, unchanged)",
+              without_scope[0].item.location == "AAAOutOfScope.f", [(r.item.location, r.score) for r in without_scope])
+
+        with_scope = rank_evidence([out_of_scope_item, in_scope_item], repo_root=root, scope_files=["src/ZZZInScope.sol"])
+        check("rank_evidence: WITH scope_files, a declared-in-scope item outranks a same-scored, alphabetically-earlier out-of-scope one",
+              with_scope[0].item.location == "ZZZInScope.g", [(r.item.location, r.score) for r in with_scope])
+
+        check("rank_evidence: scope tiebreak does not change the underlying numeric score itself",
+              {r.item.location: r.score for r in with_scope} == {r.item.location: r.score for r in without_scope})
 
 
 def test_structured_specificity_ordering() -> None:
@@ -230,6 +278,8 @@ def main() -> int:
     tests = [
         test_is_priority_contract_distinguishes_src_from_lib,
         test_is_priority_contract_returns_none_without_repo_root,
+        test_is_in_declared_scope_distinguishes_scope_files_from_siblings,
+        test_rank_evidence_scope_tiebreak_is_opt_in_and_backward_compatible,
         test_structured_specificity_ordering,
         test_concrete_operation_named_uses_structured_then_keyword_fallback,
         test_rank_evidence_dedupes_exact_duplicates,

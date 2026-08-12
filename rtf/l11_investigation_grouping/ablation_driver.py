@@ -116,7 +116,7 @@ def run_config_entry(
         except Exception:  # noqa: BLE001 -- graph enrichment is best-effort, never blocks the run
             pg = None
 
-        properties = build_property_pool(run.routed, repo_root, generated_bundles, pg=pg, slither=ctx.slither)
+        properties = build_property_pool(run.routed, repo_root, generated_bundles, pg=pg, slither=ctx.slither, scope_files=scope_files)
         in_scope_properties, out_of_scope_properties = split_properties_by_scope(properties, scope_files)
         properties = forward_out_of_scope_context(in_scope_properties, out_of_scope_properties)
 

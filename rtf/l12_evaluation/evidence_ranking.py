@@ -150,6 +150,49 @@ def is_priority_contract(location: str, repo_root: Path | None) -> bool | None:
     return any(not _is_vendored_or_noncode_path(p, repo_root) for p in paths)
 
 
+def _paths_match_suffix(candidate: Path, scope_file: str) -> bool:
+    """Suffix-tolerant path match (mirrors `rtf.l11_investigation_
+    grouping.property_metadata._paths_match`'s own logic; duplicated
+    rather than imported to avoid a new L12->L11 dependency in this
+    direction -- L11 already imports FROM L12 elsewhere)."""
+    c = candidate.as_posix().lstrip("./")
+    s = scope_file.replace("\\", "/").lstrip("./")
+    return c == s or c.endswith("/" + s) or s.endswith("/" + c)
+
+
+def is_in_declared_scope(location: str, repo_root: Path | None, scope_files: list[str] | None) -> bool | None:
+    """True if `location`'s contract is declared in a file matching one
+    of the audit's own `scope_files` (its literal declared scope, e.g.
+    a real contest's scope.txt) -- a narrower, more specific signal than
+    `is_priority_contract` (which only distinguishes vendored libraries
+    from the project's OWN code, treating every non-vendored contract in
+    the whole repo as equally "priority"). None when `repo_root`/
+    `scope_files` aren't available, or the contract can't be found at
+    all -- never silently `False` for a lookup gap.
+
+    Exists specifically because `is_priority_contract` alone lets
+    `rank_evidence`'s score tie across every non-vendored contract in a
+    project (e.g. a real audit's actual in-scope entry file scores
+    identically to a same-repo sibling contract the audit's own scope.txt
+    explicitly excludes) -- ties then fall through to `rank_evidence`'s
+    alphabetical tiebreak, an accident of contract naming with no
+    relationship to actual audit relevance. Confirmed live: canto's
+    LendingLedger.update_market (in scope) lost req-2-block-data-misuse's
+    top-`max_locations` cut entirely to GaugeController's several
+    same-scored, alphabetically-earlier locations (out of scope per
+    canto's own scope.txt), even after update_market gained real,
+    relevant evidence of its own.
+    """
+    if repo_root is None or not scope_files:
+        return None
+    contract_name = location.split(".", 1)[0]
+    index = _index_contract_declarations(repo_root)
+    paths = index.get(contract_name)
+    if not paths:
+        return None
+    return any(_paths_match_suffix(p.relative_to(repo_root), s) for p in paths for s in scope_files)
+
+
 # --- Structured-evidence specificity/completeness -----------------------
 #
 # Signal: does this evidence item's OWN predicate output name a concrete
@@ -250,13 +293,26 @@ def _dedupe_key(item: EvidenceItem) -> tuple:
     return (item.predicate, item.location, item.detail)
 
 
-def rank_evidence(evidence: list[EvidenceItem], repo_root: Path | None) -> list[RankedEvidence]:
+def rank_evidence(
+    evidence: list[EvidenceItem], repo_root: Path | None, scope_files: list[str] | None = None,
+) -> list[RankedEvidence]:
     """Score every item, drop exact duplicates (same predicate + location
     + detail -- zero marginal information over the first occurrence,
     a mechanical dedup, not a relevance judgment), and sort by score
-    descending. Stable sort with location as the tiebreak key, so output
-    order is fully reproducible across runs given identical input, not
-    just "deterministic in principle."
+    descending. Stable sort with location as the FINAL tiebreak key, so
+    output order is fully reproducible across runs given identical
+    input, not just "deterministic in principle."
+
+    `scope_files`, when given, inserts an intermediate tiebreak BETWEEN
+    score and location: an item whose location is in the audit's own
+    declared scope (`is_in_declared_scope`) sorts before an equally-
+    scored item that isn't. Purely additive -- omitting `scope_files`
+    (the default) reproduces the exact prior sort, byte for byte; this
+    exists because `score_evidence_item`'s own scoring has no signal
+    that discriminates within "every non-vendored contract in this
+    repo" (see `is_in_declared_scope`'s docstring for the real case that
+    motivated this -- an in-scope location losing a top-N cut to a
+    same-scored, alphabetically-earlier, OUT-of-scope sibling contract).
     """
     seen: set[tuple] = set()
     ranked: list[RankedEvidence] = []
@@ -266,7 +322,15 @@ def rank_evidence(evidence: list[EvidenceItem], repo_root: Path | None) -> list[
             continue
         seen.add(key)
         ranked.append(score_evidence_item(item, repo_root))
-    ranked.sort(key=lambda r: (-r.score, r.item.location))
+
+    def sort_key(r: RankedEvidence) -> tuple:
+        if scope_files is None:
+            return (-r.score, r.item.location)
+        in_scope = is_in_declared_scope(r.item.location, repo_root, scope_files)
+        scope_rank = 0 if in_scope else 1  # True -> 0 (first), False/None -> 1
+        return (-r.score, scope_rank, r.item.location)
+
+    ranked.sort(key=sort_key)
     return ranked
 
 
