@@ -18,13 +18,19 @@ VENV_BIN = Path(__file__).resolve().parents[2] / ".venv" / "bin"
 SOLC_SELECT = str(VENV_BIN / "solc-select")
 
 
-def _env_with_venv_bin_on_path() -> dict:
+def _env_with_venv_bin_on_path(solc_version: str | None = None) -> dict:
     # Slither/crytic-compile shell out to a bare `solc` on PATH -- the
     # solc-select shim lives at .venv/bin/solc but that directory isn't on
     # PATH by default in this environment. Prepend it rather than relying
     # on the caller's shell PATH already including it.
     env = os.environ.copy()
     env["PATH"] = f"{VENV_BIN}:{env.get('PATH', '')}"
+    if solc_version is not None:
+        # Pin the solc-select shim per subprocess.  Calling
+        # `solc-select use` mutates ~/.solc-select/global-version, which
+        # is both unavailable in sandboxed runs and racy when different
+        # compiler versions are used concurrently.
+        env["SOLC_VERSION"] = solc_version
     return env
 
 
@@ -34,14 +40,21 @@ def compile_source(solidity_code: str, solc_version: str = "0.8.20", extra_args:
     Raises if compilation fails (never silently swallowed -- a fixture
     that doesn't compile is a bug in the fixture, not a soft failure).
     """
-    env = _env_with_venv_bin_on_path()
-    subprocess.run([SOLC_SELECT, "use", solc_version], check=True, capture_output=True, text=True, env=env)
+    env = _env_with_venv_bin_on_path(solc_version)
     os.environ["PATH"] = env["PATH"]  # Slither's own subprocess calls inherit this process's environ
+    previous_solc_version = os.environ.get("SOLC_VERSION")
+    os.environ["SOLC_VERSION"] = solc_version
 
-    with tempfile.TemporaryDirectory() as tmp:
-        sol_path = Path(tmp) / "Fixture.sol"
-        sol_path.write_text(solidity_code, encoding="utf-8")
-        return Slither(str(sol_path), **({} if not extra_args else {"solc_args": " ".join(extra_args)}))
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            sol_path = Path(tmp) / "Fixture.sol"
+            sol_path.write_text(solidity_code, encoding="utf-8")
+            return Slither(str(sol_path), **({} if not extra_args else {"solc_args": " ".join(extra_args)}))
+    finally:
+        if previous_solc_version is None:
+            os.environ.pop("SOLC_VERSION", None)
+        else:
+            os.environ["SOLC_VERSION"] = previous_solc_version
 
 
 def _foundry_toml_remapping_lines(foundry_toml_path: Path) -> list[str]:
@@ -176,20 +189,27 @@ def compile_evmbench_target(
     Raises if compilation fails, same discipline as `compile_source`.
     """
     remaps = _collect_remappings(project_root)
-    env = _env_with_venv_bin_on_path()
-    subprocess.run([SOLC_SELECT, "use", solc_version], check=True, capture_output=True, text=True, env=env)
+    env = _env_with_venv_bin_on_path(solc_version)
     os.environ["PATH"] = env["PATH"]
+    previous_solc_version = os.environ.get("SOLC_VERSION")
+    os.environ["SOLC_VERSION"] = solc_version
 
     allow_paths = f".,{entry_sol_file.resolve().parent},{project_root.resolve()}"
     solc_args_parts = ["--allow-paths", allow_paths]
     if extra_solc_args:
         solc_args_parts.extend(extra_solc_args)
 
-    with tempfile.TemporaryDirectory() as neutral_cwd:
-        return Slither(
-            str(entry_sol_file.resolve()),
-            solc_remaps=remaps,
-            cwd=neutral_cwd,
-            compile_force_framework="solc",
-            solc_args=" ".join(solc_args_parts),
-        )
+    try:
+        with tempfile.TemporaryDirectory() as neutral_cwd:
+            return Slither(
+                str(entry_sol_file.resolve()),
+                solc_remaps=remaps,
+                cwd=neutral_cwd,
+                compile_force_framework="solc",
+                solc_args=" ".join(solc_args_parts),
+            )
+    finally:
+        if previous_solc_version is None:
+            os.environ.pop("SOLC_VERSION", None)
+        else:
+            os.environ["SOLC_VERSION"] = previous_solc_version

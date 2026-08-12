@@ -309,6 +309,138 @@ def test_aggregate_separate_requirements_resolved_independently():
     check("req-b resolves FAIL independently", aggregated["req-b"] == ConformanceState.FAIL, aggregated)
 
 
+# --- max_concurrent_investigations: genuine overlap + correctness ----------
+
+def test_default_max_concurrent_investigations_is_serial():
+    """Omitting the parameter must exercise EXACTLY the same code path
+    as before it existed -- calls happen one at a time, not just
+    'eventually all complete'."""
+    prop = _minimal_pool()
+    from rtf.l11_investigation_grouping.grouping_engine import Cluster
+    clusters = [Cluster(cluster_id=f"c{i}", property_ids=(f"f{i}",), grouping_reason=(),
+                         shared_context={}, estimated_context_size=1) for i in range(3)]
+    by_id = {f"f{i}": prop(f"f{i}") for i in range(3)}
+
+    import threading
+    max_in_flight = [0]
+    current_in_flight = [0]
+    lock = threading.Lock()
+
+    def mock_run_arm_g(**kwargs):
+        with lock:
+            current_in_flight[0] += 1
+            max_in_flight[0] = max(max_in_flight[0], current_in_flight[0])
+        pid = kwargs["case_id"].split("__")[-1].replace("c", "f")
+        result = _FakeArmGResult(kwargs["case_id"], {"properties": [
+            {"property_id": pid, "verdict": "PASS", "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": "r"},
+        ]})
+        with lock:
+            current_in_flight[0] -= 1
+        return result
+
+    with tempfile.TemporaryDirectory() as tmp:
+        run_cluster_investigations_live(
+            clusters, by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g,
+        )
+        check("default: never more than 1 call in flight at once (serial)", max_in_flight[0] == 1, max_in_flight[0])
+
+
+def test_concurrent_investigations_actually_overlap_in_time():
+    """Barrier-based genuine-overlap proof, same rigor as
+    test_concurrent_escalation.py's own proof for pipeline_e2e.py: each
+    mock call blocks on a shared Barrier until N=3 calls are
+    simultaneously in flight. If still serial, this deadlocks --
+    completion within the timeout IS the proof."""
+    import threading
+
+    prop = _minimal_pool()
+    from rtf.l11_investigation_grouping.grouping_engine import Cluster
+    N = 3
+    clusters = [Cluster(cluster_id=f"c{i}", property_ids=(f"f{i}",), grouping_reason=(),
+                         shared_context={}, estimated_context_size=1) for i in range(N)]
+    by_id = {f"f{i}": prop(f"f{i}") for i in range(N)}
+
+    barrier = threading.Barrier(N, timeout=10)
+    max_in_flight = [0]
+    current_in_flight = [0]
+    lock = threading.Lock()
+
+    def mock_run_arm_g(**kwargs):
+        with lock:
+            current_in_flight[0] += 1
+            max_in_flight[0] = max(max_in_flight[0], current_in_flight[0])
+        barrier.wait()  # deadlocks unless all N calls are concurrently in flight
+        with lock:
+            current_in_flight[0] -= 1
+        pid = kwargs["case_id"].split("__")[-1].replace("c", "f")
+        return _FakeArmGResult(kwargs["case_id"], {"properties": [
+            {"property_id": pid, "verdict": "PASS", "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": "r"},
+        ]})
+
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            verdicts, results, cost, raw = run_cluster_investigations_live(
+                clusters, by_id, "# protocol\n", {"req-x": "# req-x\n"},
+                audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+                codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+                api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+                scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g, max_concurrent_investigations=N,
+            )
+            check("concurrent: completed without deadlocking (proves real overlap)", True)
+            check("concurrent: peak simultaneous in-flight calls reached N", max_in_flight[0] == N, max_in_flight[0])
+            check("concurrent: all 3 properties still correctly resolved", all(
+                verdicts[f"f{i}"].conformance_state == ConformanceState.PASS for i in range(N)
+            ), verdicts)
+        except Exception as e:  # noqa: BLE001 -- a barrier timeout manifests as an exception, i.e. NOT concurrent
+            check("concurrent: completed without deadlocking (proves real overlap)", False, f"{type(e).__name__}: {e}")
+
+
+def test_split_halves_processed_in_a_later_batch_under_concurrency():
+    """A split cluster's halves must still be investigated (not dropped)
+    when concurrency > 1 -- the pending-queue design (not immediate
+    recursion) must correctly re-enqueue them for the next batch."""
+    prop = _minimal_pool()
+    by_id = {f"f{i}": prop(f"f{i}") for i in range(1, 5)}
+    from rtf.l11_investigation_grouping.grouping_engine import Cluster
+    cluster = Cluster(cluster_id="c1", property_ids=tuple(by_id.keys()), grouping_reason=("same_requirement",),
+                       shared_context={}, estimated_context_size=4)
+
+    call_count = [0]
+
+    def mock_run_arm_g(**kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            # First call: incomplete (missing f3, f4) -> triggers a split.
+            return _FakeArmGResult(kwargs["case_id"], {"properties": [
+                {"property_id": "f1", "verdict": "PASS", "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": "r"},
+                {"property_id": "f2", "verdict": "PASS", "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": "r"},
+            ]})
+        import re
+        plan_content = "".join(v for k, v in kwargs.get("extra_files", {}).items() if k.startswith(".rtf/plans/"))
+        ids_in_plan = sorted(set(re.findall(r"`(f[1-4])`", plan_content)))
+        return _FakeArmGResult(kwargs["case_id"], {"properties": [
+            {"property_id": pid, "verdict": "PASS", "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": f"r-{pid}"}
+            for pid in ids_in_plan
+        ]})
+
+    with tempfile.TemporaryDirectory() as tmp:
+        verdicts, results, cost, raw = run_cluster_investigations_live(
+            [cluster], by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g, max_concurrent_investigations=2,
+        )
+        check("split halves eventually investigated under concurrency (none lost)",
+              set(verdicts.keys()) == set(by_id.keys()), verdicts.keys())
+        check("all resolve PASS (split halves correctly answered)",
+              all(v.conformance_state == ConformanceState.PASS for v in verdicts.values()), verdicts)
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for t in tests:

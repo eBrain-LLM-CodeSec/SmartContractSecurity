@@ -6,9 +6,13 @@ from __future__ import annotations
 
 import sys
 
+from dataclasses import replace
+
 from a4v.graph import ProgramGraph
 from rtf.l10_property_derivation.derive_investigations import InvestigationInstance
-from rtf.l11_investigation_grouping.property_metadata import derive_property_metadata, parse_contract_function
+from rtf.l11_investigation_grouping.property_metadata import (
+    derive_property_metadata, filter_properties_to_scope, parse_contract_function,
+)
 from rtf.l12_evaluation.metrics import EvidenceItem
 from rtf.l5_predicates.compile_helper import compile_source
 
@@ -60,6 +64,8 @@ def test_metadata_populates_spec_derived_fields():
           md.property_text == _REQ_RECORD["normative_text"])
     check("metadata: target_contract/function parsed from candidate_location",
           (md.target_contract, md.target_function) == ("Vault", "withdraw"))
+    check("metadata: location preserves the raw candidate_location verbatim",
+          md.location == "Vault.withdraw", md.location)
     check("metadata: candidate_locations carries the FULL parent list, deduped",
           md.candidate_locations == ("Vault.withdraw", "Vault.deposit"), md.candidate_locations)
     check("metadata: reasoning_category is None (Phase 3 not run yet)", md.reasoning_category is None)
@@ -184,6 +190,57 @@ def test_unresolvable_candidate_location_on_real_graph_degrades_gracefully():
     )
     md = derive_property_metadata(instance, {"req_id": "req-x"}, parent_candidate_locations=["Vault.doesNotExist"], pg=pg)
     check("unresolvable location: no crash, empty graph enrichment", md.callgraph_neighbors == () and md.relevant_state_variables == ())
+
+
+# --- filter_properties_to_scope -----------------------------------------
+
+def _synthetic_property(location: str, relevant_files: tuple[str, ...] = ()):
+    instance = InvestigationInstance(
+        req_id="req-x", instance_id=f"req-x::{location}", candidate_location=location,
+        focused_clause=None, clause_index=0, location_index=0,
+    )
+    md = derive_property_metadata(instance, {"req_id": "req-x"}, parent_candidate_locations=[location])
+    return replace(md, relevant_files=relevant_files)
+
+
+def test_scope_filter_keeps_property_whose_relevant_files_matches_scope():
+    props = [_synthetic_property("Vault.withdraw", relevant_files=("src/Vault.sol",))]
+    kept = filter_properties_to_scope(props, ["src/Vault.sol"])
+    check("scope filter: in-scope relevant_files kept", kept == props)
+
+
+def test_scope_filter_drops_vendored_library_not_in_scope():
+    props = [_synthetic_property("Address._revert", relevant_files=("lib/openzeppelin-contracts/contracts/utils/Address.sol",))]
+    kept = filter_properties_to_scope(props, ["src/Vault.sol"])
+    check("scope filter: out-of-scope vendored lib dropped", kept == [])
+
+
+def test_scope_filter_tolerates_relative_prefix_differences():
+    props = [_synthetic_property("Vault.withdraw", relevant_files=("2024-01-project/src/Vault.sol",))]
+    kept = filter_properties_to_scope(props, ["src/Vault.sol"])
+    check("scope filter: differing relative prefixes still match (suffix comparison)", kept == props)
+
+
+def test_scope_filter_falls_back_to_location_when_relevant_files_empty():
+    in_scope = _synthetic_property("README.md")
+    out_of_scope = _synthetic_property("README.md")
+    kept_in = filter_properties_to_scope([in_scope], ["README.md"])
+    kept_out = filter_properties_to_scope([out_of_scope], ["src/Vault.sol"])
+    check("scope filter: location fallback keeps in-scope README.md", kept_in == [in_scope])
+    check("scope filter: location fallback drops out-of-scope README.md", kept_out == [])
+
+
+def test_scope_filter_always_keeps_non_file_pseudo_locations():
+    props = [_synthetic_property("compiler config"), _synthetic_property("2024-01-project")]
+    kept = filter_properties_to_scope(props, ["src/Vault.sol"])
+    check("scope filter: non-file pseudo-locations (compiler config, bare project name) always kept",
+          kept == props, kept)
+
+
+def test_scope_filter_is_noop_with_empty_scope_files():
+    props = [_synthetic_property("Address._revert", relevant_files=("lib/openzeppelin-contracts/contracts/utils/Address.sol",))]
+    kept = filter_properties_to_scope(props, [])
+    check("scope filter: empty scope_files is a no-op (keeps everything)", kept == props)
 
 
 def main() -> int:

@@ -61,7 +61,14 @@ class PropertyMetadata:
     semantics exactly)."""
     target_contract: str | None
     target_function: str | None
-    candidate_locations: tuple[str, ...]
+    location: str = ""
+    """This property's own single raw candidate_location string (before
+    `parse_contract_function` splits it), preserved verbatim -- e.g.
+    "README.md" or "compiler config", cases `target_contract`/
+    `target_function` alone can't reconstruct losslessly. Used by
+    `filter_properties_to_scope` to resolve a file path when Slither
+    never compiled the target (so `relevant_files` is empty)."""
+    candidate_locations: tuple[str, ...] = ()
     """Every distinct location the PARENT requirement's evidence pool
     named (not just this one property's own single location) -- real
     signal for the grouping engine: two properties whose parent
@@ -207,6 +214,7 @@ def derive_property_metadata(
         property_text=instance.focused_clause or requirement_record.get("normative_text", ""),
         target_contract=target_contract,
         target_function=target_function,
+        location=instance.candidate_location or "",
         candidate_locations=tuple(dict.fromkeys(loc for loc in parent_candidate_locations if loc)),
         relevant_files=files,
         relevant_symbols=symbols,
@@ -219,3 +227,60 @@ def derive_property_metadata(
         estimated_complexity=None,
         source_provenance=provenance,
     )
+
+
+_FILE_LIKE_SUFFIXES = (".sol", ".md", ".json", ".yml", ".yaml", ".txt")
+
+
+def _property_target_files(prop: PropertyMetadata) -> tuple[str, ...]:
+    """Best-effort file path(s) this property targets, for scope
+    filtering. Prefers `relevant_files` (Slither-verified, from real
+    compiled `source_mapping`); falls back to `location` itself when it
+    already looks like a file path (e.g. "README.md") that Slither never
+    compiled so never enriched via `relevant_files`. Empty when the
+    property targets something inherently non-file-scoped (e.g.
+    "compiler config", a bare project/repo name) -- `filter_properties_
+    to_scope` never treats these as out-of-scope.
+    """
+    if prop.relevant_files:
+        return prop.relevant_files
+    head = (prop.location or "").split(" ", 1)[0]
+    if head.endswith(_FILE_LIKE_SUFFIXES):
+        return (head,)
+    return ()
+
+
+def _paths_match(candidate: str, scope_file: str) -> bool:
+    """True when `candidate` and `scope_file` name the same file,
+    tolerating differing relative-path prefixes (e.g. Slither's
+    project-root-relative "2024-01-canto/src/X.sol" vs. a bare
+    "src/X.sol" scope.txt entry) via suffix comparison on path
+    components, not raw string prefix/substring matching.
+    """
+    c = candidate.replace("\\", "/").lstrip("./")
+    s = scope_file.replace("\\", "/").lstrip("./")
+    return c == s or c.endswith("/" + s) or s.endswith("/" + c)
+
+
+def filter_properties_to_scope(
+    properties: list[PropertyMetadata], scope_files: list[str],
+) -> list[PropertyMetadata]:
+    """Drops properties whose only resolvable file target(s) fall
+    outside the audit's declared `scope_files` -- e.g. vendored third-
+    party libraries (OpenZeppelin's Address.sol/Math.sol), sibling
+    contracts never listed in scope.txt, or a stray documentation file
+    (README.md) a candidate-location heuristic mis-targeted. Properties
+    with no resolvable file target at all (compiler-config-level checks,
+    bare project-name pseudo-locations) are never considered out-of-
+    scope by this filter and are always kept, since they're inherently
+    about the whole compiled unit rather than one specific (possibly
+    wrong) file. A no-op when `scope_files` is empty.
+    """
+    if not scope_files:
+        return list(properties)
+    kept = []
+    for prop in properties:
+        candidates = _property_target_files(prop)
+        if not candidates or any(_paths_match(c, s) for c in candidates for s in scope_files):
+            kept.append(prop)
+    return kept

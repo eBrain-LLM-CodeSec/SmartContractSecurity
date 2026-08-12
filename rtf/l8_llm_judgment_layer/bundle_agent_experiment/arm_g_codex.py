@@ -193,6 +193,11 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
     disposable copy means an errant write can't corrupt the actual
     cloned audit repo other entries/predicates still need to read.
     """
+    out_path = scratch_root / f"{case_id}_gout.txt"
+    log_path = scratch_root / f"{case_id}_gstream.jsonl"
+    trace_log_path = scratch_root / f"{case_id}_graph_trace.jsonl"
+    resume_completed = out_path.exists() and log_path.exists()
+
     home = scratch_root / f"{case_id}_ghome"
     if home.exists():
         shutil.rmtree(home)
@@ -226,8 +231,8 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
     # onto the copy -- the graph MCP server compiles this file location.
     entry_file_in_copy = investigation_dir / entry_file.resolve().relative_to(repo_root.resolve())
 
-    trace_log_path = scratch_root / f"{case_id}_graph_trace.jsonl"
-    trace_log_path.unlink(missing_ok=True)
+    if not resume_completed:
+        trace_log_path.unlink(missing_ok=True)
 
     mcp_env = {
         "GRAPH_ENTRY_FILE": str(entry_file_in_copy),
@@ -252,10 +257,9 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
     write_g_config(home, str(python_bin), [str(mcp_server_script)], mcp_env)
     codex_login(codex_bin, home, api_key)
 
-    out_path = scratch_root / f"{case_id}_gout.txt"
-    log_path = scratch_root / f"{case_id}_gstream.jsonl"
-    out_path.unlink(missing_ok=True)
-    log_path.unlink(missing_ok=True)
+    if not resume_completed:
+        out_path.unlink(missing_ok=True)
+        log_path.unlink(missing_ok=True)
 
     cmd = [
         str(codex_bin), "exec",
@@ -271,13 +275,14 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
 
     start = time.time()
     timed_out = False
-    with open(log_path, "w") as logf:
-        try:
-            subprocess.run(cmd, cwd=str(investigation_dir), env=env,
-                            stdout=logf, stderr=subprocess.STDOUT,
-                            timeout=timeout_s, check=False)
-        except subprocess.TimeoutExpired:
-            timed_out = True
+    if not resume_completed:
+        with open(log_path, "w") as logf:
+            try:
+                subprocess.run(cmd, cwd=str(investigation_dir), env=env,
+                                stdout=logf, stderr=subprocess.STDOUT,
+                                timeout=timeout_s, check=False)
+            except subprocess.TimeoutExpired:
+                timed_out = True
     wall_clock_s = time.time() - start
 
     import json
