@@ -322,6 +322,26 @@ def test_forward_out_of_scope_context_dedupes_per_source_requirement():
           len(result[0].related_out_of_scope_context) == 1, result[0].related_out_of_scope_context)
 
 
+def test_forward_out_of_scope_context_collapses_multi_paragraph_text_to_one_line():
+    # Real bug found live: generate_cluster_plan_md renders each forwarded
+    # note as ONE Markdown bullet ("- {note}"). A multi-paragraph
+    # explanatory_text (real spec paragraphs are "\n\n"-joined by
+    # render_explanatory_text) embedded raw breaks that bullet -- every
+    # paragraph after the first renders as bare, unattributed text no
+    # longer visibly tied to the property, in the real canto rerun this
+    # silently dropped the SWC-116 example itself out of its own bullet.
+    kept_prop = replace(_synthetic_property("A.f"), target_contract="A", target_function="f", callgraph_neighbors=("fn::B.g",))
+    dropped_prop = replace(
+        _synthetic_property("B.g"), target_contract="B", target_function="g", callgraph_neighbors=("fn::A.f",),
+        requirement_explanatory_text="First paragraph.\n\nSecond paragraph with the important example.\n\nThird paragraph.",
+    )
+    result = forward_out_of_scope_context([kept_prop], [dropped_prop])
+    note = result[0].related_out_of_scope_context[0]
+    check("forward: no embedded blank lines in a forwarded note (stays one Markdown bullet)", "\n" not in note, repr(note))
+    check("forward: every paragraph's content still present despite collapsing", "important example" in note, note)
+    check("forward: third paragraph also survives the collapse", "Third paragraph" in note, note)
+
+
 def test_forward_out_of_scope_context_skips_dropped_properties_with_no_explanatory_text():
     kept_prop = replace(_synthetic_property("A.f"), target_contract="A", target_function="f", callgraph_neighbors=("fn::B.g",))
     dropped_no_text = replace(

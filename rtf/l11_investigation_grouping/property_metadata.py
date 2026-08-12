@@ -384,12 +384,22 @@ def forward_out_of_scope_context(
             if not shares_callgraph_region(k, d):
                 continue
             seen_req_ids.add(d.requirement_id)
+            # `requirement_explanatory_text` carries the spec's own paragraph
+            # breaks (render_explanatory_text joins chunks with "\n\n"). This
+            # note is rendered as ONE Markdown bullet line by
+            # `generate_cluster_plan_md` -- embedding those raw blank lines
+            # would split the bullet, so everything past the first paragraph
+            # (concretely: the SWC-116 example itself, for the req-2-block-
+            # data-misuse case this whole mechanism was built for) renders as
+            # bare, unattributed text floating outside the bullet, no longer
+            # visibly tied to this property. Collapse to one line instead.
+            single_line_text = " ".join(d.requirement_explanatory_text.split())
             forwarded.append(
                 f"[Background from out-of-scope requirement {d.requirement_id} "
                 f"(target `{d.target_contract}.{d.target_function}` is outside this "
                 f"audit's declared scope, so it is not itself an investigatable finding "
                 f"here) -- forwarded because it is call-graph-adjacent to this property's "
-                f"own target: {d.requirement_explanatory_text}"
+                f"own target: {single_line_text}"
             )
         result.append(replace(k, related_out_of_scope_context=tuple(forwarded)) if forwarded else k)
     return result
