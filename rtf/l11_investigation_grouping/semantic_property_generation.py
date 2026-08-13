@@ -105,6 +105,23 @@ class ProjectManifest:
 
     @classmethod
     def from_slither(cls, slither) -> "ProjectManifest":
+        """Known limitation (found live against a real EVMbench target,
+        `2025-01-liquid-ron`, not just reasoned about): uses `functions_
+        declared`/`state_variables_declared`, which are a contract's OWN
+        directly-declared members only -- an inherited-but-never-
+        overridden function (e.g. a vault that never overrides OZ
+        ERC4626's own `convertToShares`) is invisible here under the
+        derived contract's name. Confirmed this does NOT cause incorrect
+        grounding in practice (the generator/grounder still succeed via a
+        different, real concrete reference the property also names -- see
+        RTF_V2_LIVE_VALIDATION_REAL_TARGET_PARTIAL.md), but it does mean
+        the generator cannot itself PROPOSE a property naming only an
+        inherited-only method. A future fix would use `functions`/
+        `state_variables` (the full, inherited-inclusive sets) instead --
+        deliberately not changed here without live-run evidence it's
+        actually needed, per this module's own anti-speculative-change
+        discipline.
+        """
         contracts: list[str] = []
         functions: list[str] = []
         state_vars: list[str] = []

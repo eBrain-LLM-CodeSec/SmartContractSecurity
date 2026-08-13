@@ -138,6 +138,86 @@ def test_driver_wires_generation_through_to_a_mocked_investigation():
               result["semantic_observability"]["rejected_grounding"] == [], result["semantic_observability"])
 
 
+_HELPER_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Helper {
+    uint256 public helperState;
+    function bump() external { helperState += 1; }
+}
+"""
+
+_VAULT_WITH_HELPER_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+import "./Helper.sol";
+
+contract Vault {
+    uint256 public totalAssetsHeld;
+    Helper public helper;
+
+    function deposit(uint256 amount) external { totalAssetsHeld += amount; }
+    function callHelper() external { helper.bump(); }
+}
+"""
+
+_VAULT_IN_SCOPE_ENTRY = {
+    "statement": "Vault.deposit must increase Vault.totalAssetsHeld by exactly the deposited amount.",
+    "property_type": "accounting", "rationale": "Deposits must be fully reflected in accounting.",
+    "affected_contracts": ["Vault"], "affected_functions": ["Vault.deposit"],
+    "affected_state_variables": ["Vault.totalAssetsHeld"], "source_refs": ["fixture"], "confidence": 0.8,
+}
+_HELPER_OUT_OF_SCOPE_ENTRY = {
+    "statement": "Helper.bump must increase Helper.helperState by exactly one.",
+    "property_type": "accounting", "rationale": "bump should be a pure increment.",
+    "affected_contracts": ["Helper"], "affected_functions": ["Helper.bump"],
+    "affected_state_variables": ["Helper.helperState"], "source_refs": ["fixture"], "confidence": 0.8,
+}
+
+
+def test_scope_files_drops_properties_targeting_files_outside_declared_scope():
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "Helper.sol").write_text(_HELPER_SOURCE, encoding="utf-8")
+        (repo / "Vault.sol").write_text(_VAULT_WITH_HELPER_SOURCE, encoding="utf-8")
+        client = FakeChatClient({"properties": [_VAULT_IN_SCOPE_ENTRY, _HELPER_OUT_OF_SCOPE_ENTRY]})
+
+        invoked_property_ids: list[str] = []
+
+        def _run_arm_g_bundle_fn(*, case_id, prompt, extra_files, candidate_location, **kwargs):
+            import re
+            haystack = "\n".join(extra_files.values())
+            for m in re.finditer(r"`(semantic__[a-z_]+__[0-9a-f]+::loc0)`", haystack):
+                invoked_property_ids.append(m.group(1))
+            entries = [{
+                "property_id": pid, "verdict": "PASS", "evidence": "e", "files_read": [],
+                "counterexample_attempt": "a", "counterexample_result": "r", "reasoning": "r",
+                "vulnerable_location": None, "confidence": "HIGH",
+            } for pid in set(invoked_property_ids)]
+            return FakeArmGResult(final_decision={"properties": entries})
+
+        with tempfile.TemporaryDirectory() as scratch:
+            result = run_semantic_investigation(
+                audit_id="scope-test", repo_root=repo, entry_sol_file=repo / "Vault.sol",
+                solc_version="0.8.20", chat_client=client,
+                codex_bin=Path("/nonexistent/codex"), python_bin=Path("/nonexistent/python3"),
+                mcp_server_script=Path("/nonexistent/mcp.py"), api_key="unused", codex_model="unused",
+                scratch_root=Path(scratch), run_arm_g_bundle_fn=_run_arm_g_bundle_fn,
+                scope_files=["Vault.sol"],  # deliberately excludes Helper.sol
+            )
+
+        check("scope: exactly one property in scope", result["in_scope_count"] == 1, result["in_scope_count"])
+        check("scope: exactly one property out of scope", result["out_of_scope_count"] == 1, result["out_of_scope_count"])
+        check("scope: the out-of-scope property targets Helper.sol",
+              result["out_of_scope_properties"][0].relevant_files == ("Helper.sol",) or
+              any("Helper" in f for f in result["out_of_scope_properties"][0].relevant_files),
+              result["out_of_scope_properties"])
+        check("scope: only the in-scope property's id was ever sent to investigation",
+              len(invoked_property_ids) == 1, invoked_property_ids)
+        in_scope_pid = list(result["properties_by_id"].keys())
+        check("scope: properties_by_id only contains the in-scope property (post-scope-filter pool)",
+              len(in_scope_pid) == 1, in_scope_pid)
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for t in tests:

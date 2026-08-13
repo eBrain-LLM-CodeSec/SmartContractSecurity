@@ -22,7 +22,9 @@ import subprocess
 from pathlib import Path
 
 from rtf.l11_investigation_grouping.live_runner import prepare_cluster_investigations, run_cluster_investigations_live
-from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata
+from rtf.l11_investigation_grouping.property_metadata import (
+    PropertyMetadata, forward_out_of_scope_context, split_properties_by_scope,
+)
 from rtf.l11_investigation_grouping.protocol_context import generate_enriched_protocol_context_md
 from rtf.l11_investigation_grouping.run_metadata import GROUPING_POLICY_G2_CONTEXT_AWARE
 from rtf.l11_investigation_grouping.semantic_pipeline import build_full_property_pool, write_observability_artifacts
@@ -64,6 +66,7 @@ def run_semantic_investigation(
     max_semantic_properties: int = 12, codex_timeout_s: int = 900,
     cost_ceiling_usd: float | None = None, max_concurrent_investigations: int = 1,
     observability_root: Path | None = None, run_arm_g_bundle_fn=None,
+    scope_files: list[str] | None = None,
 ) -> dict:
     """Compiles `entry_sol_file`, builds the enriched protocol context +
     manifest, runs Phase 5/6/7 (real LLM call via `chat_client`), clusters
@@ -71,30 +74,52 @@ def run_semantic_investigation(
     (`live_runner.run_cluster_investigations_live` -- real spend, real
     subprocess calls, per that module's own documented behavior).
 
+    `scope_files`, when given (e.g. the audit's real `scope.txt` list),
+    is the audit's declared in-scope file set -- the generated property
+    pool is filtered to it via `property_metadata.split_properties_by_
+    scope`/`forward_out_of_scope_context` BEFORE clustering, the exact
+    same mechanism (and the exact same functions) `ablation_driver.
+    run_config_entry` already established for the structural pipeline --
+    not a new, parallel scoping rule. Properties targeting a file outside
+    `scope_files` (e.g. a vendored dependency, or a project file the
+    entry's own import graph reaches but the audit didn't declare in
+    scope) are dropped from investigation, but their `requirement_
+    explanatory_text` is still forwarded to any KEPT property they're
+    callgraph-adjacent to (same behavior as the structural pipeline).
+    Defaults to `None`, which reproduces the prior behavior exactly:
+    scope is just `entry_sol_file`'s own relative path, a no-op filter
+    since every generated property already targets something in that
+    one compiled file's own contracts.
+
     Returns a dict: `properties_by_id`, `clusters`, `property_verdicts`
     (`{property_id: PropertyVerdict}`), `raw_property_entries_by_id`
     (the investigator's own JSON entry per property, for human-readable
     reporting), `total_cost_usd`, `semantic_observability` (Phase 5/6's
-    own raw/rejected records). If `observability_root` is given, also
-    writes the Section-19 JSON artifacts there via `semantic_pipeline.
-    write_observability_artifacts`.
+    own raw/rejected records), `in_scope_count`/`out_of_scope_count`.
+    If `observability_root` is given, also writes the Section-19 JSON
+    artifacts there via `semantic_pipeline.write_observability_artifacts`.
     """
     scratch_root.mkdir(parents=True, exist_ok=True)
     slither = compile_evmbench_target(entry_sol_file, repo_root, solc_version=solc_version)
     manifest = ProjectManifest.from_slither(slither)
-    scope_files = [str(entry_sol_file.relative_to(repo_root))] if entry_sol_file.is_relative_to(repo_root) else []
-
-    protocol_context_md = generate_enriched_protocol_context_md(
-        audit_id, repo_root, entry_sol_file, slither, scope_files=scope_files, registry=StandardsRegistry(),
+    effective_scope_files = scope_files if scope_files is not None else (
+        [str(entry_sol_file.relative_to(repo_root))] if entry_sol_file.is_relative_to(repo_root) else []
     )
 
-    pool, semantic_observability = build_full_property_pool(
+    protocol_context_md = generate_enriched_protocol_context_md(
+        audit_id, repo_root, entry_sol_file, slither, scope_files=effective_scope_files, registry=StandardsRegistry(),
+    )
+
+    full_pool, semantic_observability = build_full_property_pool(
         structural_properties or [], protocol_context_md, manifest, chat_client, slither=slither,
         max_properties=max_semantic_properties,
     )
 
+    in_scope, out_of_scope = split_properties_by_scope(full_pool, effective_scope_files)
+    pool = forward_out_of_scope_context(in_scope, out_of_scope)
+
     clusters, properties_by_id, protocol_context_md_out, req_ctx_by_id = prepare_cluster_investigations(
-        pool, grouping_policy, audit_id, slither, scope_files,
+        pool, grouping_policy, audit_id, slither, effective_scope_files,
     )
 
     solc_path_dir = _solc_bin_dir_for(solc_version, scratch_root)
@@ -111,7 +136,7 @@ def run_semantic_investigation(
     if observability_root is not None:
         write_observability_artifacts(
             observability_root, audit_id,
-            structural_properties=structural_properties or [],
+            structural_properties=[p for p in in_scope if p.source_kind != "code_semantics"],
             semantic_pipeline_observability=semantic_observability,
             semantic_properties_grounded=[p for p in pool if p.source_kind == "code_semantics"],
             property_clusters=[c.as_dict() for c in clusters],
@@ -125,4 +150,7 @@ def run_semantic_investigation(
         "raw_property_entries_by_id": raw_entries,
         "total_cost_usd": total_cost,
         "semantic_observability": semantic_observability,
+        "in_scope_count": len(in_scope),
+        "out_of_scope_count": len(out_of_scope),
+        "out_of_scope_properties": out_of_scope,
     }
