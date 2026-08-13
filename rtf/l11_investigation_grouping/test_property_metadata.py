@@ -76,6 +76,37 @@ def test_metadata_populates_spec_derived_fields():
           md.source_provenance)
 
 
+def test_metadata_source_kind_and_generation_method_for_static_ethtrust_requirement():
+    instance = InvestigationInstance(
+        req_id="req-3-all-valid-inputs", instance_id="req-3-all-valid-inputs::loc0",
+        candidate_location="Vault.withdraw", focused_clause=None, clause_index=0, location_index=0,
+    )
+    md = derive_property_metadata(instance, _REQ_RECORD, parent_candidate_locations=["Vault.withdraw"])
+    check("metadata: static EthTrust req -> source_kind=ethtrust", md.source_kind == "ethtrust", md.source_kind)
+    check("metadata: static EthTrust req -> generation_method=structural_predicate",
+          md.generation_method == "structural_predicate", md.generation_method)
+    check("metadata: confidence is None (not a semantic property)", md.confidence is None)
+    check("metadata: rationale is empty (not a semantic property)", md.rationale == "", md.rationale)
+    check("metadata: grounding_evidence is empty (not a semantic property)", md.grounding_evidence == ())
+
+
+def test_metadata_source_kind_and_generation_method_for_generated_erc_requirement():
+    instance = InvestigationInstance(
+        req_id="gp-accepted-standard__erc-4626__erc4626-totalassets-must-include-fees",
+        instance_id="gp-accepted-standard__erc-4626__erc4626-totalassets-must-include-fees::loc0",
+        candidate_location="Vault.totalAssets", focused_clause=None, clause_index=0, location_index=0,
+    )
+    req_record = {
+        "req_id": "gp-accepted-standard__erc-4626__erc4626-totalassets-must-include-fees",
+        "level": "GP", "title": "ERC-4626 totalAssets", "normative_text": "totalAssets MUST include accrued fees.",
+        "section": {},
+    }
+    md = derive_property_metadata(instance, req_record, parent_candidate_locations=["Vault.totalAssets"])
+    check("metadata: generated ERC req -> source_kind=erc_gp", md.source_kind == "erc_gp", md.source_kind)
+    check("metadata: generated ERC req -> generation_method=standard_clause",
+          md.generation_method == "standard_clause", md.generation_method)
+
+
 def test_metadata_uses_focused_clause_as_property_text_when_multi_clause():
     instance = InvestigationInstance(
         req_id="req-2-check-rounding", instance_id="req-2-check-rounding::clause1",
