@@ -49,6 +49,25 @@ class ReasoningCategory(str, Enum):
     at all. Included in the mapping so `categorize_requirement` is total
     over the corpus, not so these ever reach the grouping engine."""
 
+    # --- RTF v2 additions (rtf.l11_investigation_grouping.semantic_property_
+    # generation) -- categories a purely EthTrust-derived taxonomy has no
+    # need for, because no static requirement's own text is shaped to ask
+    # these specific questions (see RTF_V2_ARCHITECTURE.md section A.5/B):
+    # cross-function/cross-contract state-consistency invariants,
+    # lifecycle/initialization-reentry invariants, and token-standard
+    # (ERC-20/4626/...) share-asset-conversion semantics. Deliberately NOT
+    # folded into ARITHMETIC_VALUE_CORRECTNESS/ACCESS_PRIVILEGE_CONTROL/
+    # EXTERNAL_CALL_INTERACTION even though related -- each names a
+    # genuinely distinct kind of reasoning a joint investigation benefits
+    # from grouping around. "Accounting"/"authorization"/"external
+    # interaction"/"oracle"/"governance"-flavored semantic properties
+    # DO map onto existing categories (see `semantic_taxonomy.
+    # PROPERTY_TYPE_TO_REASONING_CATEGORY`) -- these three are the ones
+    # that genuinely don't.
+    STATE_CONSISTENCY = "STATE_CONSISTENCY"
+    LIFECYCLE_INITIALIZATION = "LIFECYCLE_INITIALIZATION"
+    TOKEN_SEMANTICS_CONFORMANCE = "TOKEN_SEMANTICS_CONFORMANCE"
+
 
 # Built by reading every one of the 81 corpus requirements' own title +
 # normative_text (rtf/l1_corpus/requirement_corpus.json) -- see
