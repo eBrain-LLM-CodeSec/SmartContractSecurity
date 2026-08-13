@@ -204,6 +204,37 @@ def test_write_observability_artifacts_writes_all_sections():
         tmp.cleanup()
 
 
+def test_render_semantic_findings_md_includes_only_fail_properties_with_real_evidence():
+    from rtf.l11_investigation_grouping.cluster_response_validation import PropertyVerdict
+    from rtf.l11_investigation_grouping.semantic_pipeline import render_semantic_findings_md
+    from rtf.l12_evaluation.metrics import ConformanceState
+
+    tmp, repo, slither = _compile_vault()
+    try:
+        manifest = ProjectManifest.from_slither(slither)
+        client = FakeChatClient({"properties": [_TOTAL_ASSETS_FEE_PROPERTY_ENTRY]})
+        grounded, _obs = generate_and_ground_semantic_properties("ctx", manifest, client, slither=slither)
+        prop = grounded[0]
+        properties_by_id = {prop.property_id: prop}
+        verdicts = {prop.property_id: PropertyVerdict(ConformanceState.FAIL, None)}
+        raw_entries = {prop.property_id: {
+            "vulnerable_location": "Vault.totalAssets", "evidence": "totalAssets never subtracts accruedFees.",
+            "reasoning": "direct code read", "counterexample_result": "confirmed", "confidence": "HIGH",
+        }}
+        md = render_semantic_findings_md(verdicts, properties_by_id, raw_entries, "test-audit")
+        check("render: title present", "# Security Audit Report: test-audit" in md, md)
+        check("render: property statement present", prop.property_text in md, md)
+        check("render: real evidence text present, not invented", "never subtracts accruedFees" in md, md)
+        check("render: vulnerable_location present", "Vault.totalAssets" in md, md)
+
+        pass_only_verdicts = {prop.property_id: PropertyVerdict(ConformanceState.PASS, None)}
+        md_no_fail = render_semantic_findings_md(pass_only_verdicts, properties_by_id, raw_entries, "test-audit")
+        check("render: PASS-only run reports no findings, not a fabricated one",
+              "No properties were resolved FAIL" in md_no_fail, md_no_fail)
+    finally:
+        tmp.cleanup()
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for t in tests:

@@ -25,6 +25,7 @@ from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata
 from rtf.l11_investigation_grouping.semantic_property_generation import (
     GenerationRejection, ProjectManifest, generate_semantic_properties, raw_property_to_dict,
 )
+from rtf.l12_evaluation.metrics import ConformanceState
 
 
 def generate_and_ground_semantic_properties(
@@ -130,3 +131,50 @@ def write_observability_artifacts(
         _write("property_clusters.json", property_clusters)
 
     return written
+
+
+def render_semantic_findings_md(
+    property_verdicts: dict, properties_by_id: dict, raw_property_entries_by_id: dict, audit_title: str,
+) -> str:
+    """Renders every FAIL-resolved property from a `semantic_only_driver.
+    run_semantic_investigation` result into `audit.md`-shaped Markdown for
+    `run_grader`/DetectGrader -- the RTF v2 analogue of `simple_baseline.
+    render_baseline_audit_md`, one section per FAIL, using the real
+    investigator's own evidence/reasoning/vulnerable_location text (never
+    inventing report prose). PASS/INCONCLUSIVE/INSUFFICIENT_EVIDENCE
+    properties are deliberately omitted -- DetectGrader is a
+    detection-recall grader over reported findings, not a property-by-
+    property report, matching `report_generator.generate_audit_md`'s own
+    "one section per FAIL requirement" convention for the older
+    structural pipeline.
+    """
+    fail_ids = [pid for pid, v in property_verdicts.items() if v.conformance_state == ConformanceState.FAIL]
+
+    lines = [f"# Security Audit Report: {audit_title}\n"]
+    lines.append(
+        "Findings below were produced by RTF v2's semantic property "
+        "generation + grounding + real Codex cluster investigation "
+        "pipeline (rtf.l11_investigation_grouping) -- properties are "
+        "derived from the protocol's own documentation/interfaces/code, "
+        "never from this audit's ground-truth findings.\n"
+    )
+    if not fail_ids:
+        lines.append("No properties were resolved FAIL by this run.\n")
+        return "\n".join(lines)
+
+    for i, pid in enumerate(sorted(fail_ids), 1):
+        prop = properties_by_id[pid]
+        entry = raw_property_entries_by_id.get(pid, {})
+        lines.append(f"## {i}. {prop.property_text}\n")
+        lines.append(f"**Property ID:** `{pid}` (`{prop.reasoning_category.value if prop.reasoning_category else 'uncategorized'}`)\n")
+        loc = entry.get("vulnerable_location") or f"{prop.target_contract}.{prop.target_function}"
+        lines.append(f"**Location:** {loc}\n")
+        if entry.get("evidence"):
+            lines.append(f"**Evidence:** {entry['evidence']}\n")
+        if entry.get("reasoning"):
+            lines.append(f"**Reasoning:** {entry['reasoning']}\n")
+        if entry.get("counterexample_result"):
+            lines.append(f"**Counterexample:** {entry['counterexample_result']}\n")
+        if entry.get("confidence"):
+            lines.append(f"**Confidence:** {entry['confidence']}\n")
+    return "\n".join(lines)

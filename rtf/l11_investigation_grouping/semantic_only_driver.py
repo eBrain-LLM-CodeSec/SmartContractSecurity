@@ -66,7 +66,7 @@ def run_semantic_investigation(
     max_semantic_properties: int = 12, codex_timeout_s: int = 900,
     cost_ceiling_usd: float | None = None, max_concurrent_investigations: int = 1,
     observability_root: Path | None = None, run_arm_g_bundle_fn=None,
-    scope_files: list[str] | None = None,
+    scope_files: list[str] | None = None, extra_solc_args: list[str] | None = None,
 ) -> dict:
     """Compiles `entry_sol_file`, builds the enriched protocol context +
     manifest, runs Phase 5/6/7 (real LLM call via `chat_client`), clusters
@@ -91,6 +91,12 @@ def run_semantic_investigation(
     since every generated property already targets something in that
     one compiled file's own contracts.
 
+    `extra_solc_args`, when given, is forwarded verbatim to
+    `compile_evmbench_target` (e.g. `["--via-ir", "--optimize",
+    "--optimize-runs", "1000"]` for a target whose own `foundry.toml`
+    needs `via-ir` to avoid a real "stack too deep" solc error --
+    confirmed live on `2024-01-canto`'s `LendingLedger.sol`).
+
     Returns a dict: `properties_by_id`, `clusters`, `property_verdicts`
     (`{property_id: PropertyVerdict}`), `raw_property_entries_by_id`
     (the investigator's own JSON entry per property, for human-readable
@@ -100,7 +106,7 @@ def run_semantic_investigation(
     artifacts there via `semantic_pipeline.write_observability_artifacts`.
     """
     scratch_root.mkdir(parents=True, exist_ok=True)
-    slither = compile_evmbench_target(entry_sol_file, repo_root, solc_version=solc_version)
+    slither = compile_evmbench_target(entry_sol_file, repo_root, solc_version=solc_version, extra_solc_args=extra_solc_args)
     manifest = ProjectManifest.from_slither(slither)
     effective_scope_files = scope_files if scope_files is not None else (
         [str(entry_sol_file.relative_to(repo_root))] if entry_sol_file.is_relative_to(repo_root) else []
