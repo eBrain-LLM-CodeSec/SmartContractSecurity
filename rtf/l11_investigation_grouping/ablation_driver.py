@@ -68,6 +68,7 @@ def run_config_entry(
     investigation_model: str | None = None,
     cluster_limit: int | None = None,
     run_variant: str | None = None,
+    target_functions: list[str] | None = None,
 ) -> dict:
     """Runs ONE (entry, configuration) pair. Returns a summary dict
     (saved to disk by the caller) -- never raises for a real per-entry
@@ -82,6 +83,12 @@ def run_config_entry(
     grouping/context generation, everything except the actual Codex
     call) with zero spend. Defaults to None, which resolves to the real
     `run_arm_g_bundle` -- a live, paid call.
+
+    `target_functions`, when given, restricts the run to clusters whose
+    property pool includes at least one property targeting one of these
+    function names (case-insensitive substring match against
+    `PropertyMetadata.target_function`). Applied after `cluster_limit`
+    truncation, so pass `cluster_limit=None` when using this.
     """
     assert config in CONFIG_TO_POLICY, f"unknown config {config!r}, must be 'B' or 'D'"
     policy_name = CONFIG_TO_POLICY[config]
@@ -135,6 +142,16 @@ def run_config_entry(
         )
         if cluster_limit is not None:
             clusters = clusters[:max(0, cluster_limit)]
+        if target_functions:
+            wanted = [t.lower() for t in target_functions]
+            clusters = [
+                c for c in clusters
+                if any(
+                    properties_by_id[pid].target_function
+                    and any(w in properties_by_id[pid].target_function.lower() for w in wanted)
+                    for pid in c.property_ids
+                )
+            ]
         remaps = _collect_remappings(repo_root)
 
         verdicts, arm_g_results, cost, raw_entries = run_cluster_investigations_live(
