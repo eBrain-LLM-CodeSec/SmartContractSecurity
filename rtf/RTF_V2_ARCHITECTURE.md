@@ -366,3 +366,91 @@ run, and Section 18's re-evaluation of previously-missed EVMbench entries
 (totalAssets/fee accounting, gauge accounting, Canto arithmetic) — these
 require real spend and, per this project's established convention
 (see prior session memory), an explicit user go-ahead before launching.
+
+---
+
+## D. Status: what this session actually implemented
+
+Everything in section C's plan (1-7) was implemented, committed
+incrementally, and is regression-tested (full `l11_investigation_grouping`
++ `standards` + `l5_predicates` suites green after every commit). Concrete
+new modules, all under `rtf/l11_investigation_grouping/`:
+
+- **`property_metadata.py`** (extended, not replaced): `PropertyMetadata`
+  gained `source_kind`, `generation_method`, `confidence`, `rationale`,
+  `grounding_evidence` — all additive, defaulted, inferred automatically
+  for every existing EthTrust/ERC call site.
+- **`protocol_context.py`** (new): deterministic, `$0`-cost narrative
+  extraction — protocol purpose (cited README excerpt), applicable
+  standards + their concrete per-clause obligations (wires
+  `rtf.standards.discovery`/`generator`), accounting-relevant state
+  variables, lifecycle/initialization signals. `generate_enriched_
+  protocol_context_md` composes this with the existing structural artifact
+  as a strict superset.
+- **`semantic_taxonomy.py`** (new) + 3 new `taxonomy.ReasoningCategory`
+  members (`STATE_CONSISTENCY`, `LIFECYCLE_INITIALIZATION`,
+  `TOKEN_SEMANTICS_CONFORMANCE`): maps the task brief's 12-value
+  `property_type` vocabulary onto the existing grouping-engine key, so
+  semantic properties group through the unchanged engine.
+- **`semantic_property_generation.py`** (new): the one genuinely new LLM
+  stage — one bounded, cached (`a4v.llm.ChatClient`) call per audit,
+  proposing "what must remain true" only. Any verdict-shaped key
+  (`verdict`/`vulnerable`/`pass`/`fail`/`severity`/`exploit`/...) in a
+  response entry is rejected outright, never stripped and kept.
+- **`property_grounding.py`** (new): deterministic (no LLM) grounding —
+  every affected contract/function/state-variable must exist in a real,
+  Slither-derived `ProjectManifest`; the statement must concretely name
+  one of them; generic statements (the brief's own 3 literal banned
+  examples, tested verbatim) are rejected. Accepted properties become
+  full `PropertyMetadata` (`source_kind="code_semantics"`) — the same
+  object structural properties use. Also: `deduplicate_semantic_
+  properties`/`merge_property_pools` (Phase 7 consolidation).
+- **`semantic_pipeline.py`** (new): orchestration
+  (`build_full_property_pool`) + Section 19 observability
+  (`write_observability_artifacts` — `applicable_standards.json`,
+  `structural_properties.json`, `semantic_properties_raw.json`,
+  `semantic_properties_grounded.json`, `rejected_properties.json`,
+  `property_clusters.json`).
+- **`context_artifacts.py`** (extended): `generate_cluster_plan_md` gained
+  "What would constitute a violation" and "Evidence required before
+  reporting a finding" sections, placed *after* `## Required output
+  schema` specifically so the pre-existing `test_cluster_plan_never_leaks_
+  an_expected_verdict` structural guarantee still holds (verified, not
+  just assumed).
+
+**Test coverage added**: 96+ new tests across 6 new/extended test files —
+real Slither compilation throughout (no mocked compilation), zero real
+LLM calls (a fake `chat_client` matching `live_runner.py`'s own established
+mock-first convention). Includes the brief's Section 17-G synthetic
+end-to-end scenario verbatim: an ERC-4626-shaped vault with a fee
+accumulator, no hand-written "bad totalAssets" predicate anywhere in the
+new code, still produces a grounded `source_kind="code_semantics"`
+property naming both `totalAssets`/`accruedFees`, and that property is
+shown (via the real grouping engine, not asserted by fiat) to cluster
+with a state-sharing structural property while staying separate from an
+unrelated one.
+
+**Deliberately NOT done this session** (see the task brief's own Section
+21 phasing and Section 18's explicit sequencing — architecture and
+synthetic tests first, benchmark evaluation only after, and only with
+authorization given the real cost):
+- Any live/paid LLM or Codex call — the semantic generator has never been
+  invoked against a real OpenRouter endpoint; every test uses a fake
+  `chat_client`. The prompt/schema is real and complete, but unvalidated
+  against actual model output quality/parsing edge cases a live call
+  might surface.
+- Wiring `build_full_property_pool`/`semantic_pipeline` into
+  `pilot5_driver.py`/`ablation_driver.py`'s actual driver scripts — this
+  session built and tested the stage in isolation; connecting it to a
+  real per-audit run (own cost, own ceiling, own explicit go-ahead) is a
+  distinct next step.
+- Section 18/11's re-evaluation of the previously-missed EVMbench entries
+  (totalAssets/fee accounting on real liquid-ron, gauge accounting,
+  Canto). Requires real spend; not attempted without explicit
+  authorization, per this project's established convention.
+- A live A/B comparison of grounding thresholds (the `0.3` dedup-Jaccard
+  cutoff, the concrete-reference/banned-phrase grounding rules) against
+  real LLM output — calibrated only against the hand-written test
+  fixtures in this session, honestly disclosed as a starting default (same
+  caveat `policies.py` already applies to its own cluster-size/context-
+  budget defaults), not an experimentally-tuned value.
