@@ -278,6 +278,34 @@ def generate_cluster_plan_md(
         " no cluster-wide verdict.\n"
     )
 
+    lines.append("## What would constitute a violation\n")
+    lines.append(
+        "For each property above, a violation is a concrete, reproducible case where the"
+        " property's stated invariant does NOT hold in the actual implementation -- a"
+        " specific input, call sequence, or state transition under which the derived"
+        " property (\"what to check\", listed per-property above) fails. A violation is"
+        " NOT: a stylistic concern, a theoretical edge case with no reachable trigger, or"
+        " a disagreement with the requirement's own wording (if the requirement itself"
+        " seems wrong, say so in `reasoning` -- do not silently substitute a different"
+        " check). Every property is independent: violating one does not imply anything"
+        " about the others in this cluster.\n"
+    )
+
+    lines.append("## Evidence required before reporting a finding\n")
+    lines.append(
+        "A verdict of the schema's first FAIL value requires: (1) the specific code"
+        " location where the violation occurs, (2) a concrete counterexample"
+        " (`counterexample_attempt`) showing the property's invariant breaking, and (3)"
+        " `counterexample_result` explaining why that counterexample succeeds against the"
+        " real implementation, not a hypothetical. The schema's first PASS value requires"
+        " an explicit, genuine attempt to construct a counterexample first"
+        " (`counterexample_attempt`/`counterexample_result` showing why it did NOT"
+        " succeed) -- absence of an immediately obvious violation is not sufficient"
+        " evidence of correctness. When the evidence needed to decide either way isn't"
+        " available from the given context/code, use one of the schema's other two"
+        " values rather than guessing.\n"
+    )
+
     return "\n".join(lines) + "\n"
 
 

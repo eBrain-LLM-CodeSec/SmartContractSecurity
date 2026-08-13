@@ -129,6 +129,21 @@ def test_cluster_plan_includes_investigation_procedure_steps():
     check("procedure mentions independent verdict per property", "independent verdict" in md.lower(), md)
 
 
+def test_cluster_plan_includes_violation_and_evidence_sections_after_the_schema():
+    a = _prop("p1")
+    cluster = Cluster(cluster_id="cluster_007", property_ids=("p1",), grouping_reason=(),
+                       shared_context={}, estimated_context_size=1)
+    md = generate_cluster_plan_md(cluster, {"p1": a}, "protocol_context.md", {})
+    check("plan: 'what would constitute a violation' section present", "## What would constitute a violation" in md, md)
+    check("plan: 'evidence required' section present", "## Evidence required before reporting a finding" in md, md)
+    schema_idx = md.index("## Required output schema")
+    violation_idx = md.index("## What would constitute a violation")
+    evidence_idx = md.index("## Evidence required before reporting a finding")
+    check("plan: violation section comes after the output schema (never before -- verdict-leak guard)",
+          violation_idx > schema_idx, (schema_idx, violation_idx))
+    check("plan: evidence section comes after the output schema too", evidence_idx > schema_idx, (schema_idx, evidence_idx))
+
+
 def test_cluster_plan_includes_requirement_context_reference_when_given():
     a = _prop("p1", requirement_id="req-3-all-valid-inputs")
     cluster = Cluster(cluster_id="cluster_006", property_ids=("p1",), grouping_reason=(),
