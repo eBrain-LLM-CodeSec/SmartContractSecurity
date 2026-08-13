@@ -110,6 +110,52 @@ class PropertyMetadata:
     derivation time: background guidance forwarded from OTHER,
     out-of-scope properties this one is call-graph-adjacent to. Always
     empty on a freshly `derive_property_metadata`'d instance."""
+    source_kind: str = "ethtrust"
+    """Where this property's AUTHORITY comes from: `"ethtrust"` (static
+    81-requirement corpus), `"erc_gp"` (a `rtf.standards` generated ERC/EIP
+    clause requirement), or `"code_semantics"` (RTF v2's semantic property
+    generator -- a property with no pre-existing requirement_id at all,
+    proposed from protocol_context/interfaces/code and then grounded; see
+    `rtf.l11_investigation_grouping.semantic_property_generation` and
+    `property_grounding`). `derive_property_metadata` infers `"ethtrust"`
+    or `"erc_gp"` automatically from `requirement_id`'s shape -- never
+    `"code_semantics"`, which only `property_grounding.to_property_metadata`
+    assigns."""
+    generation_method: str = "structural_predicate"
+    """HOW this specific property instance was mechanically produced:
+    `"structural_predicate"` (a deterministic L5 predicate supplied the
+    evidence/location), `"standard_clause"` (a `rtf.standards` generated
+    ERC/EIP clause, translated 1:1 from spec text), or
+    `"semantic_derivation"` (RTF v2's semantic generator). Distinct from
+    `source_kind`: an `"ethtrust"` requirement is always
+    `"structural_predicate"`-derived today (EthTrust's static corpus has no
+    other evidence path yet), but the two are independent axes by design
+    so a future non-predicate EthTrust evidence path wouldn't need a schema
+    change."""
+    confidence: float | None = None
+    """Property-level confidence, when the generation method produces one
+    (currently only `semantic_derivation` does -- see `RawSemanticProperty.
+    confidence`). `None`, not a fabricated default, for every
+    deterministically-derived property: a structural-predicate match or a
+    verbatim standard-clause translation doesn't have a meaningful
+    "confidence" separate from the evidence itself."""
+    rationale: str = ""
+    """WHY this property must hold, in the generator's own words. Empty
+    for `"ethtrust"`/`"erc_gp"` properties -- their rationale IS
+    `property_text` (the spec's own normative sentence), not a separate
+    field; populated only for `"code_semantics"` properties, where the
+    obligation text and the justification for it are genuinely distinct
+    (see Section 9's grounding requirement: WHY should this property
+    exist)."""
+    grounding_evidence: tuple[str, ...] = ()
+    """Concrete WHERE-grounded-from citations for a `"code_semantics"`
+    property (standard clause ids, doc file/section citations, specific
+    code facts) -- distinct from `source_provenance` (which already serves
+    this role for `"ethtrust"`/`"erc_gp"` properties via `req_id`/
+    `spec_section`). Always empty for non-semantic properties; see
+    `property_grounding.ground_semantic_property` for how this gets
+    populated and why an ungrounded property is rejected rather than kept
+    with an empty tuple here."""
 
 
 def _structured_symbols_and_types(evidence: EvidenceItem | None) -> tuple[tuple[str, ...], tuple[str, ...]]:
@@ -221,6 +267,10 @@ def derive_property_metadata(
         provenance_parts.append(f"clause_index={instance.clause_index}")
     provenance = "; ".join(provenance_parts)
 
+    is_generated_erc = instance.req_id.startswith("gp-accepted-standard__")
+    source_kind = "erc_gp" if is_generated_erc else "ethtrust"
+    generation_method = "standard_clause" if is_generated_erc else "structural_predicate"
+
     return PropertyMetadata(
         property_id=instance.instance_id,
         requirement_id=instance.req_id,
@@ -242,6 +292,8 @@ def derive_property_metadata(
         estimated_complexity=None,
         source_provenance=provenance,
         requirement_explanatory_text=requirement_record.get("explanatory_text", ""),
+        source_kind=source_kind,
+        generation_method=generation_method,
     )
 
 
