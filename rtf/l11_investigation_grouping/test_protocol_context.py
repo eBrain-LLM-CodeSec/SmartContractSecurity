@@ -30,6 +30,19 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(f"{name}: {detail}")
 
 
+def test_protocol_purpose_prefers_overview_over_contest_metadata():
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "README.md").write_text(
+            "# Audit details\n\n- Total Prize Pool: $30,000\n- Starts tomorrow\n\n"
+            "# Overview\n\nPhi is an open credentialing protocol for onchain identity.\n",
+            encoding="utf-8",
+        )
+        purpose = extract_protocol_purpose(repo)
+        check("purpose: explicit Overview beats leading contest metadata",
+              purpose is not None and purpose[0].startswith("Phi is an open credentialing protocol"), purpose)
+
+
 _PLAIN_CONTRACT = """// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 

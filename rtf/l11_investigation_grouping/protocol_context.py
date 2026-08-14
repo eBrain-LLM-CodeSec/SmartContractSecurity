@@ -83,6 +83,23 @@ def _first_readme_paragraph(text: str) -> str | None:
     return None
 
 
+def _overview_paragraph(text: str) -> str | None:
+    """Prefer the first prose paragraph under a Markdown Overview heading.
+
+    Audit repositories frequently prepend contest metadata, prize tables,
+    badges, or known-issue lists before the protocol's actual description.
+    An explicit ``Overview`` section is stronger evidence of purpose than
+    the first arbitrary non-heading paragraph.
+    """
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if not re.match(r"^#{1,6}\s+(?:protocol\s+)?overview\s*$", line.strip(), re.IGNORECASE):
+            continue
+        tail = "\n".join(lines[index + 1:])
+        return _first_readme_paragraph(tail)
+    return None
+
+
 def extract_protocol_purpose(repo_root: Path) -> tuple[str, str] | None:
     """Returns (verbatim_excerpt, citation) for the protocol's own
     self-description, or None if no README with a real descriptive
@@ -94,7 +111,7 @@ def extract_protocol_purpose(repo_root: Path) -> tuple[str, str] | None:
     if found is None:
         return None
     text, name = found
-    para = _first_readme_paragraph(text)
+    para = _overview_paragraph(text) or _first_readme_paragraph(text)
     if para is None:
         return None
     return para, name
