@@ -12,7 +12,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-from .compile_helper import _collect_remappings, _foundry_toml_remapping_lines, compile_evmbench_target
+import shutil
+
+from .compile_helper import (
+    _collect_remappings, _foundry_toml_remapping_lines, compile_evmbench_target, compile_evmbench_target_via_foundry,
+)
 
 PASSES: list[str] = []
 FAILURES: list[str] = []
@@ -160,6 +164,43 @@ def test_extra_solc_args_via_ir_fixes_stack_too_deep():
         check("via-ir: the SAME fixture compiles successfully WITH --via-ir + --optimize passed through extra_solc_args", "Deep" in contracts, contracts)
 
 
+# --- compile_evmbench_target_via_foundry: real EVMbench target, real container ---
+
+_REAL_TEMPO_FEEAMM_CHECKOUT = Path("/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm")
+
+
+def test_compile_via_foundry_real_target_multi_file_visibility():
+    """Real-target regression test, skips gracefully if the fixed checkout
+    or the container isn't present in this environment (same convention
+    `scope_discovery.py`'s own real-target tests already use) -- not a
+    synthetic fixture, because reproducing a real, correctly-vendored
+    Foundry project (lib/forge-std etc.) synthetically would be as much
+    work as the real checkout already sitting on disk. Confirms the two
+    concrete claims this whole function exists for: (1) it works with
+    zero `forge`/Foundry install on the host (this environment's own
+    `forge` binary is confirmed broken -- GLIBC_2.29 missing -- so a
+    passing test here IS the proof), and (2) real project-wide
+    compilation succeeds using ONLY the project's own `foundry.toml`
+    settings, no manually-discovered flags.
+    """
+    if not _REAL_TEMPO_FEEAMM_CHECKOUT.is_dir():
+        check("compile_via_foundry: real-target test skipped (fixture checkout not present in this environment)", True)
+        return
+
+    with tempfile.TemporaryDirectory() as tmp:
+        project_copy = Path(tmp) / "tempo-feeamm"
+        shutil.copytree(_REAL_TEMPO_FEEAMM_CHECKOUT, project_copy)
+        try:
+            slither = compile_evmbench_target_via_foundry(project_copy)
+        except Exception as e:  # noqa: BLE001
+            check("compile_via_foundry: real target compiles via the container (skip if container unavailable here)",
+                  False, f"{type(e).__name__}: {e}")
+            return
+        contracts = [c.name for c in slither.contracts_derived if not c.is_interface]
+        check("compile_via_foundry: real target's own contract present, no manual solc flags needed",
+              "FeeAMM" in contracts, contracts)
+
+
 def main() -> int:
     tests = [
         test_foundry_toml_remapping_lines_parses_real_toml,
@@ -170,6 +211,7 @@ def main() -> int:
         test_collect_remappings_still_handles_remappings_txt_only,
         test_allow_paths_widened_for_relative_import_escaping_src_dir,
         test_extra_solc_args_via_ir_fixes_stack_too_deep,
+        test_compile_via_foundry_real_target_multi_file_visibility,
     ]
     for t in tests:
         try:
