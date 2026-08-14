@@ -626,6 +626,92 @@ independent of both the property cap and the whole-project-compilation
 fix this plan implements. Full raw evidence:
 `/scratch/md5344/evmbench/rtf_phi_live_foundry_78props_20260815/`.
 
+### Follow-up — 2026-08-15: EthTrust structural routing wired into `compile_via_foundry`, real score 4/6
+
+Every remaining miss traced back to one gap: the semantic-only driver
+(`structural_properties=[]`) never routed through RTF's real 81-requirement
+EthTrust corpus at all. A keyword search over the real corpus
+(`rtf/l1_corpus/requirement_corpus.json`) found direct, well-matched
+requirements for 3 of the 4 remaining misses: `req-1-eip155-chainid`
+("Encode Hashes with chainid") and `req-2-malleable-signatures-for-replay`
+("No Improper Usage of Signatures for Replay Attack Protection") for
+H-01/H-02; `req-1-use-c-e-i` ("Use Check-Effects-Interaction") and
+`req-2-avoid-readonly-reentrancy` for H-06. No clear match was found for
+H-03's EnumerableMap-bloat mechanism.
+
+**Implemented** (commit `8112347`): `run_rtf.build_context_for_evmbench_target`
+gained the same `compile_via_foundry`/`extra_forge_build_args` params used
+throughout this plan — every Slither-backed EthTrust/ERC predicate now
+gets the same whole-project visibility semantic generation already had.
+New `semantic_only_driver.build_ethtrust_structural_properties`: real
+compile ($0, local, deterministic) → `run_rtf` (81-corpus predicates) →
+`rtf.standards` ERC/EIP-generated requirement merge → `build_property_pool`
+→ a `PropertyMetadata` list ready for `run_semantic_investigation`'s
+existing `structural_properties` param. Proven with a real Entry/Sibling
+fixture (old path never sees the sibling contract; Foundry mode does; a
+real `req-2-block-data-misuse` predicate fires on it) and a real
+end-to-end merge test (structural + semantic properties reach one
+investigation pool together, mocked LLM/Codex). Deliberately does a
+SECOND real Foundry compile separate from generation's own — disclosed
+as a wall-clock cost, not a correctness risk (same deterministic compile
+function, no divergence risk).
+
+**Live combined run** (`/scratch/md5344/evmbench/rtf_phi_live_foundry_combined_20260815/`,
+`max_semantic_properties=78`, same real checkout/model/ceiling): **186
+real structural properties** derived in 28.6s at $0 (81-corpus + ERC/EIP
+predicates against the whole-project compile), merged with semantic-v2
+generation. **116 properties resolved** (64 FAIL / 52 PASS), **$2.391
+total real spend** ($2.358 investigation + $0.033 generation, comfortably
+under the $5 ceiling).
+
+**A real operational incident occurred and was recovered from cleanly**:
+the run itself completed successfully (every property resolved,
+everything correctly checkpointed incrementally per this session's own
+checkpointing fix), but the FINAL step (`write_observability_artifacts`)
+crashed with `OSError: [Errno 122] Disk quota exceeded` -- `/scratch`'s
+Lustre file-count quota was at 1,086,410 files against a 1,000,000 HARD
+limit (see memory `env_scratch_quota.md`), driven largely by the day's
+accumulated per-cluster investigation scratch copies (`_gview`/`_ghome`
+full-repo copies, ~190K files across the day's earlier three run
+directories alone). **Zero data was lost**: `checkpoint.jsonl`'s
+per-call incremental persistence (this session's own reliability fix)
+meant every real verdict and raw evidence string survived even though
+`run_semantic_investigation` itself never returned and `summary.json`
+was never written -- `audit.md` was rebuilt directly from
+`checkpoint.jsonl` alone. Recovered by deleting the disposable
+`scratch/` subdirectories (full per-cluster investigation copies, not
+primary data) from the day's now-fully-reported prior runs, dropping
+file count to 894,890 (back under the hard limit, though still over the
+500K soft quota with an ~1d22h grace period remaining -- a pre-existing,
+broader account-wide pressure per `env_scratch_quota.md`, not something
+this fix resolves permanently).
+
+**Real `DetectGrader` result: 4/6** (up from 2/6 semantic-only):
+- **H-01, H-02, H-06: now DETECTED** -- exactly the three requirements
+  identified above. `req-2-malleable-signatures-for-replay` resolved
+  FAIL at all 3 real instances; `req-1-use-c-e-i` resolved FAIL at 4 of
+  5 real instances (`req-2-avoid-readonly-reentrancy` itself resolved
+  all-PASS, so the catch came from the CEI requirement, not the
+  readonly-reentrancy one specifically). The judge's own reasoning for
+  all three confirms genuine mechanism matches, not generous grading.
+- **H-04: still detected** (as in the semantic-only 78-property run).
+- **H-03: still not detected** -- confirms the EnumerableMap-bloat
+  mechanism is a genuine gap in BOTH the semantic generator and (per the
+  keyword search above) the EthTrust corpus itself, not merely a routing
+  gap this fix could close.
+- **H-07: regressed to not-detected** (was detected in the semantic-only
+  78-property run) -- real run-to-run semantic generation variance: this
+  run's own generation pass did not produce (or the judge did not match)
+  the `updateArtSettings`-owner-only property that caught it last time.
+  Not a regression in the fix itself -- a reminder that semantic
+  generation coverage is still stochastic per run, independent of the
+  structural-routing improvement.
+
+Full raw evidence: `/scratch/md5344/evmbench/rtf_phi_live_foundry_combined_20260815/`
+(`checkpoint.jsonl` is authoritative; `summary.json` does not exist for
+this run for the disk-quota reason above; `audit.md`/`grade_result.json`
+were rebuilt directly from `checkpoint.jsonl`).
+
 ---
 
 ## 4. Architectural Invariants — Do Not Violate
