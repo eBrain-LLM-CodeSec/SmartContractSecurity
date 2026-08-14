@@ -21,7 +21,9 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from rtf.l11_investigation_grouping.live_runner import prepare_cluster_investigations, run_cluster_investigations_live
+from rtf.l11_investigation_grouping.live_runner import (
+    prepare_cluster_investigations_with_scope_boundary, run_cluster_investigations_live,
+)
 from rtf.l11_investigation_grouping.property_metadata import (
     PropertyMetadata, forward_out_of_scope_context, split_properties_by_scope,
 )
@@ -55,6 +57,39 @@ def _solc_bin_dir_for(version: str, scratch_root: Path) -> str:
         link.unlink()
     link.symlink_to(artifact)
     return str(bin_dir)
+
+
+def _enforce_scope_boundary_b(
+    properties_by_id: dict, property_verdicts: dict, raw_property_entries_by_id: dict,
+) -> tuple[dict, dict, list[dict]]:
+    """Boundary B (RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS9,
+    Invariant F): immediately before `run_semantic_investigation`
+    returns, revalidate that every property_id present in the
+    investigator-produced result structures is one this run actually
+    knows about -- i.e. a member of `properties_by_id`, the pool that
+    already passed the primary scope filter and Boundary A. Any
+    property_id an investigator response names that is NOT in that known
+    pool (a fabricated/stale id, or a real out-of-scope reference that
+    somehow reached this point) is stripped from the returned structures
+    and recorded as a violation, never returned. In normal operation this
+    is a no-op -- `raw_property_entries_by_id`/`property_verdicts` only
+    ever contain ids drawn from the clusters this run itself dispatched.
+    """
+    known_ids = set(properties_by_id.keys())
+    violations: list[dict] = []
+    kept_verdicts = {}
+    for pid, verdict in property_verdicts.items():
+        if pid in known_ids:
+            kept_verdicts[pid] = verdict
+        else:
+            violations.append({"boundary": "boundary_b_pre_return", "property_id": pid, "reason": "not_in_known_scope_checked_pool"})
+    kept_raw = {}
+    for pid, entry in raw_property_entries_by_id.items():
+        if pid in known_ids:
+            kept_raw[pid] = entry
+        elif not any(v["property_id"] == pid for v in violations):
+            violations.append({"boundary": "boundary_b_pre_return", "property_id": pid, "reason": "not_in_known_scope_checked_pool"})
+    return kept_verdicts, kept_raw, violations
 
 
 def run_semantic_investigation(
@@ -130,7 +165,13 @@ def run_semantic_investigation(
     (`{property_id: PropertyVerdict}`), `raw_property_entries_by_id`
     (the investigator's own JSON entry per property, for human-readable
     reporting), `total_cost_usd`, `semantic_observability` (Phase 5/6's
-    own raw/rejected records), `in_scope_count`/`out_of_scope_count`.
+    own raw/rejected records), `in_scope_count`/`out_of_scope_count`,
+    `scope_boundary_violations` (defense-in-depth boundaries A/B, see
+    `RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md` SS9 -- empty in normal
+    operation; non-empty only if a property that bypassed the primary
+    `split_properties_by_scope` filter above was caught and dropped
+    before clustering/investigation (Boundary A) or before this dict is
+    returned (Boundary B)).
     If `observability_root` is given, also writes the Section-19 JSON
     artifacts there via `semantic_pipeline.write_observability_artifacts`.
     """
@@ -156,8 +197,10 @@ def run_semantic_investigation(
     in_scope, out_of_scope = split_properties_by_scope(full_pool, effective_scope_files)
     pool = forward_out_of_scope_context(in_scope, out_of_scope)
 
-    clusters, properties_by_id, protocol_context_md_out, req_ctx_by_id = prepare_cluster_investigations(
-        pool, grouping_policy, audit_id, slither, effective_scope_files,
+    clusters, properties_by_id, protocol_context_md_out, req_ctx_by_id, boundary_a_violations = (
+        prepare_cluster_investigations_with_scope_boundary(
+            pool, grouping_policy, audit_id, slither, effective_scope_files,
+        )
     )
 
     solc_path_dir = _solc_bin_dir_for(solc_version, scratch_root)
@@ -170,6 +213,11 @@ def run_semantic_investigation(
         scratch_root=scratch_root, codex_timeout_s=codex_timeout_s, cost_ceiling_usd=cost_ceiling_usd,
         max_concurrent_investigations=max_concurrent_investigations, run_arm_g_bundle_fn=run_arm_g_bundle_fn,
     )
+
+    property_verdicts, raw_entries, boundary_b_violations = _enforce_scope_boundary_b(
+        properties_by_id, property_verdicts, raw_entries,
+    )
+    scope_boundary_violations = boundary_a_violations + boundary_b_violations
 
     if observability_root is not None:
         write_observability_artifacts(
@@ -191,4 +239,5 @@ def run_semantic_investigation(
         "in_scope_count": len(in_scope),
         "out_of_scope_count": len(out_of_scope),
         "out_of_scope_properties": out_of_scope,
+        "scope_boundary_violations": scope_boundary_violations,
     }

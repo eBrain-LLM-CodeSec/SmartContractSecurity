@@ -353,6 +353,31 @@ def split_properties_by_scope(
     return kept, dropped
 
 
+def enforce_scope_boundary(
+    properties: list[PropertyMetadata], scope_files: list[str], boundary_name: str,
+) -> tuple[list[PropertyMetadata], list[dict]]:
+    """Defense-in-depth re-check (RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md
+    SS9, Invariants C/F): reuses `split_properties_by_scope` -- the same
+    canonical matcher the primary filter already uses, never a second
+    scope-matching implementation -- at an execution boundary closer to
+    where properties actually get investigated or returned. In normal
+    operation (nothing bypassed the primary filter upstream) this is a
+    no-op: everything is already in scope, `violations` is empty. Exists
+    to fail closed if something ever does bypass the primary filter, not
+    because the primary filter is expected to fail.
+
+    Returns `(kept, violations)`; each violation is a structured record
+    `{"boundary": boundary_name, "property_id": ..., "target_files": ...}`
+    suitable for direct inclusion in a `scope_boundary_violations` list.
+    """
+    kept, dropped = split_properties_by_scope(properties, scope_files)
+    violations = [
+        {"boundary": boundary_name, "property_id": p.property_id, "target_files": list(_property_target_files(p))}
+        for p in dropped
+    ]
+    return kept, violations
+
+
 def filter_properties_to_scope(
     properties: list[PropertyMetadata], scope_files: list[str],
 ) -> list[PropertyMetadata]:

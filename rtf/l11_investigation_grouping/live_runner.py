@@ -31,7 +31,7 @@ from rtf.l11_investigation_grouping.context_artifacts import (
 )
 from rtf.l11_investigation_grouping.grouping_engine import Cluster
 from rtf.l11_investigation_grouping.policies import apply_grouping_policy
-from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata, derive_property_metadata
+from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata, derive_property_metadata, enforce_scope_boundary
 from rtf.l11_investigation_grouping.taxonomy import categorize_generated_clause, categorize_requirement
 from rtf.l12_evaluation.codex_bridge import build_codex_prompt_inputs, corpus_by_req_id
 from rtf.l12_evaluation.evidence_ranking import rank_evidence
@@ -152,6 +152,36 @@ def prepare_cluster_investigations(
         )
 
     return clusters, properties_by_id, protocol_context_md, requirement_context_by_req_id
+
+
+def prepare_cluster_investigations_with_scope_boundary(
+    properties: list[PropertyMetadata],
+    policy_name: str,
+    audit_id: str,
+    slither,
+    scope_files: list[str],
+) -> tuple[list[Cluster], dict[str, PropertyMetadata], str, dict[str, str], list[dict]]:
+    """Boundary A (RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS9,
+    Invariant F): defense-in-depth re-check of `properties` against
+    `scope_files` immediately before clustering/investigation dispatch,
+    via `property_metadata.enforce_scope_boundary` -- the same canonical
+    `split_properties_by_scope` rule `semantic_only_driver.run_semantic_
+    investigation`'s own primary filter already applies upstream
+    (Invariant C: never a second matcher). In normal operation (the
+    primary filter already ran) this is a no-op -- it exists to catch a
+    property that reaches this call by some path that skipped the
+    primary filter, not because the primary filter is expected to fail.
+
+    Returns the same 4-tuple as `prepare_cluster_investigations` plus a
+    5th element, `violations` (empty list in normal operation; each
+    element is a `{"boundary": ..., "property_id": ..., "target_files":
+    ...}` record).
+    """
+    kept, violations = enforce_scope_boundary(properties, scope_files, "boundary_a_pre_investigation")
+    clusters, properties_by_id, protocol_context_md, req_ctx_by_id = prepare_cluster_investigations(
+        kept, policy_name, audit_id, slither, scope_files,
+    )
+    return clusters, properties_by_id, protocol_context_md, req_ctx_by_id, violations
 
 
 def _candidate_location_hint(cluster: Cluster, properties_by_id: dict[str, PropertyMetadata]) -> str:

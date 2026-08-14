@@ -12,6 +12,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+from rtf.l11_investigation_grouping.live_runner import prepare_cluster_investigations_with_scope_boundary
+from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata
+from rtf.l11_investigation_grouping.run_metadata import GROUPING_POLICY_G2_CONTEXT_AWARE
 from rtf.l11_investigation_grouping.semantic_only_driver import run_semantic_investigation
 from rtf.l12_evaluation.metrics import ConformanceState
 from rtf.l5_predicates.compile_helper import compile_evmbench_target
@@ -449,6 +452,120 @@ def test_compile_via_foundry_scope_matrix_entry_sibling_helper_vendor():
               out_of_scope_contracts == {"Helper"}, out_of_scope_contracts)
         check("scope matrix: only Entry+Sibling property ids were ever sent to investigation (Helper never dispatched)",
               len(invoked_property_ids) == 2, invoked_property_ids)
+
+
+def test_boundary_a_blocks_a_property_that_bypassed_the_primary_filter():
+    """Deliberate bypass simulation (RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md
+    SS10) -- NOT a re-test of the primary filter. Calls
+    `prepare_cluster_investigations_with_scope_boundary` DIRECTLY with a
+    pool that already includes an out-of-scope Helper property, skipping
+    `run_semantic_investigation`'s own upstream `split_properties_by_scope`
+    call entirely (the way a bug, or a future alternate caller, might).
+    Boundary A must independently catch it: it must never appear in
+    `properties_by_id` (never clustered) or in any cluster's
+    `property_ids` (never dispatched to investigation).
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "Vault.sol").write_text(_VAULT_SOURCE, encoding="utf-8")
+        slither = compile_evmbench_target(repo / "Vault.sol", repo, solc_version="0.8.20")
+
+        in_scope_prop = PropertyMetadata(
+            property_id="semantic__accounting__aaaaaaaaaaaa::loc0",
+            requirement_id="semantic__accounting__aaaaaaaaaaaa", requirement_level="GP",
+            requirement_semantic_intent=None, property_text="Vault.deposit must increase totalAssetsHeld.",
+            target_contract="Vault", target_function="deposit", relevant_files=("Vault.sol",),
+            source_kind="code_semantics", generation_method="semantic_derivation",
+        )
+        bypassed_out_of_scope_prop = PropertyMetadata(
+            property_id="semantic__accounting__bbbbbbbbbbbb::loc0",
+            requirement_id="semantic__accounting__bbbbbbbbbbbb", requirement_level="GP",
+            requirement_semantic_intent=None, property_text="Helper.bump must increase helperState.",
+            target_contract="Helper", target_function="bump", relevant_files=("Helper.sol",),
+            source_kind="code_semantics", generation_method="semantic_derivation",
+        )
+
+        clusters, properties_by_id, _protocol_md, _req_ctx, violations = prepare_cluster_investigations_with_scope_boundary(
+            [in_scope_prop, bypassed_out_of_scope_prop], GROUPING_POLICY_G2_CONTEXT_AWARE,
+            "boundary-a-test", slither, ["Vault.sol"],
+        )
+
+        check("boundary A: violation recorded for the bypassed Helper property",
+              any(v["property_id"] == bypassed_out_of_scope_prop.property_id and v["boundary"] == "boundary_a_pre_investigation"
+                  for v in violations), violations)
+        check("boundary A: Helper never appears in properties_by_id (never clustered)",
+              bypassed_out_of_scope_prop.property_id not in properties_by_id, properties_by_id)
+        all_clustered_ids = {pid for c in clusters for pid in c.property_ids}
+        check("boundary A: Helper's property_id never appears in any cluster (never dispatched)",
+              bypassed_out_of_scope_prop.property_id not in all_clustered_ids, all_clustered_ids)
+        check("boundary A: the in-scope Vault property still made it through",
+              in_scope_prop.property_id in properties_by_id, properties_by_id)
+
+
+def test_boundary_b_strips_a_fabricated_property_id_from_investigator_output():
+    """Deliberate bypass simulation (RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md
+    SS10) -- NOT a re-test of the primary filter. The mocked investigator
+    returns a real verdict for the property it was actually asked about
+    PLUS a fabricated extra entry naming a property_id this run never
+    dispatched (simulating an investigator that reasoned about or
+    invented a reference to something out of scope). `resolve_property_
+    verdicts` resolves every entry a response contains unconditionally
+    (confirmed: `cluster_response_validation.py`), and
+    `run_cluster_investigations_live` records every entry's raw JSON into
+    `raw_property_entries_by_id` unconditionally too -- so without
+    Boundary B, the fabricated entry WOULD leak into
+    `raw_property_entries_by_id`. Boundary B must strip it before
+    `run_semantic_investigation` returns, and record the violation.
+    """
+    FABRICATED_PID = "semantic__accounting__deadbeefcafe0::loc0"
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "Vault.sol").write_text(_VAULT_SOURCE, encoding="utf-8")
+        client = FakeChatClient({"properties": [_ONE_PROPERTY_ENTRY]})
+        captured = {}
+
+        def _run_arm_g_bundle_fn(*, case_id, prompt, extra_files, candidate_location, **kwargs):
+            import re
+            haystack = "\n".join(extra_files.values())
+            m = re.search(r"`(semantic__[a-z_]+__[0-9a-f]+::loc0)`", haystack)
+            pid = m.group(1) if m else None
+            captured["property_id"] = pid
+            return FakeArmGResult(final_decision={"properties": [
+                {
+                    "property_id": pid, "verdict": "FAIL",
+                    "evidence": "totalAssets() never subtracts accruedFees.",
+                    "files_read": ["Vault.sol"], "counterexample_attempt": "accrueFee then totalAssets",
+                    "counterexample_result": "confirmed", "reasoning": "direct read",
+                    "vulnerable_location": "Vault.totalAssets", "confidence": "HIGH",
+                },
+                {
+                    "property_id": FABRICATED_PID, "verdict": "FAIL",
+                    "evidence": "Helper.bump has no access control.",
+                    "files_read": ["Helper.sol"], "counterexample_attempt": "a",
+                    "counterexample_result": "r", "reasoning": "r",
+                    "vulnerable_location": "Helper.bump", "confidence": "HIGH",
+                },
+            ]})
+
+        with tempfile.TemporaryDirectory() as scratch:
+            result = run_semantic_investigation(
+                audit_id="boundary-b-test", repo_root=repo, entry_sol_file=repo / "Vault.sol",
+                solc_version="0.8.20", chat_client=client,
+                codex_bin=Path("/nonexistent/codex"), python_bin=Path("/nonexistent/python3"),
+                mcp_server_script=Path("/nonexistent/mcp.py"), api_key="unused", codex_model="unused",
+                scratch_root=Path(scratch), run_arm_g_bundle_fn=_run_arm_g_bundle_fn,
+            )
+
+        check("boundary B: fabricated property_id NOT in raw_property_entries_by_id",
+              FABRICATED_PID not in result["raw_property_entries_by_id"], result["raw_property_entries_by_id"])
+        check("boundary B: fabricated property_id NOT in property_verdicts",
+              FABRICATED_PID not in result["property_verdicts"], result["property_verdicts"])
+        check("boundary B: violation recorded naming the fabricated property_id",
+              any(v["property_id"] == FABRICATED_PID and v["boundary"] == "boundary_b_pre_return"
+                  for v in result["scope_boundary_violations"]),
+              result["scope_boundary_violations"])
+        check("boundary B: the real property's verdict still made it through",
+              captured["property_id"] in result["property_verdicts"], result["property_verdicts"])
 
 
 def main() -> int:
