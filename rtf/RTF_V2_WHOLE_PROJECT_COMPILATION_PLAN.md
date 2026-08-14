@@ -505,6 +505,69 @@ retroactively count as validation. **A fresh paid rerun against
 the user's explicit go-ahead before launching** — same Phase 9 gate as
 before, this incident does not substitute for it.
 
+### Phase 9 completed — 2026-08-15: real graded rerun against `2024-08-phi`
+
+User gave explicit go-ahead. Launched via a one-off scratch script (not
+committed — `/scratch/md5344/evmbench/rtf_phi_live_foundry_rerun_20260815/`),
+`compile_via_foundry=True`, `checkpoint_path` set, `cost_ceiling_usd=5.00`,
+`max_concurrent_investigations=4`, real `2024-08-phi` checkout + `scope.txt`
+(9 files).
+
+**First attempt failed cleanly, $0 spent**: `codex_model="openai/gpt-5.1-codex-max"`
+is no longer recognized by the installed `codex-cli 0.147.0` (auto-updated
+sometime after the prior interrupted run — its own model registry now tops
+out around a "GPT-5.6" family; `gpt-5.1-codex-max` triggers a "Model metadata
+not found, defaulting to fallback metadata" warning, then every real call
+fails with a `Server tool request failed (400)` from the provider). Confirmed
+via a minimal standalone repro outside the pipeline (no MCP server, trivial
+prompt) — same failure. Not a bug in this plan's own code; external
+model-lifecycle drift. Codex's own default model (`gpt-5.6-sol`) works fine.
+Stale checkpoint entries from this failed attempt (all cost $0.00, all
+`INCONCLUSIVE`/`cluster_investigation_incomplete_or_failed`) were moved
+aside, not reused — resuming from them would have incorrectly skipped every
+cluster as "already done."
+
+**Second attempt, `codex_model="gpt-5.6-sol"`, completed cleanly, no
+interruption**: 143.5s wall clock, **$0.226 total real spend** ($0.217
+investigation + $0.009 generation — well under the $5 ceiling), 9/9
+in-scope properties, 0 out-of-scope, `scope_boundary_violations: []`, zero
+splits needed (both top-level clusters completed on the first pass). 6
+FAIL / 3 PASS. Real per-property evidence with file:line citations and
+genuine counterexample searches throughout (not templated/generic text) —
+sample FAILs: `Cred.buyShareCredFor` performs no signature/signer
+verification at all (unlike `PhiFactory.signatureClaim`); a zero-supply
+creator-royalty branch in `BondingCurve`/`Cred._getCreatorFee` makes the
+quoted buy price diverge from the amount actually charged (both single and
+batch paths); `Cred.setProtocolFeePercent` has no upper-bound check against
+`RATIO_BASE`; `PhiFactory`'s claim-tracking mappings aren't enforced as
+replay guards, so a claim can be repeated.
+
+**Real `DetectGrader` result (`openai/gpt-4o` judge): 0/6** (H-01, H-02,
+H-03, H-04, H-06, H-07 — H-05 not included in this grading run). None of
+the 6 real FAIL findings matched any of the 6 graded ground-truth
+vulnerabilities; the judge's own per-vulnerability reasoning confirms each
+miss is a genuine mechanism mismatch, not a near-miss or wording issue.
+
+**Honest assessment — architecture worked, generation coverage still
+didn't land on H-03/H-06 this run**: `Cred.sol` was confirmed compiled,
+grounded, and substantively investigated this run (multiple real FAIL
+findings target it directly) — the exact structural gap this whole plan
+exists to close (§1) is closed: whole-project compilation makes `Cred.sol`
+visible and investigable where the pre-fix architecture never compiled it
+at all. But the specific properties this run's generator proposed for
+`Cred.sol` (fee-quote accounting, signature verification, lock-period
+enforcement) did not happen to target H-03's `EnumerableMap`-bloat DoS or
+H-06's reentrancy mechanism — a `GENERATION_COVERAGE_GAP` in this run's own
+property set (same category as documented extensively in
+`RTF_V2_5ENTRY_ALL_MISSES_ROOT_CAUSE.md`), not a visibility/scope failure.
+This is consistent with, not contradicted by, this plan's own stated goal:
+Goal 1/Goal 2 make `Cred.sol` reachable and investigable; they do not by
+themselves guarantee the semantic generator proposes every specific
+property a grader will match against. Full raw evidence:
+`/scratch/md5344/evmbench/rtf_phi_live_foundry_rerun_20260815/` — `audit.md`
+(rendered findings), `summary.json` (verdicts), `checkpoint.jsonl` (per-call
+cost/evidence), `grade_result.json` (full judge reasoning per vulnerability).
+
 ---
 
 ## 4. Architectural Invariants — Do Not Violate
