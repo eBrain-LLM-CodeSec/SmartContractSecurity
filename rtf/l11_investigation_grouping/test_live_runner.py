@@ -226,6 +226,39 @@ def test_compile_via_foundry_propagates_to_every_run_arm_g_bundle_fn_call():
               calls[0].get("compile_via_foundry") is False, calls)
 
 
+def test_prepare_cluster_context_filters_vendor_when_repo_root_is_given():
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "src").mkdir()
+        (repo / "lib").mkdir()
+        (repo / "lib" / "Vendor.sol").write_text(
+            "pragma solidity ^0.8.20; contract Vendor { function vendored() external {} }",
+            encoding="utf-8",
+        )
+        (repo / "src" / "Entry.sol").write_text(
+            'pragma solidity ^0.8.20; import "../lib/Vendor.sol"; contract Entry { function run() external {} }',
+            encoding="utf-8",
+        )
+        from rtf.l5_predicates.compile_helper import compile_evmbench_target
+        slither = compile_evmbench_target(repo / "src" / "Entry.sol", repo, solc_version="0.8.20")
+        _clusters, _by_id, context, _reqs = prepare_cluster_investigations(
+            [], GROUPING_POLICY_G2_CONTEXT_AWARE, "vendor-context", slither,
+            ["src/Entry.sol"], repo_root=repo,
+        )
+        check("prepare context: first-party Entry remains", "**Entry**" in context, context)
+        check("prepare context: vendored Vendor excluded", "**Vendor**" not in context, context)
+
+
+def test_prepare_cluster_context_uses_explicit_enriched_override():
+    enriched = "# Enriched protocol context\n\nA vetted narrative and structural view.\n"
+    clusters, by_id, context, reqs = prepare_cluster_investigations(
+        [], GROUPING_POLICY_G2_CONTEXT_AWARE, "override", object(), [],
+        protocol_context_override=enriched,
+    )
+    check("prepare context: explicit enriched context is preserved byte-for-byte",
+          context == enriched, context)
+
+
 def test_run_live_incomplete_response_triggers_split_and_both_halves_investigated():
     prop = _minimal_pool()
     by_id = {f"f{i}": prop(f"f{i}") for i in range(1, 5)}

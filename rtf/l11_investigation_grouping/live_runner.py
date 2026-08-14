@@ -123,6 +123,8 @@ def prepare_cluster_investigations(
     audit_id: str,
     slither,
     scope_files: list[str],
+    repo_root: Path | None = None,
+    protocol_context_override: str | None = None,
 ) -> tuple[list[Cluster], dict[str, PropertyMetadata], str, dict[str, str]]:
     """Groups `properties` under `policy_name` and generates the reusable
     Markdown context (protocol context once, requirement context once
@@ -134,7 +136,11 @@ def prepare_cluster_investigations(
     """
     properties_by_id = {p.property_id: p for p in properties}
     clusters = apply_grouping_policy(properties, policy_name)
-    protocol_context_md = generate_protocol_context_md(audit_id, slither, scope_files)
+    protocol_context_md = protocol_context_override
+    if protocol_context_md is None:
+        protocol_context_md = generate_protocol_context_md(
+            audit_id, slither, scope_files, repo_root=repo_root,
+        )
 
     corpus = corpus_by_req_id()
     requirement_context_by_req_id: dict[str, str] = {}
@@ -160,6 +166,8 @@ def prepare_cluster_investigations_with_scope_boundary(
     audit_id: str,
     slither,
     scope_files: list[str],
+    repo_root: Path | None = None,
+    protocol_context_override: str | None = None,
 ) -> tuple[list[Cluster], dict[str, PropertyMetadata], str, dict[str, str], list[dict]]:
     """Boundary A (RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS9,
     Invariant F): defense-in-depth re-check of `properties` against
@@ -179,7 +187,8 @@ def prepare_cluster_investigations_with_scope_boundary(
     """
     kept, violations = enforce_scope_boundary(properties, scope_files, "boundary_a_pre_investigation")
     clusters, properties_by_id, protocol_context_md, req_ctx_by_id = prepare_cluster_investigations(
-        kept, policy_name, audit_id, slither, scope_files,
+        kept, policy_name, audit_id, slither, scope_files, repo_root=repo_root,
+        protocol_context_override=protocol_context_override,
     )
     return clusters, properties_by_id, protocol_context_md, req_ctx_by_id, violations
 

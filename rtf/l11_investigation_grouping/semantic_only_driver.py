@@ -200,6 +200,8 @@ def run_semantic_investigation(
     clusters, properties_by_id, protocol_context_md_out, req_ctx_by_id, boundary_a_violations = (
         prepare_cluster_investigations_with_scope_boundary(
             pool, grouping_policy, audit_id, slither, effective_scope_files,
+            repo_root=repo_root,
+            protocol_context_override=protocol_context_md,
         )
     )
 
