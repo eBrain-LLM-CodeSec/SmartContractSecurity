@@ -15,7 +15,9 @@ from pathlib import Path
 from rtf.l11_investigation_grouping.live_runner import prepare_cluster_investigations_with_scope_boundary
 from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata
 from rtf.l11_investigation_grouping.run_metadata import GROUPING_POLICY_G2_CONTEXT_AWARE
-from rtf.l11_investigation_grouping.semantic_only_driver import run_semantic_investigation
+from rtf.l11_investigation_grouping.semantic_only_driver import (
+    build_ethtrust_structural_properties, run_semantic_investigation,
+)
 from rtf.l12_evaluation.metrics import ConformanceState
 from rtf.l5_predicates.compile_helper import compile_evmbench_target
 
@@ -571,6 +573,146 @@ def test_boundary_b_strips_a_fabricated_property_id_from_investigator_output():
               result["scope_boundary_violations"])
         check("boundary B: the real property's verdict still made it through",
               captured["property_id"] in result["property_verdicts"], result["property_verdicts"])
+
+
+_ETHTRUST_MERGE_FOUNDRY_TOML = """[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.20"
+"""
+
+_ETHTRUST_MERGE_ENTRY_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Entry {
+    uint256 public entryState;
+    function bump() external { entryState += 1; }
+}
+"""
+
+# Deliberately NOT imported by Entry.sol. Contains a real
+# req-2-block-data-misuse pattern (block.timestamp stored as a value) --
+# a real EthTrust structural predicate fires on this without any LLM call.
+_ETHTRUST_MERGE_SIBLING_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Sibling {
+    uint256 public lastSeen;
+    function touch() public {
+        lastSeen = block.timestamp;
+    }
+}
+"""
+
+_ETHTRUST_MERGE_ENTRY_PROPERTY = {
+    "statement": "Entry.bump must increase Entry.entryState by exactly one per call.",
+    "property_type": "accounting", "rationale": "bump is documented as a pure increment.",
+    "affected_contracts": ["Entry"], "affected_functions": ["Entry.bump"],
+    "affected_state_variables": ["Entry.entryState"], "source_refs": ["fixture"], "confidence": 0.8,
+}
+
+
+def test_build_ethtrust_structural_properties_sees_sibling_via_foundry():
+    """Real compile, real EthTrust predicates, zero LLM/Codex calls --
+    proves RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md's whole-project-
+    visibility fix now ALSO applies to the deterministic EthTrust
+    structural pipeline, not just semantic-v2 generation.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "foundry.toml").write_text(_ETHTRUST_MERGE_FOUNDRY_TOML, encoding="utf-8")
+        (repo / "src").mkdir()
+        (repo / "src" / "Entry.sol").write_text(_ETHTRUST_MERGE_ENTRY_SOURCE, encoding="utf-8")
+        (repo / "src" / "Sibling.sol").write_text(_ETHTRUST_MERGE_SIBLING_SOURCE, encoding="utf-8")
+
+        try:
+            properties, compile_error = build_ethtrust_structural_properties(
+                audit_id="ethtrust-merge-test", repo_root=repo, entry_sol_file=repo / "src" / "Entry.sol",
+                solc_version="0.8.20", scope_files=["src/Entry.sol", "src/Sibling.sol"],
+                compile_via_foundry=True,
+            )
+        except Exception as e:  # noqa: BLE001
+            check("ethtrust structural properties: skipped/failed (container unavailable here?)",
+                  False, f"{type(e).__name__}: {e}")
+            return
+
+        check("ethtrust structural properties: no compile error", compile_error is None, compile_error)
+        sibling_props = [p for p in properties if p.target_contract == "Sibling"]
+        check("ethtrust structural properties: a real property targets Sibling (visible via whole-project compile)",
+              len(sibling_props) > 0, [(p.target_contract, p.requirement_id) for p in properties])
+        check("ethtrust structural properties: every property has source_kind != code_semantics (real EthTrust/ERC, not LLM-proposed)",
+              all(p.source_kind != "code_semantics" for p in properties),
+              [p.source_kind for p in properties])
+
+
+def test_run_semantic_investigation_merges_real_structural_with_semantic_properties():
+    """End-to-end: real EthTrust structural properties (from
+    build_ethtrust_structural_properties, real compile+predicates, $0
+    cost) merged with a mocked semantic property, both reaching
+    clustering/investigation together in one run_semantic_investigation
+    call. Mocked chat_client/run_arm_g_bundle_fn -- zero real LLM/Codex
+    calls for the semantic/investigation side.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "foundry.toml").write_text(_ETHTRUST_MERGE_FOUNDRY_TOML, encoding="utf-8")
+        (repo / "src").mkdir()
+        (repo / "src" / "Entry.sol").write_text(_ETHTRUST_MERGE_ENTRY_SOURCE, encoding="utf-8")
+        (repo / "src" / "Sibling.sol").write_text(_ETHTRUST_MERGE_SIBLING_SOURCE, encoding="utf-8")
+
+        try:
+            structural_properties, compile_error = build_ethtrust_structural_properties(
+                audit_id="ethtrust-merge-e2e", repo_root=repo, entry_sol_file=repo / "src" / "Entry.sol",
+                solc_version="0.8.20", scope_files=["src/Entry.sol", "src/Sibling.sol"],
+                compile_via_foundry=True,
+            )
+        except Exception as e:  # noqa: BLE001
+            check("merge e2e: structural build skipped/failed (container unavailable here?)",
+                  False, f"{type(e).__name__}: {e}")
+            return
+
+        check("merge e2e: at least one real structural property derived",
+              len(structural_properties) > 0, structural_properties)
+
+        client = FakeChatClient({"properties": [_ETHTRUST_MERGE_ENTRY_PROPERTY]})
+        invoked_property_ids: list[str] = []
+
+        def _run_arm_g_bundle_fn(*, case_id, prompt, extra_files, candidate_location, **kwargs):
+            import re
+            haystack = "\n".join(extra_files.values())
+            found_this_call: list[str] = []
+            for m in re.finditer(r"`([a-zA-Z0-9_]+__[a-zA-Z0-9_]+::loc\d+|req-[a-zA-Z0-9-]+::loc\d+)`", haystack):
+                found_this_call.append(m.group(1))
+            invoked_property_ids.extend(found_this_call)
+            entries = [{
+                "property_id": pid, "verdict": "PASS", "evidence": "e", "files_read": [],
+                "counterexample_attempt": "a", "counterexample_result": "r", "reasoning": "r",
+                "vulnerable_location": None, "confidence": "HIGH",
+            } for pid in found_this_call]
+            return FakeArmGResult(final_decision={"properties": entries})
+
+        with tempfile.TemporaryDirectory() as scratch:
+            result = run_semantic_investigation(
+                audit_id="ethtrust-merge-e2e", repo_root=repo, entry_sol_file=repo / "src" / "Entry.sol",
+                solc_version="0.8.20", chat_client=client,
+                codex_bin=Path("/nonexistent/codex"), python_bin=Path("/nonexistent/python3"),
+                mcp_server_script=Path("/nonexistent/mcp.py"), api_key="unused", codex_model="unused",
+                scratch_root=Path(scratch), run_arm_g_bundle_fn=_run_arm_g_bundle_fn,
+                scope_files=["src/Entry.sol", "src/Sibling.sol"], compile_via_foundry=True,
+                structural_properties=structural_properties,
+            )
+
+        target_contracts_in_pool = {p.target_contract for p in result["properties_by_id"].values()}
+        check("merge e2e: both Entry (semantic) and Sibling (structural) reached the final pool",
+              "Entry" in target_contracts_in_pool and "Sibling" in target_contracts_in_pool,
+              target_contracts_in_pool)
+        source_kinds_in_pool = {p.source_kind for p in result["properties_by_id"].values()}
+        check("merge e2e: pool contains BOTH code_semantics and non-code_semantics properties",
+              "code_semantics" in source_kinds_in_pool and any(k != "code_semantics" for k in source_kinds_in_pool),
+              source_kinds_in_pool)
+        check("merge e2e: no scope boundary violations on a correctly-scoped merged run",
+              result["scope_boundary_violations"] == [], result["scope_boundary_violations"])
 
 
 def main() -> int:

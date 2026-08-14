@@ -59,6 +59,76 @@ def _solc_bin_dir_for(version: str, scratch_root: Path) -> str:
     return str(bin_dir)
 
 
+def build_ethtrust_structural_properties(
+    *, audit_id: str, repo_root: Path, entry_sol_file: Path, solc_version: str,
+    scope_files: list[str] | None = None, compile_via_foundry: bool = False,
+    extra_forge_build_args: list[str] | None = None, extra_solc_args: list[str] | None = None,
+    known_limitations: dict[str, str] | None = None, include_erc_standards: bool = True,
+) -> tuple[list[PropertyMetadata], str | None]:
+    """Runs RTF's deterministic EthTrust (81-requirement corpus) + real
+    ERC/EIP-standards-generated (`rtf.standards`) predicate pipeline
+    against `repo_root`, and derives the same atomic `PropertyMetadata`
+    pool the pre-grouping `pipeline_e2e.py` architecture would have fed
+    to its Codex-escalation loop -- ready to pass straight into
+    `run_semantic_investigation`'s own `structural_properties` param, so
+    a single investigation run sees BOTH EthTrust-derived and semantic-
+    v2-generated properties together (`merge_property_pools`, inside
+    `semantic_pipeline.build_full_property_pool`, already handles the
+    merge -- this function only builds one of the two inputs).
+
+    `compile_via_foundry`, when `True`, threads through to
+    `run_rtf.build_context_for_evmbench_target` -- the SAME whole-project
+    Foundry compile RTF v2's semantic generator uses, so a sibling scope
+    file the entry doesn't import (the confirmed real gap for
+    `2025-04-forte`'s `Ln.sol` / `2024-08-phi`'s `Cred.sol`, see
+    RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md) is no longer invisible to
+    Slither-backed STRUCTURAL predicates either, not just semantic
+    generation. `False` (the default) is unchanged prior behavior.
+
+    Note: this performs its OWN real compile, separate from the one
+    `run_semantic_investigation` performs internally for generation --
+    two real (local, zero-API-cost) `forge build` invocations of the
+    same project rather than one shared compile. Both use the identical
+    `compile_evmbench_target_via_foundry` function against the same
+    `repo_root`, so they produce byte-identical `out/` artifacts
+    (deterministic compilation, unlike the single-entry-vs-whole-project
+    "stack too deep" divergence risk documented elsewhere) -- a disclosed
+    wall-clock cost (one extra local compile), not a correctness risk.
+    Sharing one compile across both calls would require threading a
+    pre-built `slither`/`ProjectManifest` into `run_semantic_investigation`
+    itself, a deeper change not made here.
+
+    Returns `(properties, compile_error)` -- `compile_error` is `None` on
+    success; on a real compile failure, `properties` is `[]` rather than
+    raising, matching `build_context_for_evmbench_target`'s own
+    no-crash-on-compile-failure convention.
+    """
+    from rtf.l11_investigation_grouping.live_runner import build_property_pool
+    from rtf.l12_evaluation.metrics import TargetRunResult
+    from rtf.l12_evaluation.pipeline_e2e import CORPUS_PATH
+    from rtf.l12_evaluation.run_rtf import build_context_for_evmbench_target, load_unconditioned_map, run_rtf
+    from rtf.standards.routing import build_standards_routed_requirements
+
+    ctx, compile_error = build_context_for_evmbench_target(
+        entry_sol_file, repo_root, solc_version, extra_solc_args=extra_solc_args,
+        compile_via_foundry=compile_via_foundry, extra_forge_build_args=extra_forge_build_args,
+    )
+    if ctx.slither is None:
+        return [], compile_error
+
+    unconditioned_map = load_unconditioned_map(CORPUS_PATH)
+    run, _raw = run_rtf(ctx, audit_id, unconditioned_map, known_limitations=known_limitations or {})
+
+    if include_erc_standards:
+        generated_routed, _report, _bundles = build_standards_routed_requirements(
+            repo_root=ctx.repo_root, entry_sol_file=entry_sol_file, slither=ctx.slither,
+        )
+        run = TargetRunResult(audit_id=run.audit_id, routed={**run.routed, **generated_routed})
+
+    properties = build_property_pool(run.routed, repo_root, slither=ctx.slither, scope_files=scope_files)
+    return properties, None
+
+
 def _enforce_scope_boundary_b(
     properties_by_id: dict, property_verdicts: dict, raw_property_entries_by_id: dict,
 ) -> tuple[dict, dict, list[dict]]:

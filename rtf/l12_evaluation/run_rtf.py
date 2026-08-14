@@ -76,7 +76,7 @@ import traceback
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from rtf.l5_predicates.compile_helper import compile_evmbench_target
+from rtf.l5_predicates.compile_helper import compile_evmbench_target, compile_evmbench_target_via_foundry
 from rtf.l12_evaluation.failure_taxonomy import OperationalStatus
 from rtf.l12_evaluation.metrics import (
     ApplicabilityState,
@@ -286,6 +286,8 @@ def build_context_for_evmbench_target(
     sol_source_paths: list[Path] | None = None,
     sol_test_paths: list[Path] | None = None,
     extra_solc_args: list[str] | None = None,
+    compile_via_foundry: bool = False,
+    extra_forge_build_args: list[str] | None = None,
 ) -> tuple[RunContext, str | None]:
     """Compile a real EVMbench target and build its RunContext. Returns
     (ctx, compilation_error_or_None) -- compilation failure does not
@@ -297,10 +299,28 @@ def build_context_for_evmbench_target(
     `extra_solc_args`, when given, passes straight through to
     `compile_evmbench_target` (e.g. `["--via-ir", "--optimize"]` for a
     target whose own foundry.toml requires it -- see that function's
-    docstring). Deliberately opt-in per-call, not auto-detected.
+    docstring). Deliberately opt-in per-call, not auto-detected. Ignored
+    when `compile_via_foundry=True` (Foundry reads these settings from
+    the project's own `foundry.toml` directly).
+
+    `compile_via_foundry`, when `True`, compiles the WHOLE project via
+    `compile_helper.compile_evmbench_target_via_foundry` instead of
+    following `entry_sol_file`'s own `import` graph via raw solc --
+    every EthTrust predicate that needs `ctx.slither` (i.e. every
+    Slither-backed predicate in `REGISTRY`) then sees the same
+    whole-project visibility RTF v2's semantic generator gets in
+    `compile_via_foundry` mode (see
+    RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md) -- a sibling scope file the
+    entry doesn't import is no longer invisible to structural/EthTrust
+    predicates either. `False` (the default) is unchanged prior
+    behavior. `extra_forge_build_args`, when given, is forwarded
+    verbatim to the underlying `forge build` invocation.
     """
     try:
-        slither = compile_evmbench_target(entry_sol_file, project_root, solc_version, extra_solc_args=extra_solc_args)
+        if compile_via_foundry:
+            slither = compile_evmbench_target_via_foundry(project_root, extra_forge_build_args=extra_forge_build_args)
+        else:
+            slither = compile_evmbench_target(entry_sol_file, project_root, solc_version, extra_solc_args=extra_solc_args)
         error = None
     except Exception as e:  # noqa: BLE001
         slither = None
