@@ -218,6 +218,86 @@ def test_scope_files_drops_properties_targeting_files_outside_declared_scope():
               len(in_scope_pid) == 1, in_scope_pid)
 
 
+_FOUNDRY_TOML = """[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.20"
+"""
+
+_VAULT_ENTRY_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Vault {
+    uint256 public totalAssetsHeld;
+    function deposit(uint256 amount) external { totalAssetsHeld += amount; }
+}
+"""
+
+# Deliberately NOT imported by Vault.sol -- a sibling scope file, same shape
+# as the real 2025-04-forte Ln.sol / 2024-08-phi Cred.sol gap this fix
+# targets (RTF_V2_5ENTRY_ALL_MISSES_ROOT_CAUSE.md).
+_SIBLING_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Sibling {
+    uint256 public siblingState;
+    function bump() external { siblingState += 1; }
+}
+"""
+
+_SIBLING_PROPERTY_ENTRY = {
+    "statement": "Sibling.bump must increase Sibling.siblingState by exactly one per call.",
+    "property_type": "accounting", "rationale": "bump is documented as a pure increment.",
+    "affected_contracts": ["Sibling"], "affected_functions": ["Sibling.bump"],
+    "affected_state_variables": ["Sibling.siblingState"], "source_refs": ["fixture"], "confidence": 0.8,
+}
+
+
+def test_compile_via_foundry_makes_a_sibling_scope_file_visible_to_generation():
+    """Real end-to-end proof (mocked LLM/Codex only) of the exact gap
+    RTF_V2_5ENTRY_ALL_MISSES_ROOT_CAUSE.md documents: `Sibling.sol` is a
+    real scope file that `Vault.sol` (the entry) never imports. Skips
+    gracefully if the container/Singularity isn't available in this
+    environment, same convention as `test_compile_helper.py`'s own
+    real-container test.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "foundry.toml").write_text(_FOUNDRY_TOML, encoding="utf-8")
+        (repo / "src").mkdir()
+        (repo / "src" / "Vault.sol").write_text(_VAULT_ENTRY_SOURCE, encoding="utf-8")
+        (repo / "src" / "Sibling.sol").write_text(_SIBLING_SOURCE, encoding="utf-8")
+        client = FakeChatClient({"properties": [_SIBLING_PROPERTY_ENTRY]})
+
+        def _run_arm_g_bundle_fn(*, case_id, prompt, extra_files, candidate_location, **kwargs):
+            return FakeArmGResult(final_decision={"properties": []})
+
+        with tempfile.TemporaryDirectory() as scratch:
+            try:
+                result = run_semantic_investigation(
+                    audit_id="foundry-compile-test", repo_root=repo, entry_sol_file=repo / "src" / "Vault.sol",
+                    solc_version="0.8.20", chat_client=client,
+                    codex_bin=Path("/nonexistent/codex"), python_bin=Path("/nonexistent/python3"),
+                    mcp_server_script=Path("/nonexistent/mcp.py"), api_key="unused", codex_model="unused",
+                    scratch_root=Path(scratch), run_arm_g_bundle_fn=_run_arm_g_bundle_fn,
+                    scope_files=["src/Vault.sol", "src/Sibling.sol"], compile_via_foundry=True,
+                )
+            except Exception as e:  # noqa: BLE001
+                check("compile_via_foundry driver test skipped/failed (container unavailable here?)",
+                      False, f"{type(e).__name__}: {e}")
+                return
+
+        check("compile_via_foundry: the sibling property was grounded (not rejected as ungrounded)",
+              result["semantic_observability"]["rejected_grounding"] == [], result["semantic_observability"])
+        check("compile_via_foundry: the sibling property is in the pool, proving Sibling.sol was compiled",
+              any(p.target_contract == "Sibling" for p in result["properties_by_id"].values()),
+              [(pid, p.target_contract) for pid, p in result["properties_by_id"].items()])
+        check("compile_via_foundry: the sibling property is in scope (scope_files included it)",
+              result["in_scope_count"] == 1 and result["out_of_scope_count"] == 0,
+              (result["in_scope_count"], result["out_of_scope_count"]))
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for t in tests:

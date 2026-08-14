@@ -29,7 +29,7 @@ from rtf.l11_investigation_grouping.protocol_context import generate_enriched_pr
 from rtf.l11_investigation_grouping.run_metadata import GROUPING_POLICY_G2_CONTEXT_AWARE
 from rtf.l11_investigation_grouping.semantic_pipeline import build_full_property_pool, write_observability_artifacts
 from rtf.l11_investigation_grouping.semantic_property_generation import ProjectManifest
-from rtf.l5_predicates.compile_helper import compile_evmbench_target
+from rtf.l5_predicates.compile_helper import compile_evmbench_target, compile_evmbench_target_via_foundry
 from rtf.standards.registry import StandardsRegistry
 
 _SOLC_SELECT_ARTIFACTS = Path.home() / ".solc-select" / "artifacts"
@@ -67,6 +67,7 @@ def run_semantic_investigation(
     cost_ceiling_usd: float | None = None, max_concurrent_investigations: int = 1,
     observability_root: Path | None = None, run_arm_g_bundle_fn=None,
     scope_files: list[str] | None = None, extra_solc_args: list[str] | None = None,
+    compile_via_foundry: bool = False, extra_forge_build_args: list[str] | None = None,
 ) -> dict:
     """Compiles `entry_sol_file`, builds the enriched protocol context +
     manifest, runs Phase 5/6/7 (real LLM call via `chat_client`), clusters
@@ -95,7 +96,35 @@ def run_semantic_investigation(
     `compile_evmbench_target` (e.g. `["--via-ir", "--optimize",
     "--optimize-runs", "1000"]` for a target whose own `foundry.toml`
     needs `via-ir` to avoid a real "stack too deep" solc error --
-    confirmed live on `2024-01-canto`'s `LendingLedger.sol`).
+    confirmed live on `2024-01-canto`'s `LendingLedger.sol`). Ignored
+    when `compile_via_foundry=True` (see below) -- Foundry reads the
+    project's own `via-ir`/optimizer settings from its `foundry.toml`
+    directly, no manual discovery needed.
+
+    `compile_via_foundry`, when `True`, compiles the WHOLE project via
+    `compile_helper.compile_evmbench_target_via_foundry` (a real `forge
+    build` run inside the `evmbench-worker.sif` container, read back by
+    Slither on the host with zero `forge` dependency there) instead of
+    following `entry_sol_file`'s own `import` graph via raw solc. This is
+    what structurally fixes the "sibling scope file the entry never
+    imports is invisible to the generator" gap confirmed live on real
+    EVMbench targets (`2025-04-forte`'s `Ln.sol`, `2024-08-phi`'s
+    `Cred.sol` -- see `RTF_V2_5ENTRY_ALL_MISSES_ROOT_CAUSE.md`).
+    `entry_sol_file`/`solc_version` are still required and still used
+    (graph-navigation-tool hint, default-scope fallback, and the
+    SEPARATE live compile the graph MCP server does during investigation
+    -- deliberately NOT switched to Foundry compilation in this change,
+    a disclosed, not-yet-addressed follow-up, not an oversight) -- only
+    the property-GENERATION-time compilation strategy changes.
+    `extra_forge_build_args`, when given, is forwarded verbatim to the
+    underlying `forge build` invocation.
+
+    When `compile_via_foundry=True` (or in general, since it's harmless
+    either way), the resulting `ProjectManifest` is built with vendored-
+    path filtering (`repo_root` passed through to `ProjectManifest.
+    from_slither`) -- load-bearing once compilation covers a whole
+    project, since an unfiltered manifest would otherwise hand the
+    generator every vendored OpenZeppelin/Solady contract too.
 
     Returns a dict: `properties_by_id`, `clusters`, `property_verdicts`
     (`{property_id: PropertyVerdict}`), `raw_property_entries_by_id`
@@ -106,8 +135,11 @@ def run_semantic_investigation(
     artifacts there via `semantic_pipeline.write_observability_artifacts`.
     """
     scratch_root.mkdir(parents=True, exist_ok=True)
-    slither = compile_evmbench_target(entry_sol_file, repo_root, solc_version=solc_version, extra_solc_args=extra_solc_args)
-    manifest = ProjectManifest.from_slither(slither)
+    if compile_via_foundry:
+        slither = compile_evmbench_target_via_foundry(repo_root, extra_forge_build_args=extra_forge_build_args)
+    else:
+        slither = compile_evmbench_target(entry_sol_file, repo_root, solc_version=solc_version, extra_solc_args=extra_solc_args)
+    manifest = ProjectManifest.from_slither(slither, repo_root=repo_root)
     effective_scope_files = scope_files if scope_files is not None else (
         [str(entry_sol_file.relative_to(repo_root))] if entry_sol_file.is_relative_to(repo_root) else []
     )
