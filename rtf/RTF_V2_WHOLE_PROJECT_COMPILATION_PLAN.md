@@ -418,6 +418,93 @@ prose gets the direction right — `Ln.sol` imports `Float128.sol`, matching
 §1 above), but worth a one-line cleanup whenever that file is next touched.
 Not a functional issue; do not spend a dedicated pass on it.
 
+### Update — 2026-08-15: Phases 1–8 complete, three reliability fixes added
+
+**Everything below §3's original table is now implemented, tested, and
+committed on `rtf-v2-redesign`** (commits `351005a`..`436cfac`), reproduce
+via `git log --oneline` before trusting this claim, per this document's own
+Phase 0 discipline:
+
+- Goal 1 (§6–§8): done. §7's Entry/Sibling/Helper/Vendor fixture is real
+  (`test_semantic_only_driver.py::test_compile_via_foundry_scope_matrix_entry_sibling_helper_vendor`),
+  proves all four outcomes in one real whole-project Foundry compile.
+  `_paths_match` needed no change — real Foundry `source_mapping.filename`
+  values (`used`/`absolute` forms) already match correctly.
+- Goal 1b defense-in-depth (§9–§10): done. `property_metadata.
+  enforce_scope_boundary` (Boundary A, in `live_runner.
+  prepare_cluster_investigations_with_scope_boundary`; Boundary B, in
+  `semantic_only_driver._enforce_scope_boundary_b`), `scope_boundary_
+  violations` in the returned dict, both bypass-injection tests pass.
+- Investigator-facing vendor filtering (§16): done, in BOTH
+  `context_artifacts.generate_protocol_context_md` and
+  `protocol_context.py`'s narrative functions — a real bug was found and
+  fixed getting here: `prepare_cluster_investigations` was independently
+  regenerating its own unfiltered `protocol_context_md`, silently
+  discarding the driver's own enriched, filtered one (fixed via
+  `protocol_context_override`/`repo_root` threaded into
+  `prepare_cluster_investigations`).
+- Goal 2 (§11–§15): done. `a4v/graph.py`'s pre-existing `ProgramGraph.
+  from_slither` is now wired via `graph_mcp_server._build_graph_for_
+  investigation` behind `GRAPH_COMPILE_VIA_FOUNDRY`, propagated through
+  `run_semantic_investigation` → `run_cluster_investigations_live` →
+  `run_arm_g_bundle` → the MCP env block. The mandatory artifact-relocation
+  test (§14) and no-hidden-recompile test (§15) both pass, in
+  `test_graph_mcp_foundry_relocation.py` — the no-recompile proof uses a
+  poison-pill mock on `ProgramGraph.build` (raises if ever called in
+  Foundry mode), not just a call-count check.
+
+**Three additional reliability fixes, NOT in the original plan** — found
+from real operational evidence, not anticipated in advance (see the
+"interrupted live run" note below): hard process-tree timeout enforcement,
+incremental per-call checkpointing, and concurrency-aware cost-ceiling
+reservation, all in `arm_g_codex.run_arm_g_bundle`/`live_runner.
+run_cluster_investigations_live` (commit `436cfac`). See that commit
+message for full detail; briefly:
+1. `run_arm_g_bundle`'s codex subprocess now launches via `Popen(...,
+   start_new_session=True)` instead of `subprocess.run(timeout=...)`,
+   which only kills the ONE direct child on timeout. `_kill_process_tree`
+   SIGTERMs-then-SIGKILLs the WHOLE process group.
+2. `run_cluster_investigations_live` gained `checkpoint_path` — every
+   completed call's cost and any finalized verdicts are appended to disk
+   immediately (`_append_checkpoint`), and a resumed call skips clusters
+   whose properties are already checkpointed.
+3. `cost_ceiling_usd` batches are now sized by what the REMAINING budget
+   can plausibly afford (running average of real completed-call costs,
+   or `estimated_cost_per_call_usd` before any complete), not just
+   re-checked between batches.
+Both `checkpoint_path` and `cost_ceiling_usd` behavior default to
+byte-identical prior behavior when unused.
+
+**A real, live investigation run against the actual `2024-08-phi` target
+happened on 2026-08-15** (`compile_via_foundry=True`, named
+`2024-08-phi-foundry-preflight`, scratch at
+`/scratch/md5344/evmbench/rtf_phi_live_foundry_20260814/`) — **discovered
+after the fact, not launched under this document's own Phase 9 gate**, and
+**interrupted mid-run** (the process-tree timeout bug above, item 1, is
+what let one child outlive its timeout during this exact run — this run is
+what surfaced the bug, not a run that used the fix). Real, non-trivial
+spend (known lower bound ≈$1.10 — investigation ≈$1.08, generation
+≈$0.016; a true lower bound because timed-out calls never emitted final
+usage records). **11 grounded/in-scope properties generated (up from the
+pre-fix architecture's single-entry run, which never saw `Cred.sol` at
+all), 7/11 verdicts recovered before interruption**: 3 real FAIL findings
+(unbounded `protocolFeePercent`, missing double-claim guard — these two
+describe the same underlying theme; combined protocol/creator fee cap) and
+4 PASS (curator reward accounting, sell lock period, creator royalty
+limit, soulbound transfer restrictions), 4 properties left INCONCLUSIVE
+(split investigations never finished before the run stopped). Whole-project
+graph navigation confirmed working live: `Cred._authorizeUpgrade` in
+`src/Cred.sol` resolved successfully. **No `audit.md` was generated and no
+`DetectGrader` run happened — there is no EVMbench score for this run.**
+Do not report a grade for it; do not conflate "provisional FAIL findings
+exist" with "graded." Per Invariant G and this document's own prior
+instruction: the reliability fixes above exist specifically so a FUTURE
+rerun doesn't repeat this loss, not to make this specific ungraded run
+retroactively count as validation. **A fresh paid rerun against
+`2024-08-phi`, now with the reliability fixes in place, still requires
+the user's explicit go-ahead before launching** — same Phase 9 gate as
+before, this incident does not substitute for it.
+
 ---
 
 ## 4. Architectural Invariants — Do Not Violate
@@ -890,6 +977,30 @@ requires no change for this). If it's significant, record a follow-up
 optimization recommendation in this document's own status table (§3) rather
 than blocking on it — do not let a performance concern gate correctness
 work in this plan.
+
+**Real measurement taken 2026-08-15**, against the real
+`2026-01-tempo-feeamm` checkout (the same one §3's real-container test
+uses), after a real `compile_evmbench_target_via_foundry` compile:
+
+```
+out/build-info/  : 4.5K
+out/ (total)     : 18K
+repo (total)     : 475K   -- out/ is ~3.8% of the whole repo copy
+prepare_full_repo_investigation_dir time: 1.842s
+```
+
+**Conclusion: small, not significant.** `out/`'s own contribution to the
+copy is negligible relative to the full-repo copy that already happens on
+every investigation regardless of Foundry mode — the 1.842s is dominated
+by the pre-existing full-repo `copytree`, not by anything this work added.
+At a realistic 5-15 clusters/audit (per `RTF_V2_5ENTRY_COMPARISON_REPORT.md`),
+that's roughly 9-28s of total copy overhead per audit — trivial next to
+real per-cluster Codex investigation wall-clock time (minutes, not
+seconds). **This is one target's numbers, not a guarantee** — a target
+with a much larger `lib/` (heavy multi-library OpenZeppelin/Solady/
+forge-std dependency tree) could shift this ratio; re-measure before
+assuming it generalizes to every audit, but no design change is warranted
+from this data point. No follow-up optimization is recommended.
 
 ---
 
