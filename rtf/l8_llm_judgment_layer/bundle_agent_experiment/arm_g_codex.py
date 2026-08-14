@@ -15,7 +15,9 @@ report, not hidden.
 """
 from __future__ import annotations
 
+import os
 import shutil
+import signal
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -164,6 +166,34 @@ def write_extra_investigation_files(investigation_dir: Path, extra_files: dict[s
     return written
 
 
+def _kill_process_tree(pid: int, grace_s: float = 2.0) -> None:
+    """SIGTERM then SIGKILL the ENTIRE process group rooted at `pid`, not
+    just that one process -- requires the process was launched with
+    `start_new_session=True` (its own process group), otherwise this
+    would also hit the CALLER's process group. Real, live-confirmed
+    necessity (2026-08-14, a 2024-08-phi investigation): plain
+    `subprocess.run(..., timeout=...)` only kills the single direct child
+    it spawned; codex itself (or a grandchild it starts) can survive that
+    and keep running -- and, for a paid Codex investigation, keep
+    accruing real API cost -- with nothing left to bound or observe it.
+    Best-effort: a process that already exited before either signal is
+    silently ignored (`ProcessLookupError`), never raised.
+    """
+    try:
+        pgid = os.getpgid(pid)
+    except ProcessLookupError:
+        return
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    time.sleep(grace_s)
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
 def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Path,
                       api_key: str, model: str, case_id: str,
                       entry_file: Path, repo_root: Path, candidate_location: str,
@@ -289,12 +319,25 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
     timed_out = False
     if not resume_completed:
         with open(log_path, "w") as logf:
+            # start_new_session=True puts codex (and anything IT spawns --
+            # confirmed live: an MCP server subprocess or a codex-internal
+            # grandchild can outlive plain subprocess.run(timeout=...),
+            # which only kills the ONE direct child it created) into its
+            # own process group, so a timeout can reliably kill the WHOLE
+            # tree via _kill_process_tree below -- not just the immediate
+            # pid. Confirmed necessary live: a real 2024-08-phi investigation
+            # (2026-08-14) had its nominal timeout fire but left a real,
+            # still-billing Codex process running because the old
+            # subprocess.run(..., timeout=...) form never reached it.
+            proc = subprocess.Popen(
+                cmd, cwd=str(investigation_dir), env=env,
+                stdout=logf, stderr=subprocess.STDOUT, start_new_session=True,
+            )
             try:
-                subprocess.run(cmd, cwd=str(investigation_dir), env=env,
-                                stdout=logf, stderr=subprocess.STDOUT,
-                                timeout=timeout_s, check=False)
+                proc.wait(timeout=timeout_s)
             except subprocess.TimeoutExpired:
                 timed_out = True
+                _kill_process_tree(proc.pid)
     wall_clock_s = time.time() - start
 
     import json

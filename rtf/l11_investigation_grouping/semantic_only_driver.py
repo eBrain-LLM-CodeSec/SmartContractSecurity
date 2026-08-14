@@ -103,6 +103,7 @@ def run_semantic_investigation(
     observability_root: Path | None = None, run_arm_g_bundle_fn=None,
     scope_files: list[str] | None = None, extra_solc_args: list[str] | None = None,
     compile_via_foundry: bool = False, extra_forge_build_args: list[str] | None = None,
+    checkpoint_path: Path | None = None, estimated_cost_per_call_usd: float = 0.20,
 ) -> dict:
     """Compiles `entry_sol_file`, builds the enriched protocol context +
     manifest, runs Phase 5/6/7 (real LLM call via `chat_client`), clusters
@@ -161,6 +162,11 @@ def run_semantic_investigation(
     project, since an unfiltered manifest would otherwise hand the
     generator every vendored OpenZeppelin/Solady contract too.
 
+    `checkpoint_path`/`estimated_cost_per_call_usd` are forwarded verbatim
+    to `live_runner.run_cluster_investigations_live` -- see that
+    function's own docstring. `checkpoint_path=None` (the default) is
+    unchanged prior behavior (no incremental persistence, no resume).
+
     Returns a dict: `properties_by_id`, `clusters`, `property_verdicts`
     (`{property_id: PropertyVerdict}`), `raw_property_entries_by_id`
     (the investigator's own JSON entry per property, for human-readable
@@ -214,7 +220,8 @@ def run_semantic_investigation(
         api_key=api_key, codex_model=codex_model, solc_path_dir=solc_path_dir, solc_remaps=None,
         scratch_root=scratch_root, codex_timeout_s=codex_timeout_s, cost_ceiling_usd=cost_ceiling_usd,
         max_concurrent_investigations=max_concurrent_investigations, run_arm_g_bundle_fn=run_arm_g_bundle_fn,
-        compile_via_foundry=compile_via_foundry,
+        compile_via_foundry=compile_via_foundry, checkpoint_path=checkpoint_path,
+        estimated_cost_per_call_usd=estimated_cost_per_call_usd,
     )
 
     property_verdicts, raw_entries, boundary_b_violations = _enforce_scope_boundary_b(

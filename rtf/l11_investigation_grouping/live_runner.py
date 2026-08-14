@@ -15,6 +15,7 @@ before any live run -- see `test_live_runner.py`.
 """
 from __future__ import annotations
 
+import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from pathlib import Path
@@ -206,6 +207,73 @@ def _candidate_location_hint(cluster: Cluster, properties_by_id: dict[str, Prope
     return first.target_contract or ""
 
 
+def _load_checkpoint(checkpoint_path: Path) -> tuple[dict[str, PropertyVerdict], dict[str, dict], float, set[str]]:
+    """Reads a checkpoint file written by `_append_checkpoint` (one JSON
+    line per completed Codex call, whether it finalized or split -- see
+    that function's docstring for the exact shape). Returns
+    (verdicts, raw_entries, total_cost_so_far, resolved_property_ids) --
+    the last is used by `run_cluster_investigations_live` to skip
+    re-dispatching a cluster whose every property already has a
+    checkpointed verdict. Missing/empty file returns all-empty state, not
+    an error -- a checkpoint is optional, additive persistence, never a
+    precondition.
+    """
+    verdicts: dict[str, PropertyVerdict] = {}
+    raw_entries: dict[str, dict] = {}
+    total_cost = 0.0
+    resolved_property_ids: set[str] = set()
+    if not checkpoint_path.exists():
+        return verdicts, raw_entries, total_cost, resolved_property_ids
+    for line in checkpoint_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        rec = json.loads(line)
+        total_cost += rec.get("cost_usd", 0.0)
+        for pid, v in rec.get("verdicts", {}).items():
+            verdicts[pid] = PropertyVerdict(ConformanceState(v["conformance_state"]), v.get("reason"))
+            resolved_property_ids.add(pid)
+        for pid, entry in rec.get("raw_entries", {}).items():
+            raw_entries[pid] = entry
+    return verdicts, raw_entries, total_cost, resolved_property_ids
+
+
+def _append_checkpoint(
+    checkpoint_path: Path, case_id: str, cost_usd: float,
+    verdicts: dict[str, PropertyVerdict], raw_entries: dict[str, dict],
+) -> None:
+    """Appends ONE JSON line per completed Codex call (real, live-
+    motivated fix, 2026-08-14: a real 2024-08-phi investigation run was
+    interrupted mid-way and every in-memory verdict/cost record -- 7 of
+    11 properties' worth of real, already-paid-for work -- was
+    unrecoverable because nothing had been persisted incrementally).
+    `cost_usd` is this SPECIFIC call's own cost contribution (recorded
+    even when the call led to a split, i.e. `verdicts`/`raw_entries` are
+    empty -- money was still spent and must still count toward a resumed
+    run's `total_cost`/cost-ceiling accounting). `verdicts`/`raw_entries`
+    are only the properties THIS call finalized (empty for a split).
+    Append-only, one line per call -- safe to write from multiple worker
+    threads only because each call's write is a single `open(...,
+    "a")`+`write()` (atomic for a line this size on a local filesystem;
+    no cross-thread locking added since `_process_result`, this
+    function's only caller, already runs its own bookkeeping in the main
+    thread per `run_cluster_investigations_live`'s own concurrency
+    docstring).
+    """
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    rec = {
+        "case_id": case_id,
+        "cost_usd": cost_usd,
+        "verdicts": {
+            pid: {"conformance_state": v.conformance_state.value, "reason": v.reason}
+            for pid, v in verdicts.items()
+        },
+        "raw_entries": raw_entries,
+    }
+    with open(checkpoint_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec) + "\n")
+
+
 def run_cluster_investigations_live(
     clusters: list[Cluster],
     properties_by_id: dict[str, PropertyMetadata],
@@ -231,6 +299,8 @@ def run_cluster_investigations_live(
     max_concurrent_investigations: int = 1,
     run_variant: str | None = None,
     compile_via_foundry: bool = False,
+    checkpoint_path: Path | None = None,
+    estimated_cost_per_call_usd: float = 0.20,
 ) -> tuple[dict[str, PropertyVerdict], dict[str, object], float, dict[str, dict]]:
     """The live (or, under test, mocked) execution loop. Returns
     (property_verdicts, arm_g_results_by_case_id, total_cost_usd,
@@ -277,6 +347,30 @@ def run_cluster_investigations_live(
     pending queue (processed in a later batch), not recursed into
     immediately -- so splitting works correctly under concurrency too,
     not just the serial default.
+
+    `checkpoint_path` (default `None`, unchanged prior behavior -- no
+    file I/O beyond what already existed): when given, every completed
+    Codex call's cost and any verdicts it finalized are appended to this
+    file as they happen (`_append_checkpoint`), and on entry, any
+    already-checkpointed state is loaded (`_load_checkpoint`) and
+    clusters whose every property already has a checkpointed verdict are
+    skipped entirely -- a genuinely resumable run, not just a passive
+    log. Real motivation, not speculative: a real 2024-08-phi
+    investigation run (2026-08-14) was interrupted mid-way and lost 7
+    already-completed, already-paid-for verdicts because nothing had
+    been persisted incrementally.
+
+    `estimated_cost_per_call_usd` (default `0.20`, this project's own
+    observed historical per-investigation order of magnitude -- see
+    RTF_V2_LIVE_VALIDATION_*.md): used only when `cost_ceiling_usd` is
+    set, to decide how many calls it's safe to launch in the NEXT batch
+    without overspending past the ceiling -- see the loop body below for
+    why this is needed (real motivation: the same interrupted run
+    reported the ceiling was "checked between concurrent batches, not
+    reserved per in-flight call," meaning a full batch of
+    `max_concurrent_investigations` calls could launch even with almost
+    no budget left). Once at least one real call has completed, the
+    RUNNING AVERAGE of actual `cost_usd` values replaces this estimate.
     """
     if run_arm_g_bundle_fn is None:
         from rtf.l8_llm_judgment_layer.bundle_agent_experiment.arm_g_codex import run_arm_g_bundle
@@ -286,8 +380,16 @@ def run_cluster_investigations_live(
     all_results: dict[str, object] = {}
     all_raw_entries: dict[str, dict] = {}
     total_cost = 0.0
+    completed_calls = 0
     entry_slug = entry_sol_file.stem
     max_workers = max(1, max_concurrent_investigations)
+
+    resolved_property_ids: set[str] = set()
+    if checkpoint_path is not None:
+        checkpoint_verdicts, checkpoint_raw_entries, checkpoint_cost, resolved_property_ids = _load_checkpoint(checkpoint_path)
+        all_verdicts.update(checkpoint_verdicts)
+        all_raw_entries.update(checkpoint_raw_entries)
+        total_cost += checkpoint_cost
 
     def _prepare(cluster: Cluster) -> dict:
         req_ids_in_cluster = sorted({properties_by_id[pid].requirement_id for pid in cluster.property_ids})
@@ -325,15 +427,18 @@ def run_cluster_investigations_live(
     def _process_result(cluster: Cluster, depth: int, case_id: str, result) -> None:
         nonlocal total_cost
         all_results[case_id] = result
-        total_cost += getattr(result, "cost_usd", 0.0)
+        call_cost = getattr(result, "cost_usd", 0.0)
+        total_cost += call_cost
 
         response = getattr(result, "final_decision", None)
         validation = validate_cluster_response(list(cluster.property_ids), response)
         resolved = resolve_property_verdicts(response) if isinstance(response, dict) else {}
+        call_raw_entries: dict[str, dict] = {}
         if isinstance(response, dict):
             for entry in response.get("properties", []):
                 if isinstance(entry, dict) and entry.get("property_id"):
                     all_raw_entries[entry["property_id"]] = entry
+                    call_raw_entries[entry["property_id"]] = entry
 
         split_reason = detect_split_reason(
             cluster, properties_by_id, budget=budget, validation_result=validation, resolved_verdicts=resolved,
@@ -342,14 +447,27 @@ def run_cluster_investigations_live(
             half_a, half_b = split_cluster(cluster, properties_by_id)
             pending.append((half_a, depth + 1))
             pending.append((half_b, depth + 1))
+            if checkpoint_path is not None:
+                # Money was spent even though nothing finalized -- must
+                # still be recorded so a resumed run's total_cost/ceiling
+                # accounting reflects it (see _append_checkpoint docstring).
+                _append_checkpoint(checkpoint_path, case_id, call_cost, {}, {})
             return
 
+        call_verdicts: dict[str, PropertyVerdict] = {}
         for pid in cluster.property_ids:
-            all_verdicts[pid] = resolved.get(
+            verdict = resolved.get(
                 pid, PropertyVerdict(ConformanceState.INCONCLUSIVE, "cluster_investigation_incomplete_or_failed"),
             )
+            all_verdicts[pid] = verdict
+            call_verdicts[pid] = verdict
+        if checkpoint_path is not None:
+            _append_checkpoint(checkpoint_path, case_id, call_cost, call_verdicts, call_raw_entries)
 
-    pending: list[tuple[Cluster, int]] = [(cluster, 0) for cluster in clusters]
+    pending: list[tuple[Cluster, int]] = [
+        (cluster, 0) for cluster in clusters
+        if not resolved_property_ids or not set(cluster.property_ids) <= resolved_property_ids
+    ]
 
     while pending:
         if cost_ceiling_usd is not None and total_cost >= cost_ceiling_usd:
@@ -358,8 +476,24 @@ def run_cluster_investigations_live(
                     all_verdicts[pid] = PropertyVerdict(ConformanceState.INCONCLUSIVE, "cost_ceiling_reached")
             break
 
-        batch = pending[:max_workers]
-        pending = pending[max_workers:]
+        # Concurrency-aware cost reservation: cap how many calls this
+        # batch launches to what the REMAINING budget can plausibly
+        # cover, using the running average of real completed-call costs
+        # once any exist, else `estimated_cost_per_call_usd`. Without
+        # this, the ceiling check above (only re-run BETWEEN batches) can
+        # pass with a small amount of budget left and then still launch a
+        # full `max_workers`-sized batch, overspending once they all
+        # complete -- confirmed live, see this function's own docstring.
+        if cost_ceiling_usd is not None:
+            avg_cost_per_call = (total_cost / completed_calls) if completed_calls else estimated_cost_per_call_usd
+            remaining_budget = cost_ceiling_usd - total_cost
+            affordable = max(1, int(remaining_budget / avg_cost_per_call)) if avg_cost_per_call > 0 else max_workers
+            batch_size = min(max_workers, affordable, len(pending))
+        else:
+            batch_size = min(max_workers, len(pending))
+
+        batch = pending[:batch_size]
+        pending = pending[batch_size:]
         items = [(_prepare(cluster), depth) for cluster, depth in batch]
 
         with ThreadPoolExecutor(max_workers=len(items)) as executor:
@@ -370,9 +504,11 @@ def run_cluster_investigations_live(
                 try:
                     result = future.result()
                 except Exception as e:  # noqa: BLE001 -- one cluster crashing must not kill the batch/run
+                    completed_calls += 1
                     for pid in cluster.property_ids:
                         all_verdicts[pid] = PropertyVerdict(ConformanceState.INCONCLUSIVE, f"cluster_invocation_crashed:{type(e).__name__}")
                     continue
+                completed_calls += 1
                 _process_result(cluster, depth, item["case_id"], result)
 
     return all_verdicts, all_results, total_cost, all_raw_entries

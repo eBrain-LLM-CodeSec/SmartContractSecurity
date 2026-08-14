@@ -478,6 +478,117 @@ def test_concurrent_investigations_actually_overlap_in_time():
             check("concurrent: completed without deadlocking (proves real overlap)", False, f"{type(e).__name__}: {e}")
 
 
+def test_cost_ceiling_reservation_limits_batch_size_under_concurrency():
+    """Real-incident-motivated fix (2026-08-14, an interrupted real
+    2024-08-phi investigation reported the cost ceiling was "checked
+    between concurrent batches, not reserved per in-flight call").
+    max_concurrent_investigations=4 but a ceiling that can only afford 1
+    call at the estimated per-call cost: peak in-flight concurrency must
+    stay at 1 across the whole run, never jump to 4 and overspend once
+    all 4 completed calls are counted.
+    """
+    import threading
+    import time as _time
+
+    prop = _minimal_pool()
+    from rtf.l11_investigation_grouping.grouping_engine import Cluster
+    N = 4
+    clusters = [Cluster(cluster_id=f"c{i}", property_ids=(f"f{i}",), grouping_reason=(),
+                         shared_context={}, estimated_context_size=1) for i in range(N)]
+    by_id = {f"f{i}": prop(f"f{i}") for i in range(N)}
+
+    max_in_flight = [0]
+    current_in_flight = [0]
+    lock = threading.Lock()
+
+    def mock_run_arm_g(**kwargs):
+        with lock:
+            current_in_flight[0] += 1
+            max_in_flight[0] = max(max_in_flight[0], current_in_flight[0])
+        _time.sleep(0.1)
+        with lock:
+            current_in_flight[0] -= 1
+        pid = kwargs["case_id"].split("__")[-1].replace("c", "f")
+        return _FakeArmGResult(kwargs["case_id"], {"properties": [
+            {"property_id": pid, "verdict": "PASS", "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": "r"},
+        ]}, cost_usd=0.30)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        verdicts, results, cost, raw = run_cluster_investigations_live(
+            clusters, by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g, max_concurrent_investigations=N,
+            cost_ceiling_usd=0.50, estimated_cost_per_call_usd=0.30,
+        )
+        check("cost reservation: peak in-flight concurrency capped below max_concurrent_investigations",
+              max_in_flight[0] < N, max_in_flight[0])
+        check("cost reservation: total cost stayed well under what unrestricted concurrency would have spent",
+              cost < 0.30 * N, cost)
+
+
+def test_checkpoint_round_trip_and_resume_skips_completed_clusters():
+    """Real-incident-motivated fix: proves a checkpoint file written
+    during one call to `run_cluster_investigations_live` lets a SECOND
+    call (simulating a resumed run after an interruption) skip
+    re-dispatching a cluster whose property already has a checkpointed
+    verdict, and correctly restores total_cost from what was already
+    spent.
+    """
+    prop = _minimal_pool()
+    p1, p2 = prop("f1"), prop("f2")
+    from rtf.l11_investigation_grouping.grouping_engine import Cluster
+    c1 = Cluster(cluster_id="c1", property_ids=("f1",), grouping_reason=(), shared_context={}, estimated_context_size=1)
+    c2 = Cluster(cluster_id="c2", property_ids=("f2",), grouping_reason=(), shared_context={}, estimated_context_size=1)
+    by_id = {"f1": p1, "f2": p2}
+
+    calls = []
+
+    def mock_run_arm_g(**kwargs):
+        calls.append(kwargs["case_id"])
+        pid = "f1" if "c1" in kwargs["case_id"] else "f2"
+        return _FakeArmGResult(kwargs["case_id"], {"properties": [
+            {"property_id": pid, "verdict": "FAIL", "evidence": f"real evidence for {pid}",
+             "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": "r"},
+        ]}, cost_usd=0.05)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        checkpoint_path = Path(tmp) / "checkpoint.jsonl"
+
+        # First "run": only c1 gets to complete (simulates c2 never finishing
+        # before an interruption -- we simply never dispatch it here).
+        verdicts1, _results1, cost1, raw1 = run_cluster_investigations_live(
+            [c1], by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g, checkpoint_path=checkpoint_path,
+        )
+        check("checkpoint: c1 resolved FAIL on the first run", verdicts1["f1"].conformance_state == ConformanceState.FAIL, verdicts1)
+        check("checkpoint: file was actually written", checkpoint_path.exists(), checkpoint_path)
+
+        calls.clear()
+        # "Resumed" run: pass BOTH clusters again (as a real resumed run
+        # would, re-deriving the full pool) -- c1 must be skipped entirely.
+        verdicts2, _results2, cost2, raw2 = run_cluster_investigations_live(
+            [c1, c2], by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g, checkpoint_path=checkpoint_path,
+        )
+        check("checkpoint: resumed run never re-dispatched c1 (only c2's case_id was invoked)",
+              calls == ["test-audit__Vault__c2"], calls)
+        check("checkpoint: resumed run's verdicts include f1 (restored from checkpoint) and f2 (freshly resolved)",
+              verdicts2["f1"].conformance_state == ConformanceState.FAIL and verdicts2["f2"].conformance_state == ConformanceState.FAIL,
+              verdicts2)
+        check("checkpoint: resumed run's raw_entries restored f1's real evidence text from the checkpoint",
+              raw2.get("f1", {}).get("evidence") == "real evidence for f1", raw2)
+        check("checkpoint: resumed run's total_cost includes the FIRST run's already-spent cost",
+              cost2 == cost1 + 0.05, (cost1, cost2))
+
+
 def test_split_halves_processed_in_a_later_batch_under_concurrency():
     """A split cluster's halves must still be investigated (not dropped)
     when concurrency > 1 -- the pending-queue design (not immediate
