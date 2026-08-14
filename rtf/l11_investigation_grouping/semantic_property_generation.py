@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from pathlib import Path
 
 from rtf.l11_investigation_grouping.semantic_taxonomy import PROPERTY_TYPE_VOCABULARY
 
@@ -89,6 +90,28 @@ affected_state_variables entry MUST be copied verbatim from the facts you were g
 never invent a name that wasn't in the manifest."""
 
 
+def _contract_is_vendored(contract, repo_root: Path) -> bool:
+    """True if `contract`'s own source file resolves to a path under a
+    vendored directory (`lib/`, `node_modules/`, `vendor/`, `dependencies/`,
+    `.deps/`) relative to `repo_root`. Reuses `rtf.standards.discovery.
+    _is_vendored_path` for the actual rule (imported locally to avoid a
+    module-load-order cycle) -- same source-mapping resolution pattern
+    `property_metadata._slither_enrichment` already uses elsewhere in this
+    codebase, not a new one. Best-effort: a contract with no resolvable
+    source file (synthetic/interface edge cases) is never treated as
+    vendored, since there's nothing to check it against.
+    """
+    from rtf.standards.discovery import _is_vendored_path
+
+    source_mapping = getattr(contract, "source_mapping", None)
+    if source_mapping is None or getattr(source_mapping, "filename", None) is None:
+        return False
+    raw = getattr(source_mapping.filename, "absolute", None) or getattr(source_mapping.filename, "used", None)
+    if not raw:
+        return False
+    return _is_vendored_path(Path(raw), repo_root)
+
+
 @dataclass(frozen=True)
 class ProjectManifest:
     """The concrete, real names the generator is allowed to reference --
@@ -104,7 +127,7 @@ class ProjectManifest:
     """"Contract.variable" strings."""
 
     @classmethod
-    def from_slither(cls, slither) -> "ProjectManifest":
+    def from_slither(cls, slither, repo_root: "Path | None" = None) -> "ProjectManifest":
         """Known limitation (found live against a real EVMbench target,
         `2025-01-liquid-ron`, not just reasoned about): uses `functions_
         declared`/`state_variables_declared`, which are a contract's OWN
@@ -121,12 +144,31 @@ class ProjectManifest:
         deliberately not changed here without live-run evidence it's
         actually needed, per this module's own anti-speculative-change
         discipline.
+
+        `repo_root`, when given, filters out contracts whose own source
+        file lives under a vendored path (`lib/`, `node_modules/`,
+        `vendor/`, `dependencies/`, `.deps/` -- the exact same rule
+        `rtf.standards.discovery._is_vendored_path` already uses, reused
+        verbatim rather than a second definition). Load-bearing once
+        compilation covers a whole project rather than one entry file's
+        own import graph (`compile_helper.compile_evmbench_target_via_
+        foundry`): an unfiltered manifest would otherwise hand the
+        generator every vendored OpenZeppelin/Solady contract too,
+        confirmed live to add real, wasted prompt volume with zero
+        upside (a generated property naming a vendored function gets
+        dropped by scope filtering anyway, since `scope_files` never
+        includes `lib/` paths). `None` (the default) skips filtering --
+        needed for synthetic single-file test fixtures with no real
+        `repo_root` concept, where every compiled contract IS the
+        fixture under test.
         """
         contracts: list[str] = []
         functions: list[str] = []
         state_vars: list[str] = []
         for c in getattr(slither, "contracts_derived", []):
             if getattr(c, "is_interface", False):
+                continue
+            if repo_root is not None and _contract_is_vendored(c, repo_root):
                 continue
             contracts.append(c.name)
             for f in getattr(c, "functions_declared", []):

@@ -173,6 +173,50 @@ contract Vault {
         check("manifest: state variable qualified", "Vault.totalAssets_" in manifest.state_variables, manifest.state_variables)
 
 
+def test_manifest_from_slither_filters_vendored_contracts_when_repo_root_given():
+    import tempfile
+    from pathlib import Path
+
+    from rtf.l5_predicates.compile_helper import compile_evmbench_target
+
+    vendored = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+contract VendoredHelper {
+    uint256 public vendoredState;
+    function bump() external { vendoredState += 1; }
+}
+"""
+    main_src = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+import "../lib/VendoredHelper.sol";
+
+contract Vault {
+    uint256 public totalAssets_;
+    VendoredHelper public helper;
+    function deposit(uint256 amount) external { totalAssets_ += amount; }
+}
+"""
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "lib").mkdir()
+        (repo / "lib" / "VendoredHelper.sol").write_text(vendored, encoding="utf-8")
+        (repo / "src").mkdir()
+        (repo / "src" / "Vault.sol").write_text(main_src, encoding="utf-8")
+        slither = compile_evmbench_target(repo / "src" / "Vault.sol", repo, solc_version="0.8.20")
+
+        unfiltered = ProjectManifest.from_slither(slither)
+        check("manifest: without repo_root, vendored contract IS present (back-compat, unfiltered)",
+              "VendoredHelper" in unfiltered.contracts, unfiltered.contracts)
+
+        filtered = ProjectManifest.from_slither(slither, repo_root=repo)
+        check("manifest: with repo_root, vendored contract is excluded",
+              "VendoredHelper" not in filtered.contracts, filtered.contracts)
+        check("manifest: with repo_root, the project's own contract is still present",
+              "Vault" in filtered.contracts, filtered.contracts)
+        check("manifest: with repo_root, vendored contract's functions are excluded too",
+              not any("VendoredHelper." in f for f in filtered.functions), filtered.functions)
+
+
 def test_raw_property_to_dict_round_trips_and_rejection_to_dict_is_json_safe():
     import json
 
