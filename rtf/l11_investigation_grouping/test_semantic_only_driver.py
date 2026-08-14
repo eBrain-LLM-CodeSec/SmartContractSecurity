@@ -454,6 +454,9 @@ def test_compile_via_foundry_scope_matrix_entry_sibling_helper_vendor():
               out_of_scope_contracts == {"Helper"}, out_of_scope_contracts)
         check("scope matrix: only Entry+Sibling property ids were ever sent to investigation (Helper never dispatched)",
               len(invoked_property_ids) == 2, invoked_property_ids)
+        check("scope matrix: compile_via_foundry=True reached run_arm_g_bundle_fn at the full driver level",
+              received_compile_via_foundry and all(v is True for v in received_compile_via_foundry),
+              received_compile_via_foundry)
 
 
 def test_boundary_a_blocks_a_property_that_bypassed_the_primary_filter():
