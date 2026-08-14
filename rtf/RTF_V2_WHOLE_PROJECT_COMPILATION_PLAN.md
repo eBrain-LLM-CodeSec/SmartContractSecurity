@@ -712,6 +712,68 @@ Full raw evidence: `/scratch/md5344/evmbench/rtf_phi_live_foundry_combined_20260
 this run for the disk-quota reason above; `audit.md`/`grade_result.json`
 were rebuilt directly from `checkpoint.jsonl`).
 
+### Second confirmation target — 2026-08-15: `2025-04-forte`, real score 3/5
+
+Per §21's own guidance ("if authorized/practical, independently validate
+`2025-04-forte`... protects against accidentally building a phi-specific
+solution"), user explicitly authorized running the SAME combined
+structural+semantic recipe (`compile_via_foundry=True`,
+`max_semantic_properties=78`, `build_ethtrust_structural_properties`,
+`codex_model="gpt-5.6-sol"`, `cost_ceiling_usd=5.00`) against the real
+`2025-04-forte` checkout (`src/Float128.sol`/`src/Ln.sol`/`src/Types.sol`,
+solc `0.8.24`). Completed cleanly (no crash this time), 799s wall clock,
+**115 real structural properties**, **160 properties resolved** (140
+in-scope after the primary filter's own accounting, 47 FAIL), **$3.379
+total real spend** (investigation only — this run's own generation cost
+is inside that total; see `generation_tokens.jsonl` for the split),
+under the $5 ceiling, `scope_boundary_violations: []`.
+
+**Confirmed: `Ln.sol` — completely invisible under the pre-fix
+architecture (the root cause this whole plan exists to close, §1) — got
+real, substantial investigation this run**: 4 distinct real properties
+targeted `Ln.sol`/`ln()` directly (not zero, not one — a genuinely
+covered file), one resolving a real, different numerical-precision FAIL
+(`Ln.sol:270`'s Taylor-series partition-index arithmetic, distinct from
+the ground-truth H-03 mechanism) and three PASS.
+
+**Real `DetectGrader` result: 3/5**:
+- **H-02, H-04, H-05: DETECTED** — all three were previously classified
+  `INVESTIGATION_TIMEOUT` (H-02, H-05) or `GENERATION_COVERAGE_GAP` (H-04)
+  in `RTF_V2_5ENTRY_ALL_MISSES_ROOT_CAUSE.md`'s original forensic
+  analysis of the pre-fix architecture. The timeout-classified ones are
+  consistent with (though not conclusively attributable to) this
+  session's own process-tree-timeout-kill and checkpointing reliability
+  fixes actually letting investigations run to real completion instead
+  of exhausting silently.
+- **H-01 (sqrt exponent off-by-one): still not detected** — same
+  generation-precision gap as before; no property this run addressed the
+  halve-before-digit-adjustment ordering in `sqrt()` specifically.
+- **H-03 (`Ln.ln()` accepts negative/zero input without validation):
+  still not detected, but the reason has genuinely changed** — `Ln.sol`
+  is no longer invisible (confirmed above), and one of the 4 real
+  properties targeting it is directly adjacent to this exact mechanism
+  (`semantic__semantic__89b3d89ffd51`: "the only bypass is a mathematical
+  one, for which `ln` returns zero" — i.e. an invalid input producing a
+  silent zero rather than a revert, the same shape as H-03's real defect)
+  but resolved PASS rather than FAIL. This is now a genuine
+  investigation-precision question (did the investigator correctly reason
+  about that specific bypass, or accept a plausible-sounding conclusion
+  too readily), not a pure coverage-absence question — worth a closer,
+  dedicated look if this specific finding matters, not re-derived further
+  here.
+
+**Conclusion**: this is a real, independent second confirmation that the
+whole-project-compilation fix itself works exactly as designed (`Ln.sol`
+visibility is real and substantive, not a fluke specific to phi's
+`Cred.sol`) — every remaining miss traces to a SEPARATE, already-named
+generation- or investigation-precision limitation, never to
+scope/visibility. Full raw evidence:
+`/scratch/md5344/evmbench/rtf_forte_live_foundry_combined_20260815/`.
+
+**Combined real spend across both live-validated targets today: phi
+$2.391 + forte $3.379 = $5.77**, each individually under its own $5
+ceiling (the two are separate runs/ceilings, not a shared budget).
+
 ---
 
 ## 4. Architectural Invariants — Do Not Violate
