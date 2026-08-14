@@ -298,6 +298,159 @@ def test_compile_via_foundry_makes_a_sibling_scope_file_visible_to_generation():
               (result["in_scope_count"], result["out_of_scope_count"]))
 
 
+_SCOPE_MATRIX_FOUNDRY_TOML = """[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.20"
+"""
+
+_SCOPE_MATRIX_ENTRY_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Entry {
+    uint256 public entryState;
+    function bump() external { entryState += 1; }
+}
+"""
+
+# In scope, NOT imported by Entry.sol -- same shape as the real
+# 2025-04-forte Ln.sol / 2024-08-phi Cred.sol gap this fix targets.
+_SCOPE_MATRIX_SIBLING_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Sibling {
+    uint256 public siblingState;
+    function bump() external { siblingState += 1; }
+}
+"""
+
+# First-party, compiled, visible, groundable, but OUT OF SCOPE, and
+# deliberately NOT imported by Entry.sol -- corrects the existing
+# test_scope_files_drops_properties_targeting_files_outside_declared_scope
+# fixture above, whose own Helper.sol IS imported by its entry (so it was
+# already visible under the OLD entry-import-graph compile path too, and
+# only proves the weaker claim). This fixture's Helper.sol is visible
+# ONLY because whole-project Foundry compilation exists.
+_SCOPE_MATRIX_HELPER_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Helper {
+    uint256 public helperState;
+    function bump() external { helperState += 1; }
+}
+"""
+
+_SCOPE_MATRIX_VENDOR_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Vendor {
+    uint256 public vendorState;
+    function bump() external { vendorState += 1; }
+}
+"""
+
+_SCOPE_MATRIX_ENTRY_PROPERTY = {
+    "statement": "Entry.bump must increase Entry.entryState by exactly one per call.",
+    "property_type": "accounting", "rationale": "bump is documented as a pure increment.",
+    "affected_contracts": ["Entry"], "affected_functions": ["Entry.bump"],
+    "affected_state_variables": ["Entry.entryState"], "source_refs": ["fixture"], "confidence": 0.8,
+}
+_SCOPE_MATRIX_SIBLING_PROPERTY = {
+    "statement": "Sibling.bump must increase Sibling.siblingState by exactly one per call.",
+    "property_type": "accounting", "rationale": "bump is documented as a pure increment.",
+    "affected_contracts": ["Sibling"], "affected_functions": ["Sibling.bump"],
+    "affected_state_variables": ["Sibling.siblingState"], "source_refs": ["fixture"], "confidence": 0.8,
+}
+_SCOPE_MATRIX_HELPER_PROPERTY = {
+    "statement": "Helper.bump must increase Helper.helperState by exactly one per call.",
+    "property_type": "accounting", "rationale": "bump is documented as a pure increment.",
+    "affected_contracts": ["Helper"], "affected_functions": ["Helper.bump"],
+    "affected_state_variables": ["Helper.helperState"], "source_refs": ["fixture"], "confidence": 0.8,
+}
+_SCOPE_MATRIX_VENDOR_PROPERTY = {
+    "statement": "Vendor.bump must increase Vendor.vendorState by exactly one per call.",
+    "property_type": "accounting", "rationale": "bump is documented as a pure increment.",
+    "affected_contracts": ["Vendor"], "affected_functions": ["Vendor.bump"],
+    "affected_state_variables": ["Vendor.vendorState"], "source_refs": ["fixture"], "confidence": 0.8,
+}
+
+
+def test_compile_via_foundry_scope_matrix_entry_sibling_helper_vendor():
+    """Goal 1 test fixture (RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS7):
+    proves all four visibility/scope outcomes in one real whole-project
+    Foundry compile. Entry/Sibling are in-scope and reportable (Sibling
+    NOT imported by Entry -- the structural gap this fix targets). Helper
+    is first-party, compiled, visible, and groundable, but OUT OF SCOPE
+    and NOT imported by Entry -- visible only because whole-project
+    compilation exists, correctly rejected as unreportable. Vendor lives
+    under lib/ (a vendored path) -- ProjectManifest.from_slither's
+    existing repo_root filtering (always applied by
+    run_semantic_investigation) excludes it from the manifest entirely,
+    so a property naming it is rejected at grounding, never even reaching
+    the scope check. Skips gracefully if the container/Singularity isn't
+    available here, same convention as the sibling-visibility test above.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "foundry.toml").write_text(_SCOPE_MATRIX_FOUNDRY_TOML, encoding="utf-8")
+        (repo / "src").mkdir()
+        (repo / "lib").mkdir()
+        (repo / "src" / "Entry.sol").write_text(_SCOPE_MATRIX_ENTRY_SOURCE, encoding="utf-8")
+        (repo / "src" / "Sibling.sol").write_text(_SCOPE_MATRIX_SIBLING_SOURCE, encoding="utf-8")
+        (repo / "src" / "Helper.sol").write_text(_SCOPE_MATRIX_HELPER_SOURCE, encoding="utf-8")
+        (repo / "lib" / "Vendor.sol").write_text(_SCOPE_MATRIX_VENDOR_SOURCE, encoding="utf-8")
+        client = FakeChatClient({"properties": [
+            _SCOPE_MATRIX_ENTRY_PROPERTY, _SCOPE_MATRIX_SIBLING_PROPERTY,
+            _SCOPE_MATRIX_HELPER_PROPERTY, _SCOPE_MATRIX_VENDOR_PROPERTY,
+        ]})
+
+        invoked_property_ids: list[str] = []
+
+        def _run_arm_g_bundle_fn(*, case_id, prompt, extra_files, candidate_location, **kwargs):
+            import re
+            haystack = "\n".join(extra_files.values())
+            for m in re.finditer(r"`(semantic__[a-z_]+__[0-9a-f]+::loc0)`", haystack):
+                invoked_property_ids.append(m.group(1))
+            entries = [{
+                "property_id": pid, "verdict": "PASS", "evidence": "e", "files_read": [],
+                "counterexample_attempt": "a", "counterexample_result": "r", "reasoning": "r",
+                "vulnerable_location": None, "confidence": "HIGH",
+            } for pid in set(invoked_property_ids)]
+            return FakeArmGResult(final_decision={"properties": entries})
+
+        with tempfile.TemporaryDirectory() as scratch:
+            try:
+                result = run_semantic_investigation(
+                    audit_id="scope-matrix-test", repo_root=repo, entry_sol_file=repo / "src" / "Entry.sol",
+                    solc_version="0.8.20", chat_client=client,
+                    codex_bin=Path("/nonexistent/codex"), python_bin=Path("/nonexistent/python3"),
+                    mcp_server_script=Path("/nonexistent/mcp.py"), api_key="unused", codex_model="unused",
+                    scratch_root=Path(scratch), run_arm_g_bundle_fn=_run_arm_g_bundle_fn,
+                    scope_files=["src/Entry.sol", "src/Sibling.sol"],  # Helper.sol deliberately excluded
+                    compile_via_foundry=True,
+                )
+            except Exception as e:  # noqa: BLE001
+                check("scope matrix driver test skipped/failed (container unavailable here?)",
+                      False, f"{type(e).__name__}: {e}")
+                return
+
+        rejected_grounding = result["semantic_observability"]["rejected_grounding"]
+        check("scope matrix: Vendor property rejected at grounding (filtered from the manifest by repo_root)",
+              any("Vendor" in str(r) for r in rejected_grounding), rejected_grounding)
+        check("scope matrix: exactly Entry+Sibling in scope, Helper out of scope",
+              result["in_scope_count"] == 2 and result["out_of_scope_count"] == 1,
+              (result["in_scope_count"], result["out_of_scope_count"]))
+        in_scope_contracts = {p.target_contract for p in result["properties_by_id"].values()}
+        check("scope matrix: properties_by_id (post-filter pool) contains exactly Entry and Sibling",
+              in_scope_contracts == {"Entry", "Sibling"}, in_scope_contracts)
+        out_of_scope_contracts = {p.target_contract for p in result["out_of_scope_properties"]}
+        check("scope matrix: out_of_scope_properties contains exactly Helper",
+              out_of_scope_contracts == {"Helper"}, out_of_scope_contracts)
+        check("scope matrix: only Entry+Sibling property ids were ever sent to investigation (Helper never dispatched)",
+              len(invoked_property_ids) == 2, invoked_property_ids)
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for t in tests:
