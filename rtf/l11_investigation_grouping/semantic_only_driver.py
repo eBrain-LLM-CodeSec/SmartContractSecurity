@@ -212,6 +212,7 @@ def run_semantic_investigation(
         api_key=api_key, codex_model=codex_model, solc_path_dir=solc_path_dir, solc_remaps=None,
         scratch_root=scratch_root, codex_timeout_s=codex_timeout_s, cost_ceiling_usd=cost_ceiling_usd,
         max_concurrent_investigations=max_concurrent_investigations, run_arm_g_bundle_fn=run_arm_g_bundle_fn,
+        compile_via_foundry=compile_via_foundry,
     )
 
     property_verdicts, raw_entries, boundary_b_violations = _enforce_scope_boundary_b(

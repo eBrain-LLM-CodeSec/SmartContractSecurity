@@ -60,6 +60,26 @@ Env vars (set by the harness when registering this server per bundle):
                             (no cwd override) picked up Foundry autodetection
                             differently. Falls back to the process's own cwd
                             if unset, matching prior behavior exactly.
+  GRAPH_COMPILE_VIA_FOUNDRY -- optional, "1" to activate. When set, `_get_graph()`
+                            builds the graph from the investigation copy's OWN
+                            already-compiled Foundry artifacts
+                            (`Slither(INVESTIGATION_DIR, foundry_ignore_compile=True,
+                            compile_force_framework="Foundry")` ->
+                            `ProgramGraph.from_slither`) instead of an
+                            independent `ProgramGraph.build(ENTRY_FILE, ...)`
+                            second compile -- see
+                            RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS11-SS13.
+                            This is what makes a property generated from a
+                            sibling contract the entry file doesn't import
+                            (visible only because generation used whole-
+                            project Foundry compilation) structurally
+                            resolvable during investigation too -- without
+                            this, `ProgramGraph.build(ENTRY_FILE, ...)`
+                            rebuilds from ENTRY_FILE's own narrower import
+                            graph regardless of how generation compiled,
+                            and the sibling is never in the resulting graph
+                            at all. Unset/"0" (the default): completely
+                            unchanged old behavior.
 """
 from __future__ import annotations
 
@@ -85,6 +105,7 @@ from mcp.server import MCPServer  # noqa: E402
 from rtf.l8_llm_judgment_layer.graph_navigation import (  # noqa: E402
     node_file as _shared_node_file, resolve_seed_node,
 )
+from slither import Slither  # noqa: E402
 
 ENTRY_FILE = os.environ["GRAPH_ENTRY_FILE"]
 REMAPS = os.environ.get("GRAPH_SOLC_REMAPS", "").split(":") if os.environ.get("GRAPH_SOLC_REMAPS") else None
@@ -93,6 +114,7 @@ INVESTIGATION_DIR = Path(os.environ["GRAPH_INVESTIGATION_DIR"])
 CANDIDATE_LOCATION = os.environ["GRAPH_CANDIDATE_LOCATION"]
 TRACE_LOG_PATH = Path(os.environ["GRAPH_TRACE_LOG_PATH"])
 SOLC_CWD = os.environ.get("GRAPH_SOLC_CWD") or None
+GRAPH_COMPILE_VIA_FOUNDRY = os.environ.get("GRAPH_COMPILE_VIA_FOUNDRY", "") == "1"
 
 INVESTIGATION_DIR.mkdir(parents=True, exist_ok=True)
 TRACE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -111,11 +133,37 @@ TRACE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 _pg_cache: ProgramGraph | None = None
 
 
+def _build_graph_for_investigation(
+    investigation_dir: Path,
+    entry_file: str,
+    compile_via_foundry: bool,
+    solc_remaps: list[str] | None,
+    extra_kwargs: dict | None,
+) -> ProgramGraph:
+    """Build the investigation graph from the selected compilation view.
+
+    Foundry mode reads the build-info already copied into the investigation
+    directory and deliberately never calls ``ProgramGraph.build``.  The
+    legacy branch remains the original single-entry compilation path.
+    """
+    if compile_via_foundry:
+        slither = Slither(
+            str(investigation_dir),
+            foundry_ignore_compile=True,
+            compile_force_framework="Foundry",
+        )
+        return ProgramGraph.from_slither(slither)
+    return ProgramGraph.build(entry_file, solc_remaps=solc_remaps, extra_kwargs=extra_kwargs)
+
+
 def _get_graph() -> ProgramGraph:
     global _pg_cache
     if _pg_cache is None:
         extra_kwargs = {"cwd": SOLC_CWD} if SOLC_CWD else None
-        _pg_cache = ProgramGraph.build(ENTRY_FILE, solc_remaps=REMAPS, extra_kwargs=extra_kwargs)
+        _pg_cache = _build_graph_for_investigation(
+            INVESTIGATION_DIR, ENTRY_FILE, GRAPH_COMPILE_VIA_FOUNDRY,
+            REMAPS, extra_kwargs,
+        )
     return _pg_cache
 
 

@@ -180,6 +180,52 @@ def test_run_live_writes_expected_extra_files_and_calls_mock_once_per_cluster():
         check("raw_entries has both property ids", set(raw_entries.keys()) == {"f1", "f2"}, raw_entries.keys())
 
 
+def test_compile_via_foundry_propagates_to_every_run_arm_g_bundle_fn_call():
+    """RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS13: proves the plumbing
+    reaches the real call site (`_invoke`'s `run_arm_g_bundle_fn(...,
+    compile_via_foundry=...)`), without needing a real Codex binary --
+    `arm_g_codex.run_arm_g_bundle`'s own env-var wiring is separately
+    tested in `test_arm_g_codex_foundry_wiring.py`.
+    """
+    prop = _minimal_pool()
+    p1 = prop("f1")
+    by_id = {"f1": p1}
+    from rtf.l11_investigation_grouping.grouping_engine import Cluster
+    cluster = Cluster(cluster_id="cluster_000", property_ids=("f1",), grouping_reason=("same_requirement",),
+                       shared_context={}, estimated_context_size=1)
+
+    calls = []
+
+    def mock_run_arm_g(**kwargs):
+        calls.append(kwargs)
+        return _FakeArmGResult(kwargs["case_id"], {"properties": [
+            {"property_id": "f1", "verdict": "PASS", "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": "r1"},
+        ]})
+
+    with tempfile.TemporaryDirectory() as tmp:
+        run_cluster_investigations_live(
+            [cluster], by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g, compile_via_foundry=True,
+        )
+        check("compile_via_foundry=True reached the mocked run_arm_g_bundle_fn",
+              calls[0].get("compile_via_foundry") is True, calls)
+
+    calls.clear()
+    with tempfile.TemporaryDirectory() as tmp:
+        run_cluster_investigations_live(
+            [cluster], by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g,
+        )
+        check("compile_via_foundry defaults to False when omitted (unchanged prior behavior)",
+              calls[0].get("compile_via_foundry") is False, calls)
+
+
 def test_run_live_incomplete_response_triggers_split_and_both_halves_investigated():
     prop = _minimal_pool()
     by_id = {f"f{i}": prop(f"f{i}") for i in range(1, 5)}

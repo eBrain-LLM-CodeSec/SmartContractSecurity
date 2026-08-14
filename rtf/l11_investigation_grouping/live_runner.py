@@ -221,6 +221,7 @@ def run_cluster_investigations_live(
     run_arm_g_bundle_fn=None,
     max_concurrent_investigations: int = 1,
     run_variant: str | None = None,
+    compile_via_foundry: bool = False,
 ) -> tuple[dict[str, PropertyVerdict], dict[str, object], float, dict[str, dict]]:
     """The live (or, under test, mocked) execution loop. Returns
     (property_verdicts, arm_g_results_by_case_id, total_cost_usd,
@@ -243,6 +244,14 @@ def run_cluster_investigations_live(
     cluster investigation succeeds or the split depth is exhausted -- at
     exhaustion, any property still missing a verdict resolves to
     INCONCLUSIVE with an explicit reason, never silently dropped.
+
+    `compile_via_foundry` (default `False`, unchanged prior behavior):
+    forwarded verbatim to every `run_arm_g_bundle_fn` call -- the real
+    `arm_g_codex.run_arm_g_bundle` uses it to tell the graph MCP server
+    subprocess (`GRAPH_COMPILE_VIA_FOUNDRY` env var) to build its
+    `ProgramGraph` from the SAME already-compiled Foundry artifacts
+    generation used, instead of an independent second compile. See
+    RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS11-SS13 (Invariant E).
 
     `max_concurrent_investigations` (default 1 -- exactly serial,
     byte-behavior-identical to before this parameter existed, so every
@@ -301,6 +310,7 @@ def run_cluster_investigations_live(
             candidate_location=item["candidate_location"],
             solc_path_dir=solc_path_dir, solc_remaps=solc_remaps, prompt=item["prompt"],
             scratch_root=scratch_root, timeout_s=codex_timeout_s, extra_files=item["extra_files"],
+            compile_via_foundry=compile_via_foundry,
         )
 
     def _process_result(cluster: Cluster, depth: int, case_id: str, result) -> None:

@@ -409,12 +409,14 @@ def test_compile_via_foundry_scope_matrix_entry_sibling_helper_vendor():
         ]})
 
         invoked_property_ids: list[str] = []
+        received_compile_via_foundry: list[bool] = []
 
         def _run_arm_g_bundle_fn(*, case_id, prompt, extra_files, candidate_location, **kwargs):
             import re
             haystack = "\n".join(extra_files.values())
             for m in re.finditer(r"`(semantic__[a-z_]+__[0-9a-f]+::loc0)`", haystack):
                 invoked_property_ids.append(m.group(1))
+            received_compile_via_foundry.append(kwargs.get("compile_via_foundry"))
             entries = [{
                 "property_id": pid, "verdict": "PASS", "evidence": "e", "files_read": [],
                 "counterexample_attempt": "a", "counterexample_result": "r", "reasoning": "r",

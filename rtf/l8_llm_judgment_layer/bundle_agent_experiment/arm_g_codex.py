@@ -169,7 +169,8 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
                       entry_file: Path, repo_root: Path, candidate_location: str,
                       solc_path_dir: str, solc_remaps: list[str] | None,
                       prompt: str, scratch_root: Path, timeout_s: int = 300,
-                      extra_files: dict[str, str] | None = None) -> ArmGResult:
+                      extra_files: dict[str, str] | None = None,
+                      compile_via_foundry: bool = False) -> ArmGResult:
     """Runs one graph-gated-but-not-graph-RESTRICTED Codex investigation.
 
     Per the "revisit the RTF architecture" directive: the agent gets REAL,
@@ -192,6 +193,15 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
     could technically write/delete within its own cwd; giving it its own
     disposable copy means an errant write can't corrupt the actual
     cloned audit repo other entries/predicates still need to read.
+
+    `compile_via_foundry`, when `True`, forwards `GRAPH_COMPILE_VIA_FOUNDRY=1`
+    to the graph MCP server subprocess so its `_get_graph()` reads
+    `investigation_dir`'s OWN already-compiled Foundry artifacts
+    (`prepare_full_repo_investigation_dir` below copies `out/build-info/`
+    along with the rest of the repo when they're present -- see
+    RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS12-SS15) instead of an
+    independent `ProgramGraph.build(ENTRY_FILE, ...)` second compile.
+    `False` (the default) is unchanged prior behavior.
     """
     out_path = scratch_root / f"{case_id}_gout.txt"
     log_path = scratch_root / f"{case_id}_gstream.jsonl"
@@ -243,6 +253,8 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
         "GRAPH_SOLC_PATH_DIR": solc_path_dir,
         "GRAPH_SOLC_CWD": str(solc_neutral_cwd),
     }
+    if compile_via_foundry:
+        mcp_env["GRAPH_COMPILE_VIA_FOUNDRY"] = "1"
     if solc_remaps:
         # Remaps were collected against the ORIGINAL repo_root; re-anchor
         # each absolute path onto the copy so they still resolve.
