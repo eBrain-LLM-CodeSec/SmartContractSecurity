@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from rtf.l5_predicates.compile_helper import compile_evmbench_target
+from rtf.l11_investigation_grouping.context_artifacts import generate_protocol_context_md
 from rtf.l11_investigation_grouping.protocol_context import (
     extract_accounting_state_variables, extract_applicable_standards_obligations,
     extract_lifecycle_hints, extract_protocol_purpose, generate_enriched_protocol_context_md,
@@ -146,6 +147,37 @@ def _compile_vault(repo: Path):
 def _compile_plain(repo: Path):
     (repo / "Plain.sol").write_text(_PLAIN_CONTRACT, encoding="utf-8")
     return compile_evmbench_target(repo / "Plain.sol", repo, solc_version="0.8.20")
+
+
+_PLAIN_WITH_VENDOR_ENTRY = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+import "../lib/Vendor.sol";
+
+contract Plain {
+    uint256 public counter;
+    function bump() external { counter += 1; }
+}
+"""
+
+# Under lib/ -- a vendored path (rtf.standards.discovery._is_vendored_path).
+# Named with an accounting keyword ("Fee") specifically so the accounting-
+# state-variable test proves filtering isn't just contract-name coincidence.
+_VENDOR_SOURCE = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Vendor {
+    uint256 public vendorFeeBalance;
+    function bump() external { vendorFeeBalance += 1; }
+}
+"""
+
+
+def _compile_plain_with_vendor(repo: Path):
+    (repo / "src").mkdir()
+    (repo / "lib").mkdir()
+    (repo / "lib" / "Vendor.sol").write_text(_VENDOR_SOURCE, encoding="utf-8")
+    (repo / "src" / "Plain.sol").write_text(_PLAIN_WITH_VENDOR_ENTRY, encoding="utf-8")
+    return compile_evmbench_target(repo / "src" / "Plain.sol", repo, solc_version="0.8.20")
 
 
 # --- extract_protocol_purpose ---------------------------------------------
@@ -297,6 +329,52 @@ def test_enriched_protocol_context_md_is_superset_of_base():
         check("enriched: new narrative section present", "## Protocol purpose" in enriched, enriched)
         check("enriched: base section still appears BEFORE the narrative sections",
               enriched.index("## In-scope contracts") < enriched.index("## Protocol purpose"))
+
+
+# --- vendored-contract filtering (RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS16) --
+
+def test_extract_accounting_state_variables_filters_vendored_contracts_when_repo_root_given():
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        slither = _compile_plain_with_vendor(repo)
+        unfiltered = extract_accounting_state_variables(slither)
+        filtered = extract_accounting_state_variables(slither, repo_root=repo)
+        check("accounting vars: vendored Vendor.vendorFeeBalance found when repo_root omitted (back-compat)",
+              any(c == "Vendor" for c, _v, _kw in unfiltered), unfiltered)
+        check("accounting vars: vendored Vendor.vendorFeeBalance excluded when repo_root given",
+              not any(c == "Vendor" for c, _v, _kw in filtered), filtered)
+
+
+def test_generate_protocol_context_md_filters_vendored_contracts_when_repo_root_given():
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        slither = _compile_plain_with_vendor(repo)
+        unfiltered = generate_protocol_context_md("test-audit", slither, ["src/Plain.sol"])
+        filtered = generate_protocol_context_md("test-audit", slither, ["src/Plain.sol"], repo_root=repo)
+        check("protocol_context.md: Vendor listed in 'Contracts and inheritance' when repo_root omitted (back-compat)",
+              "**Vendor**" in unfiltered, unfiltered)
+        check("protocol_context.md: Vendor excluded from 'Contracts and inheritance' when repo_root given",
+              "**Vendor**" not in filtered, filtered)
+        check("protocol_context.md: Plain still present when repo_root given",
+              "**Plain**" in filtered, filtered)
+
+
+def test_enriched_protocol_context_md_filters_vendored_contracts_end_to_end():
+    """Investigator-facing document (the one every cluster investigation
+    actually reads, `live_runner.run_cluster_investigations_live`'s
+    `extra_files[".rtf/context/protocol_context.md"]`) -- proves BOTH the
+    base structural section and the narrative sections stay vendor-free,
+    not just the lower-level functions in isolation.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        slither = _compile_plain_with_vendor(repo)
+        enriched = generate_enriched_protocol_context_md(
+            "test-audit", repo, repo / "src" / "Plain.sol", slither, scope_files=["src/Plain.sol"],
+        )
+        check("enriched: Vendor excluded from the investigator-facing document end to end",
+              "**Vendor**" not in enriched and "vendorFeeBalance" not in enriched, enriched)
+        check("enriched: Plain still present", "**Plain**" in enriched, enriched)
 
 
 def main() -> int:

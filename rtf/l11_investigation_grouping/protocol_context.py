@@ -140,15 +140,25 @@ def extract_applicable_standards_obligations(
     return out
 
 
-def extract_accounting_state_variables(slither) -> list[tuple[str, str, str]]:
+def extract_accounting_state_variables(slither, repo_root: "Path | None" = None) -> list[tuple[str, str, str]]:
     """Returns (contract_name, state_var_name, matched_keyword) for every
     project state variable whose name suggests economic/accounting
     significance -- a naming heuristic (documented, same discipline as
     `generate_protocol_context_md`'s "Trust boundaries" section), not a
-    verified accounting-correctness claim."""
+    verified accounting-correctness claim.
+
+    `repo_root`, when given, excludes vendored contracts (see
+    `context_artifacts._contract_is_vendored`) -- `None` (the default) is
+    byte-identical to prior behavior. See
+    RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS16.
+    """
+    from rtf.l11_investigation_grouping.context_artifacts import _contract_is_vendored
+
     out: list[tuple[str, str, str]] = []
     for contract in getattr(slither, "contracts_derived", []):
         if getattr(contract, "is_interface", False):
+            continue
+        if repo_root is not None and _contract_is_vendored(contract, repo_root):
             continue
         for v in getattr(contract, "state_variables_declared", []):
             lowered = v.name.lower()
@@ -159,16 +169,25 @@ def extract_accounting_state_variables(slither) -> list[tuple[str, str, str]]:
     return out
 
 
-def extract_lifecycle_hints(slither) -> list[str]:
+def extract_lifecycle_hints(slither, repo_root: "Path | None" = None) -> list[str]:
     """Returns human-readable, cited lifecycle/initialization signals:
     a contract inheriting a known lifecycle base contract, or declaring a
     function with a lifecycle-suggestive modifier name. Naming/inheritance
     heuristic only -- the investigating agent must still verify the actual
     guard logic, exactly like `generate_protocol_context_md`'s trust-
-    boundary section already caveats for access control."""
+    boundary section already caveats for access control.
+
+    `repo_root`, when given, excludes vendored contracts -- `None` (the
+    default) is byte-identical to prior behavior. See
+    RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS16.
+    """
+    from rtf.l11_investigation_grouping.context_artifacts import _contract_is_vendored
+
     hints: list[str] = []
     for contract in getattr(slither, "contracts_derived", []):
         if getattr(contract, "is_interface", False):
+            continue
+        if repo_root is not None and _contract_is_vendored(contract, repo_root):
             continue
         base_names = {b.name for b in getattr(contract, "inheritance", [])}
         matched_bases = base_names & set(_LIFECYCLE_BASE_CONTRACTS)
@@ -222,7 +241,7 @@ def generate_protocol_context_narrative_md(
         lines.append("(no external standard confirmed applicable with strong evidence)\n")
 
     lines.append("## Accounting-relevant state variables (naming heuristic -- not a correctness claim)\n")
-    accounting_vars = extract_accounting_state_variables(slither)
+    accounting_vars = extract_accounting_state_variables(slither, repo_root=repo_root)
     if accounting_vars:
         for contract_name, var_name, kw in sorted(accounting_vars):
             lines.append(f"- **{contract_name}.{var_name}** (name suggests: {kw})")
@@ -231,7 +250,7 @@ def generate_protocol_context_narrative_md(
         lines.append("(no state variable names suggest accounting/economic significance)\n")
 
     lines.append("## Lifecycle / initialization signals (naming heuristic -- verify guard logic independently)\n")
-    lifecycle_hints = extract_lifecycle_hints(slither)
+    lifecycle_hints = extract_lifecycle_hints(slither, repo_root=repo_root)
     if lifecycle_hints:
         for hint in lifecycle_hints:
             lines.append(f"- {hint}")
@@ -253,6 +272,6 @@ def generate_enriched_protocol_context_md(
     still reading the old sections keeps working."""
     from rtf.l11_investigation_grouping.context_artifacts import generate_protocol_context_md
 
-    base = generate_protocol_context_md(audit_id, slither, scope_files)
+    base = generate_protocol_context_md(audit_id, slither, scope_files, repo_root=repo_root)
     narrative = generate_protocol_context_narrative_md(repo_root, entry_sol_file, slither, registry=registry)
     return base + "\n" + narrative

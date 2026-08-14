@@ -36,14 +36,53 @@ from pathlib import Path
 
 from rtf.l11_investigation_grouping.grouping_engine import Cluster
 from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata
+from rtf.standards.discovery import _is_vendored_path
 
 
-def generate_protocol_context_md(audit_id: str, slither, scope_files: list[str]) -> str:
+def _contract_is_vendored(contract, repo_root: Path) -> bool:
+    """True if `contract`'s own source file resolves to a path under a
+    vendored directory relative to `repo_root`. Same helper shape as
+    `semantic_property_generation._contract_is_vendored` (which filters
+    the GENERATOR-facing `ProjectManifest`) -- both delegate to the one
+    canonical rule, `rtf.standards.discovery._is_vendored_path`, rather
+    than each defining their own. This copy exists (instead of importing
+    the other module's private helper) because `semantic_property_
+    generation.py` is a higher layer that itself depends on things this
+    module doesn't need -- see RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md
+    SS16. Best-effort: a contract with no resolvable source file is never
+    treated as vendored.
+    """
+    source_mapping = getattr(contract, "source_mapping", None)
+    if source_mapping is None or getattr(source_mapping, "filename", None) is None:
+        return False
+    raw = getattr(source_mapping.filename, "absolute", None) or getattr(source_mapping.filename, "used", None)
+    if not raw:
+        return False
+    return _is_vendored_path(Path(raw), repo_root)
+
+
+def generate_protocol_context_md(
+    audit_id: str, slither, scope_files: list[str], repo_root: "Path | None" = None,
+) -> str:
     """Repo-wide, vulnerability-conclusion-free FACTS about the audited
     protocol, from a compiled Slither object. `scope_files` is the
     audit's own discovered/declared in-scope file list (see
     `scope_discovery.py`) -- used to distinguish in-scope contracts from
     incidentally-compiled dependencies.
+
+    `repo_root`, when given, excludes vendored contracts (`lib/`,
+    `node_modules/`, `vendor/`, `dependencies/`, `.deps/` -- see
+    `_contract_is_vendored`) from every section below. `None` (the
+    default) is byte-identical to prior behavior -- needed for existing
+    callers with no `repo_root` concept and for synthetic single-file
+    test fixtures. Load-bearing once compilation covers a whole project
+    (`compile_helper.compile_evmbench_target_via_foundry`): this is the
+    INVESTIGATOR-facing document (distinct from the generator-facing
+    `ProjectManifest`, which already gets equivalent filtering) -- an
+    unfiltered version would otherwise flood every cluster investigation
+    with every vendored OpenZeppelin/Solady contract's own entry points
+    and state variables, unconditionally, on every real audit that has a
+    populated `lib/`. See RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md SS16.
 
     Every section is either populated with real data or explicitly
     states "not available" -- never silently omitted or guessed.
@@ -65,7 +104,8 @@ def generate_protocol_context_md(audit_id: str, slither, scope_files: list[str])
     lines.append("")
 
     contracts = sorted(
-        [c for c in getattr(slither, "contracts", [])],
+        [c for c in getattr(slither, "contracts", [])
+         if repo_root is None or not _contract_is_vendored(c, repo_root)],
         key=lambda c: c.name,
     )
     lines.append("## Contracts and inheritance\n")
