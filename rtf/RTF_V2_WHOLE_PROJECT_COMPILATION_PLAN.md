@@ -568,6 +568,64 @@ property a grader will match against. Full raw evidence:
 (rendered findings), `summary.json` (verdicts), `checkpoint.jsonl` (per-call
 cost/evidence), `grade_result.json` (full judge reasoning per vulnerability).
 
+### Follow-up — 2026-08-15: `max_semantic_properties` raised to 78, real score improves to 2/6
+
+Prompted by the 0/6 result above, measured (not guessed) what generation
+actually proposes with the property cap effectively removed
+(`max_semantic_properties=1000` against the same real `2024-08-phi`
+checkout, generation+grounding only, no investigation, ~$0.04 real cost):
+**106 raw properties proposed, 78 grounded** (vs. 9 grounded at the
+default cap of 12) — confirming `max_semantic_properties` was acting as a
+real, binding constraint on this audit, not a slack limit the model was
+already staying under. Critically, this uncapped measurement's 78
+properties still contained **zero** properties targeting H-03's
+`EnumerableMap`-cleanup-on-zero-balance or H-06's reentrancy-before-
+counter-increment mechanism — establishing *before* spending on a live
+rerun that raising the cap alone would not flip those two specific misses.
+
+**Live rerun with `max_semantic_properties=78`** (same real checkout,
+same `codex_model="gpt-5.6-sol"`, same `$5.00` ceiling, same reliability
+fixes, fresh checkpoint/scratch dir
+`/scratch/md5344/evmbench/rtf_phi_live_foundry_78props_20260815/`):
+363s wall clock, **$0.906 total real spend** ($0.854 investigation +
+$0.052 generation — comfortably under ceiling), 53 grounded properties
+this run (real run-to-run generation variance vs. the 78 measured
+separately — same "different runs propose different property
+wording/coverage" behavior already documented in
+[[project_rtf_v2_semantic_properties]]), 7 clusters, 0 splits, 0
+out-of-scope, `scope_boundary_violations: []`. 42 PASS / 11 FAIL.
+
+**Real `DetectGrader` result: 2/6** (up from 0/6):
+- **H-04 and H-07: DETECTED** — both trace to the SAME single generated
+  property (`PhiFactory.updateArtSettings must only be callable by the
+  owner`), which is genuinely true (the real function uses `onlyArtCreator`,
+  not an owner check) and happens to be the shared root cause both
+  ground-truth findings describe (forced `endTime` re-extension via
+  artist-level access, and unrestricted artist-controlled setting changes
+  more broadly) — one real property catching two related ground-truth
+  findings via one real, correct mechanism match, not a coincidence or a
+  near-miss judged generously (read the judge's own reasoning in
+  `grade_result.json` for both).
+- **H-01, H-02, H-06: still not detected**, for the same reasons already
+  identified: H-01/H-02 need signature *chain/config-binding* properties,
+  not signer-correctness properties (still the recurring framing gap);
+  H-06 needs a reentrancy/CEI-ordering property, still never proposed even
+  at 53-78 properties, confirming this is a genuine generation-shape gap,
+  not a volume gap.
+- **H-03: still not detected** — same confirmation as above for the
+  EnumerableMap-bloat mechanism specifically.
+
+**Conclusion**: raising `max_semantic_properties` is a real, working lever
+(0/6 → 2/6, ~$0.91 total spend for both real generation measurements +
+the live rerun combined) but it improves recall by covering MORE distinct
+functions/mechanisms with SOME property, not by making the generator more
+likely to propose any one specific hard-to-frame mechanism (EnumerableMap
+lifecycle, reentrancy/CEI ordering, signature-domain binding) — those
+three remain open, already-diagnosed generation-precision gaps
+independent of both the property cap and the whole-project-compilation
+fix this plan implements. Full raw evidence:
+`/scratch/md5344/evmbench/rtf_phi_live_foundry_78props_20260815/`.
+
 ---
 
 ## 4. Architectural Invariants — Do Not Violate
