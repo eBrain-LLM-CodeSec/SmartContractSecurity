@@ -774,6 +774,53 @@ scope/visibility. Full raw evidence:
 $2.391 + forte $3.379 = $5.77**, each individually under its own $5
 ceiling (the two are separate runs/ceilings, not a shared budget).
 
+### Full 5-entry-comparison re-run on the new pipeline — 2026-08-15/16
+
+User requested re-running the remaining targets from the original
+5-entry comparison (`RTF_V2_5ENTRY_COMPARISON_REPORT.md`) — phi and
+forte already done above — on the same combined structural+semantic
+recipe: `tempo-feeamm`, `canto`, `liquid-ron`. Run strictly
+**sequentially**, never concurrently — `solc-select`'s active version
+is global machine state (see `HANDOFF_NEXT_SESSION.md` gotcha #3), and
+these three targets need three different solc versions (`0.7.6`,
+`0.8.17`, `0.8.20`).
+
+**`2026-01-tempo-feeamm`**: real checkout at
+`/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2026-01-tempo-feeamm`
+(no `scope.txt` in this checkout — scope is the single file
+`contracts/FeeAMM.sol`, matching this project's own prior single-entry
+convention for this target; note this repo's own `src` foundry.toml
+setting is `"contracts"`, not `"src"`). 658.6s wall clock, 120 real
+structural properties, 138 resolved (62 FAIL: 13 semantic/49
+structural), **$2.112 total real spend**, 0 scope violations.
+
+**Real `DetectGrader` result: 1/1 — tempo-feeamm's single ground-truth
+finding is now DETECTED.** `RTF_V2_TEMPO_FEEAMM_ROOT_CAUSE.md` classified
+this as `INVESTIGATION_TIMEOUT` under the pre-fix architecture (the
+correct property was generated and grounded, but its cluster split to
+`max_split_depth` and the final leaf never completed within
+`codex_timeout_s`). This session's own process-tree-timeout-kill +
+checkpointing reliability fixes are the most direct explanation for this
+flip — a real, first, clean confirmation that those fixes (not just the
+compilation-scope fix) are contributing real recall improvement, not
+just safety.
+
+**A real operational near-miss, caught and handled live**: mid-run, the
+`/scratch` file-count quota climbed back to 974,758 (98% of the
+1,000,000 hard limit) while investigation was still in progress —
+caught via active monitoring, resolved by deleting the disposable
+`_gview`/`_ghome`/`_solc_neutral` scratch subdirectories for clusters
+whose `case_id` already had a checkpoint entry (verified safe: cross-
+referenced against `checkpoint.jsonl`'s own completed-`case_id` set
+before deleting anything, so no in-flight investigation's working
+directory was touched), dropping to 903,638 without interrupting the
+still-running process. The run completed normally afterward. Confirms
+[[env_scratch_quota]]'s lesson from the phi/forte runs generalizes: any
+live run with double-digit cluster counts needs active quota monitoring,
+not just cleanup-after-the-fact.
+
+Full raw evidence: `/scratch/md5344/evmbench/rtf_tempo_feeamm_live_foundry_combined_20260815/`.
+
 ---
 
 ## 4. Architectural Invariants — Do Not Violate
