@@ -119,13 +119,25 @@ def build_ethtrust_structural_properties(
     unconditioned_map = load_unconditioned_map(CORPUS_PATH)
     run, _raw = run_rtf(ctx, audit_id, unconditioned_map, known_limitations=known_limitations or {})
 
+    generated_bundles: dict[str, dict] = {}
     if include_erc_standards:
-        generated_routed, _report, _bundles = build_standards_routed_requirements(
+        generated_routed, _report, generated_bundles = build_standards_routed_requirements(
             repo_root=ctx.repo_root, entry_sol_file=entry_sol_file, slither=ctx.slither,
         )
         run = TargetRunResult(audit_id=run.audit_id, routed={**run.routed, **generated_routed})
 
-    properties = build_property_pool(run.routed, repo_root, slither=ctx.slither, scope_files=scope_files)
+    # generated_bundles is REQUIRED here, not optional plumbing: an
+    # ERC/EIP-generated requirement has no on-disk L2 context-bundle JSON
+    # file (it only exists in-memory, produced by
+    # build_standards_routed_requirements above) -- build_codex_prompt_
+    # inputs raises FileNotFoundError for such a req_id unless given its
+    # bundle_record via this exact parameter. Confirmed live: omitting
+    # this crashed on a real generated ERC-20 requirement
+    # ("erc20-callers-must-handle-false-return") the moment it had real
+    # evidence, 2026-08-16, 2025-01-liquid-ron.
+    properties = build_property_pool(
+        run.routed, repo_root, generated_bundles=generated_bundles, slither=ctx.slither, scope_files=scope_files,
+    )
     return properties, None
 
 
