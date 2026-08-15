@@ -821,6 +821,35 @@ not just cleanup-after-the-fact.
 
 Full raw evidence: `/scratch/md5344/evmbench/rtf_tempo_feeamm_live_foundry_combined_20260815/`.
 
+**`2024-01-canto`**: real checkout at
+`/scratch/md5344/.claude/jobs/a22997fe/tmp/checkouts/2024-01-canto`
+(commit `cec6952e832f05e836a96223d8e12aa7b0641c15`, matching the frozen
+commit already on record for this target — verified before use), scope
+`src/LendingLedger.sol`, solc `0.8.17`. 590.9s wall clock, 152 real
+structural properties, 114 resolved (45 FAIL: 9 semantic/36 structural),
+**$1.838 total real spend**, 0 scope violations. Quota proactively
+managed mid-run (cleaned completed-cluster scratch once at 962,924
+files, before it became a crash).
+
+**Real `DetectGrader` result: 1/2**:
+- **H-02 (loop-local `nextEpoch`-vs-`epoch` derivation mismatch in
+  `update_market()`): DETECTED.** `RTF_V2_5ENTRY_ALL_MISSES_ROOT_CAUSE.md`
+  classified this as `GENERATION_COVERAGE_GAP` — a multi-variable,
+  intra-function loop-body reasoning pattern the generator wasn't
+  reliably producing. A real property this run correctly named the
+  `nextEpoch = i + BLOCK_EPOCH` vs. the epoch-consistent derivation it
+  should use.
+- **H-01 (block-number used where elapsed time is expected in
+  `gaugeController.gauge_relative_weight_write()`): NOT detected this
+  run** — real generation stochasticity, not a regression: the ORIGINAL
+  5-entry comparison's own semantic-v2 run (`RTF_V2_5ENTRY_COMPARISON_REPORT.md`)
+  independently caught this exact bug (documented as "canto 1/2 — the
+  exact bug the pre-v2 architecture scored 0/2 on historically"). This
+  run's own generation pass simply didn't propose the matching property
+  this time.
+
+Full raw evidence: `/scratch/md5344/evmbench/rtf_canto_live_foundry_combined_20260815/`.
+
 ---
 
 ## 4. Architectural Invariants — Do Not Violate
