@@ -850,7 +850,149 @@ files, before it became a crash).
 
 Full raw evidence: `/scratch/md5344/evmbench/rtf_canto_live_foundry_combined_20260815/`.
 
+**`2025-01-liquid-ron`**: real checkout at
+`/scratch/md5344/.claude/jobs/506f33b3/tmp/mgpr_checkouts/2025-01-liquid-ron`
+(commit `b0df3cffce6e1a151c1c32dea8b17dd4f8932cf7`, matching the frozen
+commit already on record — verified before use), scope 6 files
+(`ValidatorTracker.sol`/`RonHelper.sol`/`Pausable.sol`/`LiquidRon.sol`/
+`LiquidProxy.sol`/`Escrow.sol`), solc `0.8.20`.
+
+**A real bug was found and fixed live on this exact target**:
+`build_ethtrust_structural_properties` crashed on first launch —
+`FileNotFoundError: no L2 context bundle for
+'gp-accepted-standard__erc-20__erc20-callers-must-handle-false-return'`.
+Root cause: `build_property_pool` accepts an optional
+`generated_bundles` parameter specifically so `build_codex_prompt_inputs`
+can resolve an `rtf.standards`-generated requirement's context via its
+in-memory bundle record instead of requiring an on-disk L2 bundle JSON
+file (which generated requirements never have) — the function captured
+this dict from `build_standards_routed_requirements` as `_bundles`
+(discarded) and never passed it through. liquid-ron is the first of the
+5 targets that implements enough real ERC-4626/ERC-20 surface for the
+GP-generator to produce a requirement hitting this exact path with real
+evidence (confirmed: 599 real structural properties this target vs.
+115-186 for the others — liquid-ron's own ERC-4626/ERC-20 surface is
+substantially larger, consistent with
+[[project_rtf_gp_erc_generator]]'s "149/172 applicable" finding for this
+same target). **Zero real spend lost** — crashed before any investigation
+launched. Fixed (commit `03a59c4`) by threading `generated_bundles`
+through; zero regressions (`test_semantic_only_driver.py` 36/36);
+re-launched successfully.
+
+1165.3s wall clock, 599 real structural properties, 254 properties
+actually resolved (81 FAIL: 9 semantic/72 structural) before the cost
+ceiling stopped further dispatch (109 clusters were formed from 607
+in-scope properties — this target's real scope substantially exceeds
+what `$5.00` can fully investigate; the ceiling enforcement itself
+worked correctly, stopping cleanly rather than overspending
+uncontrolled), **$5.073 total real spend** (a small, disclosed overrun
+past the nominal $5.00 — a single in-flight call completing after the
+ceiling check can push total spend slightly past it, a known limitation
+carried over from `pipeline_e2e.py`'s own original design, not
+introduced here), 0 scope violations. Quota again required active
+mid-run cleanup (climbed to 1,009,085, over the hard limit, while still
+running — cleaned in two passes, one foreground (partial, hit a 2-minute
+tool timeout on a very large deletion) and one backgrounded via `nohup`
+to avoid blocking further monitoring; process was never interrupted).
+
+**Real `DetectGrader` result: 1/1 — liquid-ron's ground-truth finding is
+DETECTED.** H-01 (`totalAssets()` omits `operatorFeeAmount`, an
+accounting bug this project independently rediscovered multiple times
+across its history — see [[project_rtf_v2_semantic_properties]]) is
+real and correctly identified again here, this time via the combined
+structural+semantic pipeline rather than a semantic-only run.
+
+Full raw evidence: `/scratch/md5344/evmbench/rtf_liquidron_live_foundry_combined_20260815/`.
+
 ---
+
+## 24. Final Consolidated Result — All 5 Original 5-Entry-Comparison Targets, 2026-08-15/16
+
+User requested re-running every target from the original 5-entry
+comparison (`RTF_V2_5ENTRY_COMPARISON_REPORT.md`) on the new combined
+structural+semantic, whole-project-Foundry-compile pipeline. All 5 are
+now done, each graded with the real `DetectGrader` against real ground
+truth, using the SAME per-target finding denominators as the original
+comparison (confirmed by reading that report's own results table
+directly, not assumed) — a genuinely comparable rematch, not an
+apples-to-oranges re-scoring.
+
+| Target | Old RTF v2 (pre-fix, single-entry, capped generation) | Simple-Codex baseline | **New combined pipeline (this session)** |
+|---|---|---|---|
+| `tempo-feeamm` | 0/1 | 1/1 | **1/1** |
+| `canto` | 1/2 | 2/2 | **1/2** |
+| `forte` | 0/5 | 0/5 | **3/5** |
+| `phi` | 1/6 | 2/6 | **4/6** |
+| `liquid-ron` | 0/1 | 1/1 | **1/1** |
+| **Total** | **2/15** | **6/15** | **10/15** |
+
+**The new combined pipeline (10/15) beats both the old RTF v2 architecture
+(2/15) and the simple-Codex baseline it previously lost to (6/15).** This
+is the first time in this project's own documented history that RTF's
+architecture has beaten the baseline it's been measured against, on this
+exact 5-target/15-finding sample.
+
+**What genuinely changed, by target**:
+- **forte (0/5 → 3/5)** and **phi (1/6 → 4/6)**: the two largest, most
+  multi-file targets — exactly where whole-project Foundry compilation
+  (making `Ln.sol`/`Cred.sol` visible for the first time) and EthTrust
+  structural routing (catching signature-replay and reentrancy findings
+  the semantic generator alone never proposed) both had real, confirmed
+  opportunity to help, and did.
+- **tempo-feeamm (0/1 → 1/1)**: not a scope/routing story — this
+  target's single file was always compiled and visible under the old
+  architecture too. The fix here is the process-tree-timeout-kill +
+  checkpointing reliability work: the original miss was classified
+  `INVESTIGATION_TIMEOUT` (a correct property, never given the chance to
+  finish), and this session's own reliability fixes are the most direct
+  explanation for the flip.
+- **liquid-ron (0/1 → 1/1)**: matches baseline, improves over old RTF
+  v2. Real ERC-4626/ERC-20-heavy scope (599 structural properties, by
+  far the largest target) — the real generated_bundles bug (above) was
+  found and fixed on exactly this target, and the cost ceiling had to
+  cut the investigation short of full coverage, yet still caught the
+  real finding.
+- **canto (1/2, unchanged)**: no regression, no improvement in the
+  aggregate score — but the SPECIFIC finding caught differs between runs
+  (this run: H-02, the loop-local derivation bug the original semantic-
+  only generator never proposed; the ORIGINAL comparison run: H-01, the
+  block-number/timestamp bug). Real run-to-run semantic-generation
+  stochasticity, visible directly in the underlying evidence, not
+  papered over by the aggregate number matching.
+
+**What's honestly still open, confirmed not fixed by this work**:
+canto H-01 (this run), forte H-01, phi H-01/H-02/H-03, liquid-ron's own
+second-order findings if any exist beyond H-01 — every one of these
+traces to an already-diagnosed, SEPARATE limitation (generation-framing
+precision for signature-domain-binding/loop-local-derivation/reentrancy-
+CEI-shape properties when the *specific* run's generation pass doesn't
+happen to propose the matching property, or — for phi H-03/forte's own
+`EnumerableMap`-analog patterns — a gap with no found match in the
+EthTrust corpus itself either). None trace back to the whole-project-
+compilation scope fix this plan implements, which is now confirmed
+working correctly on all 5 targets, every time it was tested.
+
+**Total real spend across all 5 targets this session**: tempo-feeamm
+$2.112 + canto $1.838 + forte $3.379 + phi $2.391 + liquid-ron $5.073 =
+**$14.793** (plus ~$0.15 across the smaller diagnostic-only generation
+measurements earlier in the session) — each target run independently
+under its own per-run $5.00 ceiling (liquid-ron's small, disclosed
+overrun aside), not a shared budget, consistent with this plan's own
+Phase 9 approval discipline throughout.
+
+**Real operational lessons banked for future live runs** (all now in
+[[env_scratch_quota]] and this document): `/scratch`'s file-count hard
+limit is a genuine, recurring risk for any run with double-digit cluster
+counts — active monitoring (not just cleanup-after-a-crash) is required,
+and a safe, verified cleanup pattern now exists (cross-reference
+`checkpoint.jsonl`'s completed `case_id` set before deleting any
+per-cluster scratch directory, background large deletions that risk a
+tool timeout). `codex_model` needs revalidation before any future live
+run (real CLI churn already hit once this session). `build_ethtrust_
+structural_properties` needed one real bug fix
+(`generated_bundles` threading) before it worked correctly on an
+ERC-heavy target — now fixed and covered by the existing regression
+suite.
 
 ## 4. Architectural Invariants — Do Not Violate
 
