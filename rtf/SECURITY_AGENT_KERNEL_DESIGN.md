@@ -603,6 +603,12 @@ real spend**.
    `run_cluster_investigations_live` against ONE real cluster from an
    existing `rtf-v2-redesign` run (brief Phase 12's vertical slice) —
    isolates the investigator as the sole experimental variable.
+   **Adapter implemented and deterministically validated:** it consumes
+   the exact existing context artifacts/call signature, parses property and
+   parent identities from the cluster plan, selects the supplied compiler
+   without global `PATH` mutation, and returns a live-runner-compatible
+   result with cost/state/tool telemetry. The real one-cluster paid slice
+   remains intentionally deferred to the explicit live-test gate.
 7. **Observability** (`trajectory.py`) — per-cluster JSONL trajectory,
    matching the existing checkpoint/cost-log conventions.
 8. **Deterministic + synthetic fixture tests** (brief Phases 13/14) —

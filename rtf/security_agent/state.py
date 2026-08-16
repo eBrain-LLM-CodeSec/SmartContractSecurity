@@ -337,6 +337,7 @@ class ClusterInvestigationState(BaseModel):
                 "property_id": pid,
                 "verdict": req_state.status.value,
                 "reason": req_state.resolution_reason,
+                "reasoning": req_state.resolution_reason,
                 "claim": req_state.final_assessment.claim if req_state.final_assessment else None,
                 "interpretation": (req_state.final_assessment.interpretation
                                    if req_state.final_assessment else None),
@@ -345,6 +346,13 @@ class ClusterInvestigationState(BaseModel):
                 "hypothesis_ids": (list(req_state.final_assessment.hypothesis_ids)
                                    if req_state.final_assessment else []),
                 "counterexample_attempts": list(req_state.counterexample_attempts),
+                "counterexample_attempt": "\n".join(req_state.counterexample_attempts),
+                "counterexample_result": "\n".join(req_state.counterexample_attempts),
+                "files_read": sorted({self.evidence[eid].source_file
+                                      for eid in req_state.evidence_for_ids}),
+                "parent_obligation_check": (req_state.resolution_reason
+                                            if req_state.parent_requirement_id else
+                                            "N/A - no parent requirement linked"),
                 "evidence_for": [self.evidence[eid].model_dump() for eid in req_state.evidence_for_ids],
                 "evidence_against": [self.evidence[eid].model_dump() for eid in req_state.evidence_against_ids],
             })
