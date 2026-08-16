@@ -227,6 +227,19 @@ instances`' clause-splitter) was caught by this SAME existing suite
 before being committed, then fixed at its root (splitting into
 `requirement_text`/`requirement_context_text`) — not worked around.
 
+**UPDATE (2026-08-17, live rerun): NOT FLIPPED.** The real rerun scored
+**2/5**, down from the 3/5 baseline: H-02 and H-04 remained detected,
+H-03 remained missed, and H-05 was absent from this generation sample.
+The five real `req-3-all-valid-inputs` structural properties all targeted
+`Float128` functions (`add`, `decode`, `div`, `divL`, and `eq`); none
+targeted `Ln.ln`. Semantic generation covered other `Ln` behavior but did
+not generate its invalid-domain obligation. Thus the paragraph above's
+"if it independently fires" assumption was false on the real checkout.
+The reclassification is now an **RTF applicability/routing gap**: the
+guidance was never invoked for the relevant function, so this run does
+not support the earlier "structurally addressed" conclusion. Full result:
+`RTF_V3_LIVE_FORTE_RERUN_RESULT.md`.
+
 ---
 
 ## Summary table
@@ -234,10 +247,10 @@ before being committed, then fixed at its root (splitting into
 | Miss | Prior classification | This effort's reclassification | Status after Phases 3-6 (updated 2026-08-16 with live results) |
 |---|---|---|---|
 | Canto H-01 | `INVESTIGATION_REASONING_GAP` | Confirmed, unchanged | **LIVE-CONFIRMED FLIPPED**: real DetectGrader 2/2 (was 1/2). `RTF_V3_LIVE_CANTO_RERUN_RESULT.md` |
-| Forte H-03 | Hybrid (weak property + reasoning) | Confirmed, unchanged | Not live-rerun this session (user selected canto + phi) — fix remains structurally addressed, unconfirmed |
+| Forte H-03 | Hybrid (weak property + reasoning) | **`RTF_APPLICABILITY_GAP` live-confirmed** | **NOT FLIPPED**: real DetectGrader 2/5 (was 3/5); no property routed `Ln.ln` invalid inputs. `RTF_V3_LIVE_FORTE_RERUN_RESULT.md` |
 | Phi H-03 | `REQUIREMENT_TAXONOMY_GAP` | **`RTF_APPLICABILITY_GAP`** (reclassified, evidence-based) | **LIVE-CONFIRMED FLIPPED**: real DetectGrader 5/6 (was 4/6), via an in-contract path (`_getCuratorData`) this document originally didn't credit. `RTF_V3_LIVE_PHI_RERUN_RESULT.md` |
 
-Two of three misses (Canto H-01, Phi H-03) now have an actual re-graded
-score confirming the flip, not just a structural argument. Forte H-03
-remains unconfirmed by a live rerun — that would require an actual paid
-run, not launched this session (the user selected canto and phi).
+All three misses now have live re-graded evidence. Canto H-01 and Phi
+H-03 flipped; Forte H-03 did not. Forte also fell from 3/5 to 2/5 because
+H-05 was not present in this generation sample, while baseline detections
+H-02 and H-04 remained stable.
