@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from rtf.l11_investigation_grouping.context_artifacts import generate_requirement_context_md
 from rtf.l12_evaluation.evidence_ranking import (
     apply_evidence_budget, build_evidence_bundles, rank_evidence, render_bundles_for_prompt,
 )
@@ -95,16 +96,23 @@ def build_codex_prompt_inputs(
         bundle_record = json.loads(bundle_path.read_text(encoding="utf-8"))
     bundle = bundle_record["bundle"]
 
-    # NOTE: the corpus now also carries `explanatory_text` (the spec's
-    # informative prose following the normative sentence -- see
-    # PARSING_NOTES.md's "Explanatory/informative content extraction"
-    # section) at `corpus_by_req_id()[req_id]["explanatory_text"]`. Not
-    # wired into this (old, non-grouped) prompt path yet -- deliberately
-    # deferred, since this pipeline has no existing seam for it (unlike
-    # `context_artifacts.generate_requirement_context_md`'s pre-built
-    # `explanatory_text` param, already wired for the L11 grouped
-    # pipeline via `live_runner.py`). Available for a future pass.
-    requirement_text = corpus_by_req_id().get(req_id, {}).get("normative_text", bundle["self"])
+    # RTF_V3_REDESIGN_PLAN.md finding 2 (fixed): this used to forward only
+    # the bare `normative_text`, dropping `explanatory_text`/exceptions/
+    # overriding-requirements/referenced-requirements even though the
+    # corpus carries all of them. Now reuses the SAME renderer the L11
+    # grouped pipeline uses (`context_artifacts.generate_requirement_
+    # context_md`) so this older, still-live single-property path (used by
+    # `pilot5_driver.py`'s main loop) gets the identical fidelity, with no
+    # second, possibly-drifting rendering to maintain. `requirement_record`
+    # falls back to `{}` (renders as "<unknown>"/empty fields) only if the
+    # req_id truly isn't in the corpus, matching the prior fallback to
+    # `bundle["self"]` in spirit -- still non-empty, still evidence-rankable.
+    requirement_record = corpus_by_req_id().get(req_id, {})
+    requirement_text = (
+        generate_requirement_context_md(requirement_record, explanatory_text=requirement_record.get("explanatory_text") or None)
+        if requirement_record
+        else bundle["self"]
+    )
     context_bundle_text = render_context_bundle_text(bundle)
 
     ranked = rank_evidence(list(result.evidence), repo_root)

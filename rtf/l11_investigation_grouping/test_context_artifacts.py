@@ -72,6 +72,84 @@ def test_requirement_context_includes_counterexample_obligation():
     check("mentions counterexample search obligation", "counterexample_search" in md or "counterexample search" in md.lower(), md)
 
 
+# --- RTF_V3_REDESIGN_PLAN.md Phase 3: exceptions/overrides/references ------
+
+_REQ_RECORD_WITH_EXCEPTION = dict(
+    _REQ_RECORD,
+    exceptions_referenced=[
+        {"req_id": "req-3-verify-tx.origin", "relation": "this_requirement_is_excepted_by",
+         "link_text": "[Q] Verify tx.origin Usage", "condition_text": None},
+    ],
+    overriding_requirements=[
+        {"req_id": "req-3-verify-tx.origin", "relation": "this_requirement_is_excepted_by",
+         "link_text": "[Q] Verify tx.origin Usage", "condition_text": None},
+    ],
+)
+
+
+def test_requirement_context_includes_exception_when_present():
+    md = generate_requirement_context_md(_REQ_RECORD_WITH_EXCEPTION)
+    check("exception req_id present", "req-3-verify-tx.origin" in md, md)
+    check("exception phrased as EXCEPTED BY", "EXCEPTED BY" in md, md)
+    check("exception link text present", "Verify tx.origin Usage" in md, md)
+
+
+def test_requirement_context_dedupes_exception_and_overriding_when_identical():
+    md = generate_requirement_context_md(_REQ_RECORD_WITH_EXCEPTION)
+    check(
+        "identical exception/override record rendered exactly once",
+        md.count("req-3-verify-tx.origin") == 1,
+        md,
+    )
+
+
+def test_requirement_context_omits_exceptions_section_when_absent():
+    md = generate_requirement_context_md(_REQ_RECORD)
+    check("no exceptions section header when none present", "## Exceptions" not in md, md)
+
+
+def test_requirement_context_includes_overriding_relation_when_this_req_overrides():
+    record = dict(
+        _REQ_RECORD,
+        overriding_requirements=[
+            {"req_id": "req-1-all-valid-inputs", "relation": "this_requirement_overrides",
+             "link_text": "[S] Some Superseded Rule", "condition_text": None},
+        ],
+    )
+    md = generate_requirement_context_md(record)
+    check("override phrased as OVERRIDES", "OVERRIDES" in md, md)
+    check("overridden req_id present", "req-1-all-valid-inputs" in md, md)
+
+
+def test_requirement_context_includes_condition_text_when_present():
+    record = dict(
+        _REQ_RECORD,
+        exceptions_referenced=[
+            {"req_id": "req-x", "relation": "this_requirement_is_excepted_by",
+             "link_text": "[Q] Some Condition", "condition_text": "only when the caller is trusted"},
+        ],
+    )
+    md = generate_requirement_context_md(record)
+    check("condition text surfaced", "only when the caller is trusted" in md, md)
+
+
+def test_requirement_context_includes_referenced_requirements_when_present():
+    record = dict(
+        _REQ_RECORD,
+        referenced_requirements=[
+            {"req_id": "req-2-documented", "relation": "referenced", "link_text": "[M] Document Special Code Use"},
+        ],
+    )
+    md = generate_requirement_context_md(record)
+    check("referenced requirement req_id present", "req-2-documented" in md, md)
+    check("referenced requirements section present", "Related EthTrust requirements referenced" in md, md)
+
+
+def test_requirement_context_omits_referenced_section_when_absent():
+    md = generate_requirement_context_md(_REQ_RECORD)
+    check("no referenced-requirements section when none present", "Related EthTrust requirements referenced" not in md, md)
+
+
 # --- generate_cluster_plan_md -------------------------------------------
 
 def test_cluster_plan_includes_every_property():

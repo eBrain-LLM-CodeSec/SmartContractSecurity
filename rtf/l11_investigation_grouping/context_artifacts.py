@@ -186,6 +186,17 @@ def generate_requirement_context_md(requirement_record: dict, explanatory_text: 
     this artifact is a strict improvement over the prompt text
     `codex_bridge.build_codex_prompt_inputs` currently sends, not a
     lateral move.
+
+    Also renders `exceptions_referenced`/`overriding_requirements`/
+    `referenced_requirements` straight from `requirement_record` when
+    present (RTF_V3_REDESIGN_PLAN.md finding 1: `l1_corpus/parse_spec.py`
+    already extracts all three, but this function previously never read
+    them, so an applicable EthTrust exception/override was silently
+    invisible to the investigator). Every value rendered here comes
+    verbatim from the parsed spec record -- nothing is invented or
+    paraphrased by RTF; the "Provenance" section immediately below marks
+    the boundary between official EthTrust text and RTF's own added
+    framing (the "General investigation obligations" section).
     """
     req_id = requirement_record.get("req_id", "<unknown>")
     level = requirement_record.get("level", "?")
@@ -193,6 +204,20 @@ def generate_requirement_context_md(requirement_record: dict, explanatory_text: 
     normative_text = requirement_record.get("normative_text", "")
     section = requirement_record.get("section") or {}
     secno = section.get("secno", "?")
+    # `exceptions_referenced`/`overriding_requirements` are structured
+    # spec cross-references (req_id/relation/link_text/condition_text),
+    # not prose -- and the parser deliberately puts a
+    # "this_requirement_is_excepted_by" record in BOTH lists (it's both
+    # an exception and, from this requirement's side, something that can
+    # override it). Merge + dedupe by (req_id, relation) so the rendered
+    # text says each real cross-reference once, phrased by its relation.
+    _cross_refs: dict[tuple[str, str], dict] = {}
+    for item in (requirement_record.get("exceptions_referenced") or []) + (
+        requirement_record.get("overriding_requirements") or []
+    ):
+        key = (item.get("req_id", ""), item.get("relation", ""))
+        _cross_refs[key] = item
+    referenced = requirement_record.get("referenced_requirements") or []
 
     lines = [f"# Requirement context: {req_id}\n"]
     lines.append(f"**[{level}] {title}** (EthTrust spec section {secno})\n")
@@ -201,6 +226,33 @@ def generate_requirement_context_md(requirement_record: dict, explanatory_text: 
     if explanatory_text:
         lines.append("## Explanatory text (verbatim from the spec, surrounding context)\n")
         lines.append(f"> {explanatory_text}\n")
+    if _cross_refs:
+        lines.append(
+            "## Exceptions / overriding requirements (from the spec's own"
+            " cross-references -- check whether these apply BEFORE"
+            " concluding a violation of the normative text above; a real"
+            " EthTrust exception/override can change what conformance"
+            " requires here)\n"
+        )
+        for (ref_req_id, relation), item in sorted(_cross_refs.items()):
+            link_text = item.get("link_text", "")
+            condition = item.get("condition_text")
+            if relation == "this_requirement_is_excepted_by":
+                phrase = f"This requirement is EXCEPTED BY `{ref_req_id}` ({link_text})"
+            elif relation == "this_requirement_overrides":
+                phrase = f"This requirement OVERRIDES `{ref_req_id}` ({link_text})"
+            else:
+                phrase = f"Related ({relation}): `{ref_req_id}` ({link_text})"
+            if condition:
+                phrase += f" -- condition: {condition}"
+            lines.append(f"- {phrase}\n")
+    if referenced:
+        lines.append(
+            "## Related EthTrust requirements referenced by this one"
+            " (context only -- not themselves being investigated here)\n"
+        )
+        for item in referenced:
+            lines.append(f"- `{item.get('req_id', '')}` ({item.get('link_text', '')})\n")
     lines.append("## Provenance\n")
     lines.append(f"- `req_id`: `{req_id}`")
     lines.append(f"- Security Level: `{level}`")

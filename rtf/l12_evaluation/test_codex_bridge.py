@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import sys
 
-from rtf.l12_evaluation.codex_bridge import resolve_conformance_from_arm_g
+from rtf.l12_evaluation.codex_bridge import build_codex_prompt_inputs, resolve_conformance_from_arm_g
+from rtf.l12_evaluation.metrics import ApplicabilityState, RoutedRequirementResult
 from rtf.l12_evaluation.metrics import ConformanceState
 
 PASSES: list[str] = []
@@ -19,6 +20,66 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         PASSES.append(name)
     else:
         FAILURES.append(f"{name}: {detail}")
+
+
+# --- RTF_V3_REDESIGN_PLAN.md Phase 3, finding 2: legacy single-property path
+# used to forward ONLY bare normative_text, dropping explanatory_text/
+# exceptions/overrides even though the corpus carries them. Verify the fix
+# without needing an on-disk L2 bundle file (same in-memory bundle_record
+# seam standards/routing.py already uses for generated requirements). ------
+
+def test_build_codex_prompt_inputs_carries_exception_text_for_real_requirement():
+    """req-1-no-tx.origin's real corpus record has a real, non-empty
+    `overriding_requirements`/`exceptions_referenced` entry
+    (req-3-verify-tx.origin) -- this must now reach `requirement_text`,
+    not just the bare normative sentence."""
+    result = RoutedRequirementResult(
+        req_id="req-1-no-tx.origin",
+        applicability_state=ApplicabilityState.APPLICABLE,
+        evidence=(),
+    )
+    inputs = build_codex_prompt_inputs(
+        req_id="req-1-no-tx.origin",
+        candidate_location="Foo.sol:bar",
+        result=result,
+        repo_root=None,
+        bundle_record={"bundle": {"self": "No tx.origin fallback bundle text"}},
+    )
+    check(
+        "requirement_text includes the bare normative text",
+        "tx.origin" in inputs.requirement_text,
+        inputs.requirement_text,
+    )
+    check(
+        "requirement_text now carries the exception cross-reference (was previously dropped)",
+        "req-3-verify-tx.origin" in inputs.requirement_text,
+        inputs.requirement_text,
+    )
+    check(
+        "requirement_text explanatory text (SWC-115) now included",
+        "SWC-115" in inputs.requirement_text,
+        inputs.requirement_text,
+    )
+
+
+def test_build_codex_prompt_inputs_falls_back_when_req_id_not_in_corpus():
+    result = RoutedRequirementResult(
+        req_id="req-not-a-real-requirement",
+        applicability_state=ApplicabilityState.APPLICABLE,
+        evidence=(),
+    )
+    inputs = build_codex_prompt_inputs(
+        req_id="req-not-a-real-requirement",
+        candidate_location="Foo.sol:bar",
+        result=result,
+        repo_root=None,
+        bundle_record={"bundle": {"self": "fallback bundle self text"}},
+    )
+    check(
+        "unknown req_id falls back to bundle['self'] rather than crashing",
+        inputs.requirement_text == "fallback bundle self text",
+        inputs.requirement_text,
+    )
 
 
 _GOOD_SEARCH = {
