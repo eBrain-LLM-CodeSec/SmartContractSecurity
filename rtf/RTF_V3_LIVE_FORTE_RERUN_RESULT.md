@@ -2,31 +2,35 @@
 
 Real, paid rerun of `2025-04-forte` against the RTF v3 redesign's code
 (Phases 1-9, through commit `42bd70b`), using the same combined recipe as
-the 2026-08-15 baseline: whole-project Foundry compilation, deterministic
+the 2026-08-15 RTF v2 whole-project run: Foundry compilation, deterministic
 EthTrust structural properties, semantic generation, and
 `max_semantic_properties=78` with `gpt-5.6-sol` investigations. The goal
 was to test whether parent-obligation linking and the new input-domain
 guidance would flip H-03 (`Ln.ln()` accepts zero and negative inputs).
 
-## Result: **2/5 -- down from the baseline's 3/5. H-03 remains missed.**
+## Result: **2/5 -- up from the original 0/5 baseline, but down from the
+immediately preceding combined-pipeline result of 3/5. H-03 remains
+missed.**
 
 Real `DetectGrader` (`judge_model=openai/gpt-4o`, the same judge as the
 baseline):
 
 ```
-         baseline   v3 rerun
-H-01       false      false
-H-02        true       true
-H-03       false      false
-H-04        true       true
-H-05        true      false
-score        3/5        2/5
+         original baseline   2026-08-15 combined   v3 rerun
+H-01           false                false             false
+H-02           false                 true              true
+H-03           false                false             false
+H-04           false                 true              true
+H-05           false                 true             false
+score            0/5                  3/5               2/5
 ```
 
-H-02 (zero-input `sqrt` behavior) and H-04 (`eq` mishandles the large-
-mantissa flag) remain detected. H-03 did not flip. H-05 disappeared from
-this generation sample, so the aggregate score regressed by one even
-though the previously missed H-03 was the intended target of the rerun.
+Relative to the original baseline, H-02 (zero-input `sqrt` behavior) and
+H-04 (`eq` mishandles the large-mantissa flag) are newly detected. They
+also remain stable relative to the later 3/5 combined run. H-03 did not
+flip. H-05 disappeared from this generation sample, so the v3 score is
+one below the immediately preceding combined-pipeline result, while still
+two above the canonical 0/5 baseline.
 
 ## Why H-03 did not flip
 
