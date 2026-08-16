@@ -55,6 +55,15 @@ limit of the underlying model, not a fixable RTF architecture problem —
 the guidance now poses the exact right question; whether the agent
 answers it correctly is outside RTF's control at that point.
 
+**UPDATE (2026-08-16, live rerun, user-requested): CONFIRMED FLIPPED.**
+Real `DetectGrader` result on `2024-01-canto`: **2/2, up from 1/2** — H-01
+now detected, independently 3 times, with evidence text directly
+reflecting the Phase 6 guidance's own language ("the caller's own
+assumption... against the callee's own assumption"; "Internal consistency
+within LendingLedger cannot make that lookup valid"). Full writeup:
+`RTF_V3_LIVE_CANTO_RERUN_RESULT.md`. The live-rerun caveat above is
+resolved — this is no longer a prediction.
+
 ---
 
 ## Forte H-03 — `Ln.ln()` accepts negative/zero input without validation
@@ -157,20 +166,43 @@ external call/getter, not a direct state-variable read in its own AST),
 the current single-contract predicate would **not** detect this specific
 real case as implemented.
 
-**Honest classification**: `RTF_APPLICABILITY_GAP`, now CORRECTLY
-reachable in the single-contract case (a real, generalized fix, proven
-live), but the specific REAL Phi H-03 instance's cross-contract split
-means this session's fix likely does **not** yet flip that specific
-finding without a further extension (a whole-project version of the same
-growth-detection logic, using call-graph/cross-contract state-read
-analysis the way `find_cross_boundary_block_data_argument` already does
-for block-data — same pattern, not yet applied here). Documented as
-explicit future work in `RTF_V3_IMPLEMENTATION_STATUS_REPORT.md`'s
-Limitations section, not silently left unstated. **Not verified against
-the real Phi checkout this session** (would require either a live rerun
-or reading the real `Cred.sol`/`CuratorRewardsDistributor` source, doing
-neither here per the anti-benchmark-tuning discipline of designing from
-the requirement text first).
+**Honest classification (as first written, before the live check)**:
+`RTF_APPLICABILITY_GAP`, now CORRECTLY reachable in the single-contract
+case (a real, generalized fix, proven live), but the specific REAL Phi
+H-03 instance's cross-contract split means this session's fix likely
+does **not** yet flip that specific finding without a further extension.
+**Not verified against the real Phi checkout this session** — flagged
+honestly as an assumption, not a live-checked fact.
+
+**UPDATE (2026-08-16, live rerun, user-requested — and a direct,
+warranted user correction of the paragraph above): CONFIRMED FLIPPED,
+via a DIFFERENT mechanism than assumed.** Real `DetectGrader` result on
+`2024-08-phi`: **5/6, up from 4/6** — H-03 now detected. The user
+correctly pushed back on the cross-contract framing above: it conflated
+"Phase 5's predicate is scoped per-contract" with "RTF can only find
+this via that predicate's own candidate location." Two things the
+original paragraph underweighted: (1) `Cred.sol` itself contains
+`_getCuratorData`, an in-contract function that enumerates the SAME
+growing `shareBalance` map — the predicate fired entirely within one
+contract's own scope, no cross-contract extension needed on THIS real
+target; (2) even where a predicate's routing signal is narrower, whole-
+project Foundry compilation gives the investigating agent full multi-
+file access regardless, and Phase 6's guidance is attached at the
+requirement level, not scoped to the predicate's own candidate location.
+Real evidence (`req-3-enough-gas::loc0`, FAIL): *"Cred._getCuratorData
+iterates from start_ to shareBalance[credId_].length() when stop_ is
+zero. _updateCuratorShareBalance sets a fully sold holder's value to
+zero but never calls EnumerableMap.remove... Because stale entries are
+never pruned, sufficient gas is not assured over the contract
+lifetime."* Independently confirmed by the real judge's own reasoning
+(`grade_result.json`). Full writeup: `RTF_V3_LIVE_PHI_RERUN_RESULT.md`.
+**The whole-project/cross-contract limitation described above remains a
+real, disclosed architectural gap in the predicate's own design** — it
+just wasn't the deciding factor for THIS specific target's H-03, which
+this session originally assumed without checking. The corrected lesson:
+don't infer an end-to-end miss from a routing-layer gap alone without a
+live check, especially once whole-project context + requirement-level
+guidance are both already in place.
 
 ---
 
@@ -199,12 +231,13 @@ before being committed, then fixed at its root (splitting into
 
 ## Summary table
 
-| Miss | Prior classification | This effort's reclassification | Status after Phases 3-6 |
+| Miss | Prior classification | This effort's reclassification | Status after Phases 3-6 (updated 2026-08-16 with live results) |
 |---|---|---|---|
-| Canto H-01 | `INVESTIGATION_REASONING_GAP` | Confirmed, unchanged | Guidance now poses the missing question; live-rerun needed to confirm the model answers it correctly |
-| Forte H-03 | Hybrid (weak property + reasoning) | Confirmed, unchanged | Parent-obligation linking + guidance directly target the exact failure mode; live-rerun needed to confirm |
-| Phi H-03 | `REQUIREMENT_TAXONOMY_GAP` | **`RTF_APPLICABILITY_GAP`** (reclassified, evidence-based) | Single-contract case fixed and proven live; the REAL instance's cross-contract split is a disclosed, un-closed limitation |
+| Canto H-01 | `INVESTIGATION_REASONING_GAP` | Confirmed, unchanged | **LIVE-CONFIRMED FLIPPED**: real DetectGrader 2/2 (was 1/2). `RTF_V3_LIVE_CANTO_RERUN_RESULT.md` |
+| Forte H-03 | Hybrid (weak property + reasoning) | Confirmed, unchanged | Not live-rerun this session (user selected canto + phi) — fix remains structurally addressed, unconfirmed |
+| Phi H-03 | `REQUIREMENT_TAXONOMY_GAP` | **`RTF_APPLICABILITY_GAP`** (reclassified, evidence-based) | **LIVE-CONFIRMED FLIPPED**: real DetectGrader 5/6 (was 4/6), via an in-contract path (`_getCuratorData`) this document originally didn't credit. `RTF_V3_LIVE_PHI_RERUN_RESULT.md` |
 
-No claim of a re-graded score is made anywhere in this document — that
-would require an actual paid rerun, explicitly not authorized/attempted
-this session.
+Two of three misses (Canto H-01, Phi H-03) now have an actual re-graded
+score confirming the flip, not just a structural argument. Forte H-03
+remains unconfirmed by a live rerun — that would require an actual paid
+run, not launched this session (the user selected canto and phi).
