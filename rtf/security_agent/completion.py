@@ -34,6 +34,17 @@ _SHAPE_TERMS: dict[ReasoningCategory, tuple[tuple[str, ...], ...]] = {
     ),
 }
 
+_UNRESOLVED_RESULT_MARKERS = ("pending", "not yet", "unknown", "tbd", "to be determined")
+
+
+def _resolved_counterexample_attempts(records: list[str]) -> list[str]:
+    resolved = []
+    for record in records:
+        result = record.rsplit("; result:", 1)[-1].strip().lower()
+        if len(result) >= 15 and not any(marker in result for marker in _UNRESOLVED_RESULT_MARKERS):
+            resolved.append(record)
+    return resolved
+
 
 def _category(value: ReasoningCategory | str | None) -> ReasoningCategory | None:
     if value is None:
@@ -61,8 +72,11 @@ def check_property_completion(
     if req.status != RequirementResolution.PASS:
         return CompletionCheck(not reasons, tuple(reasons))
 
+    resolved_attempts = _resolved_counterexample_attempts(req.counterexample_attempts)
     if not req.counterexample_attempts:
         reasons.append("pass_without_counterexample_attempt")
+    elif not resolved_attempts:
+        reasons.append("pass_without_resolved_counterexample_result")
     valid_tool_ids = {call.id for call in state.tool_history}
     for evidence_id in assessment.evidence_ids if assessment else ():
         evidence = state.evidence.get(evidence_id)
@@ -79,7 +93,7 @@ def check_property_completion(
 
     category = _category(reasoning_category)
     required_groups = _SHAPE_TERMS.get(category, ())
-    attempts = " ".join(req.counterexample_attempts).lower()
+    attempts = " ".join(resolved_attempts).lower()
     for group in required_groups:
         if not any(term in attempts for term in group):
             reasons.append(f"missing_shape_counterexample:{category.value}:{'/'.join(group)}")

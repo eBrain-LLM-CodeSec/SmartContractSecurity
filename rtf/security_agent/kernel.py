@@ -185,6 +185,7 @@ class SecurityAgentKernel:
                 self._apply_conclusion(proposed, property_ids, turn.parsed)
                 completion = cluster_can_conclude(proposed, reasoning_categories_by_property)
                 if self.enforce_completion and not completion.ready:
+                    self._apply_conclusion_material(state, turn.parsed)
                     state.step_count += 1
                     messages.append({"role": "user", "content":
                         "Conclusion rejected by the mechanical completion gate: "
@@ -226,10 +227,7 @@ class SecurityAgentKernel:
     @staticmethod
     def _apply_conclusion(state: ClusterInvestigationState, property_ids: list[str],
                            conclude: ConcludeAction) -> None:
-        for item in conclude.evidence:
-            state.add_evidence(Evidence.model_validate(item.model_dump()))
-        for item in conclude.hypotheses:
-            state.upsert_hypothesis(Hypothesis.model_validate(item.model_dump()))
+        SecurityAgentKernel._apply_conclusion_material(state, conclude)
         seen: set[str] = set()
         for entry in conclude.properties:
             if entry.property_id not in state.requirement_states:
@@ -247,6 +245,14 @@ class SecurityAgentKernel:
         if missing:
             SecurityAgentKernel._finalize_unresolved(
                 state, sorted(missing), "conclude_response_missing_this_property_id")
+
+    @staticmethod
+    def _apply_conclusion_material(state: ClusterInvestigationState,
+                                   conclude: ConcludeAction) -> None:
+        for item in conclude.evidence:
+            state.upsert_evidence(Evidence.model_validate(item.model_dump()))
+        for item in conclude.hypotheses:
+            state.upsert_hypothesis(Hypothesis.model_validate(item.model_dump()))
 
     @staticmethod
     def _apply_investigation_update(state: ClusterInvestigationState,

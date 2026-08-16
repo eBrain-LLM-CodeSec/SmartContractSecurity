@@ -625,7 +625,11 @@ real spend**.
    verdict/behavior properties, with a benchmark-identifier leakage check.
 9. **Live single-cluster integration test** (brief Phase 15) — small,
    explicit-go-ahead-required real spend, repeated a few times for
-   variance, before any larger run.
+   variance, before any larger run. **Completed:** three independent live
+   repetitions on the synthetic safe input-validation cluster agreed on
+   PASS. The run found and fixed three real state/completion/trajectory
+   bugs; total non-cached spend including repair turns was $0.008294915376.
+   See `RTF_SECURITY_AGENT_INCREMENT9_LIVE_REPORT.md`.
 10. **Codex A/B harness** (`eval/ab_runner.py`, brief Phase 16) — same
     cluster, same context, both investigators, real spend, explicit
     go-ahead required.

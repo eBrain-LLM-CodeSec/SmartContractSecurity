@@ -11,6 +11,13 @@ class TrajectoryWriter:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.sequence = 0
+        if self.path.exists():
+            for line in reversed(self.path.read_text(encoding="utf-8").splitlines()):
+                try:
+                    self.sequence = int(json.loads(line)["sequence"])
+                    break
+                except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                    continue
 
     def __call__(self, event_type: str, payload: dict) -> None:
         self.sequence += 1

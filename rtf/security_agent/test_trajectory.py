@@ -14,11 +14,13 @@ def main() -> int:
     writer = TrajectoryWriter(path)
     writer("first", {"value": 1})
     writer("second", {"value": 2})
+    reopened = TrajectoryWriter(path)
+    reopened("third", {"value": 3})
     events = [json.loads(line) for line in path.read_text().splitlines()]
     checks = [
-        ("two events persisted", len(events) == 2),
-        ("sequence monotonic", [event["sequence"] for event in events] == [1, 2]),
-        ("event types preserved", [event["event_type"] for event in events] == ["first", "second"]),
+        ("three events persisted across reopen", len(events) == 3),
+        ("sequence monotonic across reopen", [event["sequence"] for event in events] == [1, 2, 3]),
+        ("event types preserved", [event["event_type"] for event in events] == ["first", "second", "third"]),
         ("payloads preserved", events[1]["payload"] == {"value": 2}),
     ]
     failed = [name for name, passed in checks if not passed]

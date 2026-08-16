@@ -245,6 +245,7 @@ def test_completion_gate_rejects_premature_pass_then_accepts_grounded_pass():
     falsify = ({"action": "update_investigation", "hypotheses": [{
         "id": "hyp-shared", "claim": "the relevant controls can be bypassed",
         "originating_property_ids": ["p1", "p2"], "status": "REFUTED",
+        "contradicting_evidence_ids": ["ev-shared"],
     }], "counterexample_attempts": [
         {"property_id": "p1", "hypothesis_id": "hyp-shared",
          "attempt": "adversarial caller tries the protected path", "result": "guard rejects it"},

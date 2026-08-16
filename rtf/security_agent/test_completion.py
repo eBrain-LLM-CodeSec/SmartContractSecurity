@@ -55,6 +55,16 @@ def test_pass_rejects_evidence_not_grounded_in_a_tool_call():
           any("pass_evidence_not_from_recorded_tool" in r for r in result.blocking_reasons), result)
 
 
+def test_pass_rejects_pending_counterexample_result():
+    state = _pass_state()
+    state.requirement_states["p1"].counterexample_attempts = [
+        "Hypothesis h1 — attempt: unauthorized caller invokes function; result: Pending inspection of source"
+    ]
+    result = check_property_completion(state, "p1")
+    check("pending counterexample result blocked", not result.ready and
+          "pass_without_resolved_counterexample_result" in result.blocking_reasons, result)
+
+
 def test_pass_requires_resolved_hypothesis():
     state = _pass_state()
     state.hypotheses["h1"].status = HypothesisStatus.OPEN

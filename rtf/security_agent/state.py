@@ -176,6 +176,22 @@ class ClusterInvestigationState(BaseModel):
             self.inspected_functions.add(f"{evidence.source_contract}.{evidence.source_function}"
                                           if evidence.source_contract else evidence.source_function)
 
+    def upsert_evidence(self, evidence: Evidence) -> None:
+        """Retain/refine evidence across a completion-gate rejection.
+
+        A rejected verdict does not make the code fact the model cited
+        disappear. Keeping it lets the next turn repair hypothesis links or
+        counterexample coverage without dangling references.
+        """
+        self.evidence[evidence.id] = evidence
+        if evidence.source_file:
+            self.inspected_files.add(evidence.source_file)
+        if evidence.source_contract:
+            self.inspected_contracts.add(evidence.source_contract)
+        if evidence.source_function:
+            self.inspected_functions.add(f"{evidence.source_contract}.{evidence.source_function}"
+                                          if evidence.source_contract else evidence.source_function)
+
     def add_hypothesis(self, hypothesis: Hypothesis) -> None:
         if hypothesis.id in self.hypotheses:
             raise DuplicateIdError(f"hypothesis id already exists: {hypothesis.id}")
