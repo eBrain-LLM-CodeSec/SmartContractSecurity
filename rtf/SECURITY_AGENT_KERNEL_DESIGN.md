@@ -435,16 +435,26 @@ workspace, never production source.
 
 ### 2.3 Model client — `model_client.py`
 
-Reuses `a4v.llm.ChatClient` directly (existing OpenRouter HTTP client:
-caching, `tenacity` retries, real `usage.cost` logging) for the agent's
-tool-calling turns. Tool schemas are generated from the Pydantic input
-models (`Model.model_json_schema()`) and passed as standard OpenAI-style
-`tools=[...]` — most OpenRouter-routed models support this natively, which
-sidesteps the fenced-JSON-extraction fragility documented in §1.8/§1.9 for
-final-answer parsing (final verdicts are still validated with a Pydantic
-model on receipt, with a fenced-JSON fallback extractor for models that
-don't honor tool-calling reliably, mirroring the existing
-`_extract_last_fenced_json` approach as a safety net, not the primary path).
+**Corrected during Increment 2** (this section originally proposed native
+OpenAI-style `tools=[...]` tool-calling; implementation found that's not
+actually available): `a4v.llm.ChatClient`'s request body only ever sends
+`{model, messages, temperature, top_p, max_tokens}` — no `tools` field,
+and nothing parses a `tool_calls` response field. Extending it would be a
+cross-cutting change to code every other part of this project depends on,
+and this project's own documented history is that provider tool-calling/
+structured-output support is unreliable across OpenRouter models anyway
+(GLM ignoring `response_format`; codex CLI's `wire_api="chat"` fallback
+removed outright in 0.104.0). So `model_client.py` instead reuses
+`a4v.llm.ChatClient` directly (caching, `tenacity` retries, real
+`usage.cost` logging, unchanged) with the SAME proven pattern already
+used everywhere else in this codebase: a strict single-fenced-JSON-object
+response contract, parsed via `ChatClient.complete_json`'s existing
+`extract_last_fenced_json` (first-fence-open/last-fence-close). Each
+model turn is validated against one of the kernel's two Pydantic action
+schemas (`ToolCallAction` / `ConcludeAction`, in `kernel.py`) on receipt;
+a response matching neither triggers a bounded corrective retry, then an
+explicit "gave up, here's why" recording — never a crash, never a silent
+drop.
 
 ### 2.4 Kernel loop (Phase 2) — `kernel.py`
 
