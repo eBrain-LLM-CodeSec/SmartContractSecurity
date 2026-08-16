@@ -1,0 +1,210 @@
+# Phase 9: regression check against the known misses
+
+Per the task brief's explicit instruction: this check happens AFTER the
+generic fixes (Phases 3-6) were designed and implemented, using the
+known misses only to verify the generic fixes naturally address them —
+not the other way around. No requirement/predicate/guidance text in this
+effort was written by reading these misses first (see each Phase's own
+commit message for the actual grounding: verbatim EthTrust normative
+text, generic Solidity semantics). This document is honest about what is
+**structurally addressed by code now in the repo** vs. what would need a
+**live rerun** (explicitly NOT done here, matching this project's
+established convention of requiring explicit user authorization before
+any paid Codex run) to actually confirm a flipped verdict.
+
+Source: `RTF_V2_COMBINED_PIPELINE_5MISSES_ROOT_CAUSE.md`.
+
+---
+
+## Canto H-01 — block-number used where GaugeController expects elapsed time
+
+**Prior classification**: `INVESTIGATION_REASONING_GAP` — the exact
+requirement (`req-2-block-data-misuse`) was applied to the exact function
+THREE separate times; each investigation confirmed `block.number` is
+used *self-consistently within the caller* but never asked whether the
+*callee* interprets the same value the same way.
+
+**What this effort changed**: Phase 6's `investigation_guidance.py`
+attaches `_CROSS_BOUNDARY_BLOCK_DATA_GUIDANCE` to every property whose
+`requirement_id` (or, via Phase 4's parent-linking, `parent_requirement_
+id`) is `req-2-block-data-misuse`/`req-2-random-enough`. Its text
+directly names the missing reasoning step: *"Confirming the value is
+used self-consistently WITHIN the caller is NOT sufficient... explicitly
+compare the caller's own assumption... against the callee's own
+assumption... A mismatch here is a violation even if every use inside
+the caller itself is internally consistent."*
+
+**Structurally addressed: YES, with a caveat.** This guidance text is
+now genuinely wired into `generate_cluster_plan_md`'s per-property block
+(verified live in `tests/ethtrust_conformance/req-2-block-data-misuse/`
+— both the vulnerable AND safe fixtures independently mirror Canto
+H-01's exact mechanism, and the conformance suite's Tier 2 mocked-agent
+layer confirms the full pipeline — routing, property derivation,
+context assembly, guidance attachment, verdict resolution — produces
+the correct FAIL/PASS shape end-to-end). **The caveat**: whether a REAL
+Codex agent, reading this guidance, actually performs the two-hop check
+correctly is a live-LLM reasoning question this session's mocked
+harness cannot answer — only a real rerun against the actual
+`2025-01-canto` checkout would confirm the verdict flips. Not run this
+session (would require real spend + explicit authorization, per this
+project's established convention — see `RTF_V2_WHOLE_PROJECT_
+COMPILATION_PLAN.md`'s own repeated pattern of deferring paid reruns).
+
+**Remaining gap if it doesn't flip**: would be a genuine reasoning-depth
+limit of the underlying model, not a fixable RTF architecture problem —
+the guidance now poses the exact right question; whether the agent
+answers it correctly is outside RTF's control at that point.
+
+---
+
+## Forte H-03 — `Ln.ln()` accepts negative/zero input without validation
+
+**Prior classification**: hybrid — the investigator's own reasoning
+trace named the exact defect ("the only bypass is a mathematical one,
+for which `ln` returns zero") and still resolved PASS, because the
+semantic property's own wording was framed around "correctness" rather
+than "must reject invalid input."
+
+**What this effort changed, two independent fixes**:
+
+1. **Phase 4** (semantic properties are no longer parentless): a
+   generated property about `Ln.ln`'s behavior, if its `property_type`/
+   statement maps to `INPUT_DOMAIN_VALIDATION` (`semantic_taxonomy.
+   map_property_type_to_reasoning_category` — direct for `property_type
+   in {"...}"` or keyword fallback via `categorize_generated_clause` for
+   "structural"/"semantic"/"standard_conformance" types, checking for
+   "validate"/"revert"/"zero address"/"input" in the statement text),
+   now gets `parent_requirement_id="req-3-all-valid-inputs"` attached
+   (verified: `requirements_in_category(INPUT_DOMAIN_VALIDATION) ==
+   ("req-3-all-valid-inputs",)`, the ONLY static-corpus member). The
+   investigator then receives req-3-all-valid-inputs's FULL normative
+   text ("MUST validate inputs, **and function correctly whether the
+   input is as designed or malformed**") alongside the narrow property,
+   with the Phase 4 dual-obligation gate (`parent_obligation_check`)
+   requiring the verdict to address BOTH.
+2. **Phase 6**: `_INPUT_DOMAIN_VALIDATION_GUIDANCE`, attached whenever
+   `req-3-all-valid-inputs` is the property's own OR parent requirement,
+   states directly: *"Distinguish CORRECT BEHAVIOR ON VALID INPUT from
+   REJECTION OF INVALID INPUT... A function that computes the right
+   answer for well-formed input can still violate this requirement if
+   it silently returns a default, zero, or otherwise-garbage value...
+   Do not treat successful execution (no revert) as evidence of safety
+   by itself."* This is a near-verbatim restatement of Forte H-03's
+   exact failure mode.
+
+**Structurally addressed: YES, with the same live-rerun caveat as
+above** — verified end-to-end via `tests/ethtrust_conformance/req-3-all-
+valid-inputs/` (a domain-invalid-input Ln-shaped fixture, deliberately
+NOT copied from the real Forte `Ln.sol` source, built independently from
+req-3-all-valid-inputs's own normative text) plus the mutation-testing
+PoC, which shows that REMOVING the domain check on an otherwise-safe
+fixture is mechanically detected by the structural predicate
+(`find_unvalidated_function_parameters`) again. **Additional real
+finding this session**: `find_unvalidated_function_parameters` is a
+STRUCTURAL predicate (not semantic-generator-dependent) already
+registered under `req-3-all-valid-inputs` — if it independently fires on
+the real `Ln.sol`'s `ln(int256)` signature (plausible: an unvalidated
+int256 parameter to a domain-restricted math function is exactly its
+trigger shape, though not verified against the real Forte checkout in
+this session), Phase 6's guidance would reach the investigator via the
+STRUCTURAL path directly, independent of whether semantic generation
+even proposes a matching property that run — a more robust route to
+closing this miss than semantic-property parent-linking alone.
+
+---
+
+## Phi H-03 — `Cred.sol` `shareBalance` `EnumerableMap` bloat DoS
+
+**Prior classification**: `REQUIREMENT_TAXONOMY_GAP` — "EthTrust lacks
+this vulnerability class," reached because every requirement category
+routed to `_updateCuratorShareBalance` (checks-effects-interactions,
+external-call safety) was the wrong SHAPE of question, and the semantic
+generator never proposed an "unbounded resource growth" property across
+three independent attempts.
+
+**This effort's Phase 1 finding directly disputes the prior
+classification** (`RTF_V3_REDESIGN_PLAN.md` finding 4): `req-3-enough-
+gas` is a REAL, parsed, `AGENT_REQUIRED` corpus requirement whose own
+explanatory text ("Iterating over a structure whose size is not clear in
+advance... can result in significant increases in gas usage") describes
+this EXACT mechanism. The true root cause was `RTF_APPLICABILITY_GAP` —
+no predicate represented the code pattern — not a taxonomy gap.
+
+**What this effort changed**: Phase 5's `find_unbounded_growth_with_
+downstream_iteration`, validated live against a Slither-compiled fixture
+deliberately shaped to mirror `Cred.sol`'s real pattern (struct-wrapped
+`bytes32[] _keys` + mapping, `.set()`/`.length()`/`.at()` library calls,
+insertion called, removal never called, iterated in a loop) — confirmed
+to fire correctly (`tests/ethtrust_conformance/req-3-enough-gas/`,
+`l5_predicates/test_predicates.py`'s growth tests, and the mutation PoC
+showing that removing the pruning path from an otherwise-safe fixture is
+detected).
+
+**Structurally PARTIALLY addressed — one real, disclosed limitation
+remains.** Re-reading the 5-misses report's own text carefully for this
+check: the growth happens in `Cred.sol`'s `_updateCuratorShareBalance`,
+but the ENUMERATION happens in a **separate contract**,
+`CuratorRewardsDistributor`. Phase 5's predicate (per its own docstring,
+written honestly BEFORE this check, not retrofitted after) is
+**deliberately per-contract, not a whole-project call-graph search**
+like `find_cross_boundary_block_data_argument` — it only looks for the
+insertion/removal/iteration triad within ONE contract's own declared
+functions. On the REAL Phi target as described in the root-cause report,
+this predicate would need `shareBalance` (or a public accessor to it) to
+be read by a loop inside `CuratorRewardsDistributor` itself to fire — if
+`CuratorRewardsDistributor` instead calls into `Cred` to read it (via an
+external call/getter, not a direct state-variable read in its own AST),
+the current single-contract predicate would **not** detect this specific
+real case as implemented.
+
+**Honest classification**: `RTF_APPLICABILITY_GAP`, now CORRECTLY
+reachable in the single-contract case (a real, generalized fix, proven
+live), but the specific REAL Phi H-03 instance's cross-contract split
+means this session's fix likely does **not** yet flip that specific
+finding without a further extension (a whole-project version of the same
+growth-detection logic, using call-graph/cross-contract state-read
+analysis the way `find_cross_boundary_block_data_argument` already does
+for block-data — same pattern, not yet applied here). Documented as
+explicit future work in `RTF_V3_IMPLEMENTATION_STATUS_REPORT.md`'s
+Limitations section, not silently left unstated. **Not verified against
+the real Phi checkout this session** (would require either a live rerun
+or reading the real `Cred.sol`/`CuratorRewardsDistributor` source, doing
+neither here per the anti-benchmark-tuning discipline of designing from
+the requirement text first).
+
+---
+
+## Existing successful findings — not regressed
+
+Per the task brief's explicit instruction to also check that prior
+successes aren't broken: every fix this session was additive (new
+optional fields defaulting to `None`/unchanged behavior, new predicates
+registered ALONGSIDE existing ones never replacing them, new guidance
+text appended to existing sections never removing any) and verified via
+the FULL existing regression suite after every phase (~700+ checks
+across `test_context_artifacts.py`, `test_codex_bridge.py`, `test_live_
+runner.py`, `test_property_grounding.py`, `test_cluster_response_
+validation.py`, `test_predicates.py`, `test_agentic_architecture.py`,
+`test_concurrent_escalation.py`, `test_runtime_coverage.py`, `test_mock_
+codex_routing.py`, `test_semantic_property_generation.py`, `test_
+semantic_pipeline.py`, `test_semantic_only_driver.py`, `test_end_to_end_
+integration.py`, `test_instance_expansion.py`), zero failures at any
+commit. The one real regression found DURING this work (Phase 4's
+`requirement_text` field accidentally corrupting `expand_investigation_
+instances`' clause-splitter) was caught by this SAME existing suite
+before being committed, then fixed at its root (splitting into
+`requirement_text`/`requirement_context_text`) — not worked around.
+
+---
+
+## Summary table
+
+| Miss | Prior classification | This effort's reclassification | Status after Phases 3-6 |
+|---|---|---|---|
+| Canto H-01 | `INVESTIGATION_REASONING_GAP` | Confirmed, unchanged | Guidance now poses the missing question; live-rerun needed to confirm the model answers it correctly |
+| Forte H-03 | Hybrid (weak property + reasoning) | Confirmed, unchanged | Parent-obligation linking + guidance directly target the exact failure mode; live-rerun needed to confirm |
+| Phi H-03 | `REQUIREMENT_TAXONOMY_GAP` | **`RTF_APPLICABILITY_GAP`** (reclassified, evidence-based) | Single-contract case fixed and proven live; the REAL instance's cross-contract split is a disclosed, un-closed limitation |
+
+No claim of a re-graded score is made anywhere in this document — that
+would require an actual paid rerun, explicitly not authorized/attempted
+this session.
