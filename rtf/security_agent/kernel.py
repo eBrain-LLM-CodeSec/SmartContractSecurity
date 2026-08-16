@@ -2,9 +2,9 @@
 Phase 2). Deliberately small -- understandable by reading this file plus
 state.py/tools.py/model_client.py/prompts.py in one sitting.
 
-Increment 4 adds first-class hypothesis updates and recorded counterexample
-attempts inside the same cluster loop. The mechanical PASS-discipline gate
-remains Increment 5.
+Increment 5 applies a mechanical completion gate to proposed conclusions.
+Premature PASS verdicts are rejected back into the same loop with concrete
+blocking reasons; FAIL remains CEIV/evidence-gated without PASS-only rules.
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from rtf.security_agent.completion import cluster_can_conclude
 from rtf.security_agent.model_client import MalformedModelResponse, ModelClient
 from rtf.security_agent.prompts import build_initial_user_message, build_system_prompt
 from rtf.security_agent.state import (
@@ -126,17 +127,20 @@ def _summarize_tool_result(result: dict) -> str:
 class SecurityAgentKernel:
     def __init__(self, tools: SecurityAgentTools, model_client: ModelClient,
                  max_steps: int = DEFAULT_MAX_STEPS,
-                 max_malformed_retries: int = DEFAULT_MAX_MALFORMED_RETRIES):
+                 max_malformed_retries: int = DEFAULT_MAX_MALFORMED_RETRIES,
+                 enforce_completion: bool = True):
         self.tools = tools
         self.model_client = model_client
         self.max_steps = max_steps
         self.max_malformed_retries = max_malformed_retries
+        self.enforce_completion = enforce_completion
 
     def run_cluster(
         self, cluster_id: str, property_ids: list[str],
         protocol_context_md: str, requirement_context_by_property: dict[str, str],
         cluster_plan_md: str,
         parent_requirement_ids: dict[str, str | None] | None = None,
+        reasoning_categories_by_property: dict[str, str | None] | None = None,
     ) -> ClusterInvestigationState:
         """One shared ClusterInvestigationState for the WHOLE cluster --
         never one state object per property_id, matching the brief's
@@ -170,7 +174,17 @@ class SecurityAgentKernel:
             messages.append({"role": "assistant", "content": json.dumps(turn.raw)})
 
             if isinstance(turn.parsed, ConcludeAction):
-                self._apply_conclusion(state, property_ids, turn.parsed)
+                proposed = state.model_copy(deep=True)
+                self._apply_conclusion(proposed, property_ids, turn.parsed)
+                completion = cluster_can_conclude(proposed, reasoning_categories_by_property)
+                if self.enforce_completion and not completion.ready:
+                    state.step_count += 1
+                    messages.append({"role": "user", "content":
+                        "Conclusion rejected by the mechanical completion gate: "
+                        + "; ".join(completion.blocking_reasons)
+                        + ". Continue investigating and update structured state before concluding again."})
+                    continue
+                state = proposed
                 return state
 
             if isinstance(turn.parsed, UpdateInvestigationAction):

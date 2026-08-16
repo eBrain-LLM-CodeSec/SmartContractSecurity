@@ -594,6 +594,11 @@ real spend**.
    investigation before conclusion. Enforcement of that requirement is
    deliberately Increment 5's completion gate, not prompt-only trust.
 5. **PASS discipline** (`completion.py`, Phase 9) gating the loop's exit.
+   **Implemented:** PASS requires a CEIV assessment, evidence grounded in a
+   recorded tool call, a resolved hypothesis, a concrete counterexample
+   attempt, and no unresolved questions. Input-validation, access-control,
+   and gas-growth categories add requirement-shape-specific falsification
+   checks. Rejected conclusions feed blockers back into the same loop.
 6. **`investigator.py`**: wire as `run_arm_g_bundle_fn` into
    `run_cluster_investigations_live` against ONE real cluster from an
    existing `rtf-v2-redesign` run (brief Phase 12's vertical slice) —

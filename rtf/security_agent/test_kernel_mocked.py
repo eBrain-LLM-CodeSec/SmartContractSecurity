@@ -131,6 +131,7 @@ _CONTEXT = ("protocol context text", {"req-1": "requirement context text"}, "clu
 def _kernel(script, **kwargs) -> tuple[SecurityAgentKernel, ScriptedChatClient]:
     fake = ScriptedChatClient(script)
     mc = ModelClient(fake, RESPONSE_MODELS)
+    kwargs.setdefault("enforce_completion", False)
     kernel = SecurityAgentKernel(_tools(), mc, **kwargs)
     return kernel, fake
 
@@ -232,6 +233,36 @@ def test_hypothesis_update_and_counterexample_are_state_transitions():
         "hyp-reentry" in state.requirement_states[pid].hypothesis_ids for pid in _PROPERTY_IDS))
     check("counterexample attempt recorded on property",
           "receiver re-enters" in state.requirement_states["p1"].counterexample_attempts[0])
+
+
+def test_completion_gate_rejects_premature_pass_then_accepts_grounded_pass():
+    premature = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "looks safe"},
+        {"property_id": "p2", "verdict": "PASS", "reasoning": "looks safe"},
+    ]}, None)
+    inspect = ({"action": "call_tool", "tool": "get_contract_source",
+                "args": {"contract": "Vault"}, "reasoning": "inspect before PASS"}, None)
+    falsify = ({"action": "update_investigation", "hypotheses": [{
+        "id": "hyp-shared", "claim": "the relevant controls can be bypassed",
+        "originating_property_ids": ["p1", "p2"], "status": "REFUTED",
+    }], "counterexample_attempts": [
+        {"property_id": "p1", "hypothesis_id": "hyp-shared",
+         "attempt": "adversarial caller tries the protected path", "result": "guard rejects it"},
+        {"property_id": "p2", "hypothesis_id": "hyp-shared",
+         "attempt": "boundary path tries to bypass the guard", "result": "guard still applies"},
+    ]}, None)
+    grounded = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "guard blocks adversary"},
+        {"property_id": "p2", "verdict": "PASS", "reasoning": "guard covers boundary"},
+    ]}, None)
+    kernel, fake = _kernel([premature, inspect, falsify, grounded], enforce_completion=True)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("premature conclusion caused another model turn", len(fake.calls) == 4, len(fake.calls))
+    check("gate feedback was sent to model", any(
+        "completion gate" in str(message.get("content", ""))
+        for message in fake.calls[1]))
+    check("grounded PASS accepted after inspection and falsification", all(
+        state.requirement_states[pid].status == RequirementResolution.PASS for pid in _PROPERTY_IDS))
 
 
 def test_one_cluster_multiple_properties_is_one_shared_loop():
