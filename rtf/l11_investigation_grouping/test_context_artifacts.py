@@ -269,6 +269,43 @@ def test_cluster_plan_omits_parent_obligation_line_when_none_linked():
     check("schema field still documented generically (not property-specific)", "parent_obligation_check" in md, md)
 
 
+# --- RTF_V3_REDESIGN_PLAN.md Phase 6: requirement-specific guidance ------
+
+def test_cluster_plan_includes_requirement_specific_guidance_when_applicable():
+    a = _prop("p1", requirement_id="req-2-block-data-misuse")
+    cluster = Cluster(cluster_id="cluster_009", property_ids=("p1",), grouping_reason=(),
+                       shared_context={}, estimated_context_size=1)
+    md = generate_cluster_plan_md(cluster, {"p1": a}, "protocol_context.md", {})
+    check("cross-boundary guidance rendered for req-2-block-data-misuse", "block-data / external-boundary semantics" in md, md)
+    check("guidance mentions the callee-semantics check", "CALLEE" in md, md)
+
+
+def test_cluster_plan_omits_requirement_specific_guidance_when_not_applicable():
+    """Non-applicability check: an unrelated requirement (no entry in
+    the Phase 6 guidance table) must NOT get any of the three specific
+    guidance blocks injected -- the generic procedure stays generic."""
+    a = _prop("p1", requirement_id="req-2-overflow-underflow")
+    cluster = Cluster(cluster_id="cluster_010", property_ids=("p1",), grouping_reason=(),
+                       shared_context={}, estimated_context_size=1)
+    md = generate_cluster_plan_md(cluster, {"p1": a}, "protocol_context.md", {})
+    check("no cross-boundary guidance for an unrelated requirement", "block-data / external-boundary semantics" not in md, md)
+    check("no input-validation guidance for an unrelated requirement", "REJECTION OF INVALID INPUT" not in md, md)
+    check("no gas-growth guidance for an unrelated requirement", "growing persistent state" not in md, md)
+
+
+def test_cluster_plan_guidance_is_property_specific_within_a_mixed_cluster():
+    """A cluster with TWO properties of different reasoning shapes must
+    only attach each guidance block to its own matching property, not
+    leak across the cluster."""
+    a = _prop("p1", requirement_id="req-2-block-data-misuse", target_function="update_market")
+    b = _prop("p2", requirement_id="req-3-all-valid-inputs", target_function="ln", candidate_locations=("Ln.ln",))
+    cluster = Cluster(cluster_id="cluster_011", property_ids=("p1", "p2"), grouping_reason=(),
+                       shared_context={}, estimated_context_size=1)
+    md = generate_cluster_plan_md(cluster, {"p1": a, "p2": b}, "protocol_context.md", {})
+    check("cross-boundary guidance present once (for p1)", md.count("block-data / external-boundary semantics") == 1, md)
+    check("input-validation guidance present once (for p2)", md.count("REJECTION OF INVALID INPUT") == 1, md)
+
+
 # --- generate_protocol_context_md (real compiled fixture) -----------------
 
 _PROTOCOL_SOURCE = """// SPDX-License-Identifier: MIT

@@ -35,6 +35,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from rtf.l11_investigation_grouping.grouping_engine import Cluster
+from rtf.l11_investigation_grouping.investigation_guidance import guidance_for_property
 from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata
 from rtf.standards.discovery import _is_vendored_path
 
@@ -346,6 +347,10 @@ def generate_cluster_plan_md(
             )
         for note in m.related_out_of_scope_context:
             lines.append(f"- {note}")
+        guidance = guidance_for_property(m)
+        if guidance:
+            lines.append("")
+            lines.append(guidance)
         lines.append("")
 
     lines.append("## Investigation procedure\n")
