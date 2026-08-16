@@ -199,6 +199,33 @@ def run_audit(conformance_results: dict[str, str] | None = None) -> list[dict[st
     return [audit_requirement(r, conformance_results) for r in _load_corpus()]
 
 
+def conformance_results_from_suite() -> dict[str, str]:
+    """Actually RUNS `tests/ethtrust_conformance/test_ethtrust_
+    conformance.py` (not a hardcoded list of req_ids) and, only if the
+    WHOLE suite passes with zero failures, marks every requirement that
+    has a fixture directory as `"PASS"`. A req_id with a fixture
+    directory but a suite failure anywhere gets no entry at all (stays
+    IMPLEMENTED_UNTESTED, not falsely upgraded) -- this function never
+    partially credits a requirement whose OWN specific assertions it
+    didn't verify passed, since a single shared suite run doesn't
+    distinguish which assertion belongs to which requirement without
+    parsing PASSES/FAILURES text, which is out of scope for this
+    conservative first version.
+    """
+    import importlib
+
+    try:
+        suite = importlib.import_module("rtf.tests.ethtrust_conformance.test_ethtrust_conformance")
+    except Exception:  # noqa: BLE001 -- suite not importable (e.g. slither unavailable) -- no credit given
+        return {}
+    suite.PASSES.clear()
+    suite.FAILURES.clear()
+    exit_code = suite.main()
+    if exit_code != 0 or not CONFORMANCE_DIR.exists():
+        return {}
+    return {p.name: "PASS" for p in CONFORMANCE_DIR.iterdir() if p.is_dir() and p.name.startswith("req-")}
+
+
 def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
     from collections import Counter
 
@@ -216,9 +243,12 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=Path("l12_evaluation/requirement_fidelity_audit.json"))
+    parser.add_argument("--skip-conformance-suite", action="store_true",
+                         help="skip actually running the conformance suite (faster, but every requirement stays below CONFORMANCE_PASS)")
     args = parser.parse_args()
 
-    results = run_audit()
+    conformance_results = {} if args.skip_conformance_suite else conformance_results_from_suite()
+    results = run_audit(conformance_results)
     summary = summarize(results)
     payload = {"summary": summary, "requirements": results}
     args.out.write_text(json.dumps(payload, indent=2, sort_keys=True))
