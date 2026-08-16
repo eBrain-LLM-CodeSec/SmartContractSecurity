@@ -632,7 +632,11 @@ real spend**.
    See `RTF_SECURITY_AGENT_INCREMENT9_LIVE_REPORT.md`.
 10. **Codex A/B harness** (`eval/ab_runner.py`, brief Phase 16) — same
     cluster, same context, both investigators, real spend, explicit
-    go-ahead required.
+    go-ahead required. **Deterministic harness implemented:** both arms
+    receive value-identical copied bundle inputs, an auditable SHA-256
+    fairness fingerprint covers the semantic/model/compile inputs, and
+    per-arm verdict/cost/token/tool/file/runtime metrics plus disagreements
+    are persisted. The actual two-arm paid call remains gated separately.
 11. **Frozen RTF regression** (brief Phase 17) — canto/forte/phi, only
     after 0-10 above show real signal; explicit go-ahead required (these
     are $2-5+ each per the `RTF_V2_WHOLE_PROJECT_COMPILATION_PLAN.md`
