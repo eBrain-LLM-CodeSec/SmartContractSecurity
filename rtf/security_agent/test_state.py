@@ -152,6 +152,37 @@ def test_record_tool_call_appends_history_and_increments_step_count():
     check("2 tool calls recorded", len(state.tool_history) == 2)
     check("step_count incremented", state.step_count == 2)
     check("first call's tool name recorded", state.tool_history[0].tool == "get_function_source")
+    check("tool calls receive stable sequential ids",
+          [call.id for call in state.tool_history] == ["tool-1", "tool-2"])
+
+
+def test_successful_source_tool_result_tracks_inspection():
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.record_tool_call(
+        "get_function_source", {"contract": "Vault", "function": "withdraw"}, "OK (source)",
+        {"status": "OK", "file": "Vault.sol", "contract": "Vault", "name": "withdraw"},
+    )
+    check("tool result tracks inspected file", state.inspected_files == {"Vault.sol"})
+    check("tool result tracks inspected contract", state.inspected_contracts == {"Vault"})
+    check("tool result tracks inspected function", state.inspected_functions == {"Vault.withdraw"})
+
+
+def test_record_verdict_persists_ceiv_and_links_shared_evidence():
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.add_evidence(_evidence("ev1", claim="call precedes state update"))
+    state.record_verdict(
+        "p1", claim="withdraw uses safe ordering", evidence_ids=["ev1"],
+        interpretation="the cited ordering refutes the claim",
+        verdict=RequirementResolution.FAIL,
+    )
+    assessment = state.requirement_states["p1"].final_assessment
+    check("assessment stored", assessment is not None)
+    check("CEIV claim stored separately", assessment.claim == "withdraw uses safe ordering")
+    check("CEIV evidence linked by id", assessment.evidence_ids == ["ev1"])
+    check("CEIV interpretation stored separately",
+          assessment.interpretation == "the cited ordering refutes the claim")
+    check("CEIV verdict resolves requirement", assessment.verdict == RequirementResolution.FAIL)
+    check("shared evidence linked to property", state.requirement_states["p1"].evidence_for_ids == ["ev1"])
 
 
 # --- result mapping (cluster -> per-property verdicts) --------------------

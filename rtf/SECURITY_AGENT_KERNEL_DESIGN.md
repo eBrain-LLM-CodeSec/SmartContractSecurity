@@ -580,6 +580,11 @@ real spend**.
    First point real $ is spent, on a single synthetic fixture, small.
 3. **Structured evidence + Claim/Evidence/Interpretation/Verdict
    separation** (brief Phase 10) wired into the loop's final-answer step.
+   **Implemented:** the conclusion schema now supplies one shared evidence
+   pool plus a CEIV assessment per property; evidence IDs are validated,
+   reusable across properties, and successful source-tool calls populate
+   the state's inspected file/contract/function sets. Deterministic only;
+   no additional live call was made for this increment.
 4. **Hypotheses first-class** (Phase 4) + **counterexample-driven
    prompting** (Phase 5) — mostly prompt/loop changes on top of existing
    infra, not new modules.

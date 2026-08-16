@@ -51,6 +51,7 @@ class DuplicateIdError(KeyError):
 
 
 class ToolCallRecord(BaseModel):
+    id: str
     tool: str
     args: dict
     result_summary: str
@@ -73,6 +74,17 @@ class Evidence(BaseModel):
     source_lines: str | None = None
     tool_call_id: str | None = None
     raw_excerpt: str | None = None
+
+
+class VerdictRecord(BaseModel):
+    """The final Claim/Evidence/Interpretation/Verdict chain for one
+    property. Evidence is referenced from the cluster-wide pool by id,
+    never copied into this record."""
+
+    claim: str
+    evidence_ids: list[str]
+    interpretation: str
+    verdict: RequirementResolution
 
 
 class Hypothesis(BaseModel):
@@ -100,6 +112,7 @@ class RequirementState(BaseModel):
     parent_requirement_id: str | None = None
     status: RequirementResolution = RequirementResolution.UNRESOLVED
     resolution_reason: str | None = None
+    final_assessment: VerdictRecord | None = None
     hypothesis_ids: list[str] = Field(default_factory=list)
     evidence_for_ids: list[str] = Field(default_factory=list)
     evidence_against_ids: list[str] = Field(default_factory=list)
@@ -207,6 +220,27 @@ class ClusterInvestigationState(BaseModel):
         req_state.status = status
         req_state.resolution_reason = reason
 
+    def record_verdict(self, property_id: str, *, claim: str,
+                       evidence_ids: list[str], interpretation: str,
+                       verdict: RequirementResolution) -> None:
+        """Persist one complete CEIV chain and resolve the property.
+
+        Every evidence id must already exist in the shared cluster pool.
+        The same id may therefore support several property assessments
+        without duplicating the underlying Evidence object.
+        """
+        req_state = self._require_requirement(property_id)
+        for evidence_id in evidence_ids:
+            self._require_evidence(evidence_id)
+            self.link_evidence_to_requirement(property_id, evidence_id, supports=True)
+        req_state.final_assessment = VerdictRecord(
+            claim=claim,
+            evidence_ids=list(evidence_ids),
+            interpretation=interpretation,
+            verdict=verdict,
+        )
+        self.resolve_requirement(property_id, verdict, reason=interpretation)
+
     def mark_unresolved_reason(self, property_id: str, reason: str) -> None:
         """Records WHY a property is still UNRESOLVED (e.g. the kernel
         exhausted its step budget, or the model never mentioned this
@@ -232,9 +266,23 @@ class ClusterInvestigationState(BaseModel):
 
     # -- tool bookkeeping --------------------------------------------------
 
-    def record_tool_call(self, tool: str, args: dict, result_summary: str) -> None:
-        self.tool_history.append(ToolCallRecord(tool=tool, args=args, result_summary=result_summary))
+    def record_tool_call(self, tool: str, args: dict, result_summary: str,
+                         result: dict | None = None) -> ToolCallRecord:
+        record = ToolCallRecord(id=f"tool-{len(self.tool_history) + 1}", tool=tool,
+                                args=args, result_summary=result_summary)
+        self.tool_history.append(record)
         self.step_count += 1
+        if result and result.get("status") == "OK":
+            file = result.get("file") or result.get("path")
+            contract = result.get("contract")
+            name = result.get("name")
+            if file:
+                self.inspected_files.add(file)
+            if contract:
+                self.inspected_contracts.add(contract)
+            if name and tool == "get_function_source":
+                self.inspected_functions.add(f"{contract}.{name}" if contract else name)
+        return record
 
     # -- result mapping --------------------------------------------------
 
@@ -255,6 +303,11 @@ class ClusterInvestigationState(BaseModel):
                 "property_id": pid,
                 "verdict": req_state.status.value,
                 "reason": req_state.resolution_reason,
+                "claim": req_state.final_assessment.claim if req_state.final_assessment else None,
+                "interpretation": (req_state.final_assessment.interpretation
+                                   if req_state.final_assessment else None),
+                "evidence_ids": (list(req_state.final_assessment.evidence_ids)
+                                 if req_state.final_assessment else []),
                 "counterexample_attempts": list(req_state.counterexample_attempts),
                 "evidence_for": [self.evidence[eid].model_dump() for eid in req_state.evidence_for_ids],
                 "evidence_against": [self.evidence[eid].model_dump() for eid in req_state.evidence_against_ids],

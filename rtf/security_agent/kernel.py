@@ -2,22 +2,21 @@
 Phase 2). Deliberately small -- understandable by reading this file plus
 state.py/tools.py/model_client.py/prompts.py in one sitting.
 
-Increment 2 scope: prove the mechanical loop works (decide -> execute ->
-update -> terminate) with EVERY property in the cluster resolved to a
-final answer or an explicitly-recorded "gave up, here's why" -- never
-silently dropped. No hypotheses/counterexamples/PASS-discipline gate yet
-(Increments 3-5); a bare `conclude` from the model is accepted as-is.
+Increment 3 adds a structured final-answer boundary: a conclusion carries
+one cluster-wide evidence pool and a separate Claim / Evidence ids /
+Interpretation / Verdict chain for every property. No hypotheses,
+counterexamples, or PASS-discipline gate yet (Increments 4-5).
 """
 from __future__ import annotations
 
 import json
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from rtf.security_agent.model_client import MalformedModelResponse, ModelClient
 from rtf.security_agent.prompts import build_initial_user_message, build_system_prompt
-from rtf.security_agent.state import ClusterInvestigationState, RequirementResolution
+from rtf.security_agent.state import ClusterInvestigationState, Evidence, RequirementResolution
 from rtf.security_agent.tools import SecurityAgentTools
 
 DEFAULT_MAX_STEPS = 15
@@ -33,13 +32,39 @@ class ToolCallAction(BaseModel):
 
 class PropertyVerdictInput(BaseModel):
     property_id: str
+    claim: str
+    evidence_ids: list[str] = Field(min_length=1)
+    interpretation: str
     verdict: Literal["PASS", "FAIL", "NOT_APPLICABLE"]
-    reasoning: str
+
+
+class EvidenceInput(BaseModel):
+    id: str
+    claim: str
+    source_file: str
+    source_contract: str | None = None
+    source_function: str | None = None
+    source_lines: str | None = None
+    tool_call_id: str | None = None
+    raw_excerpt: str | None = None
 
 
 class ConcludeAction(BaseModel):
     action: Literal["conclude"]
+    evidence: list[EvidenceInput] = Field(min_length=1)
     properties: list[PropertyVerdictInput]
+
+    @model_validator(mode="after")
+    def evidence_references_are_complete(self) -> "ConcludeAction":
+        ids = [item.id for item in self.evidence]
+        if len(ids) != len(set(ids)):
+            raise ValueError("evidence ids must be unique")
+        known = set(ids)
+        missing = sorted({eid for prop in self.properties
+                          for eid in prop.evidence_ids if eid not in known})
+        if missing:
+            raise ValueError(f"property assessments reference unknown evidence ids: {missing}")
+        return self
 
 
 RESPONSE_MODELS: tuple[type[BaseModel], ...] = (ToolCallAction, ConcludeAction)
@@ -105,7 +130,7 @@ class SecurityAgentKernel:
 
             action: ToolCallAction = turn.parsed
             result = self.tools.call(action.tool, action.args)
-            state.record_tool_call(action.tool, action.args, _summarize_tool_result(result))
+            state.record_tool_call(action.tool, action.args, _summarize_tool_result(result), result)
             messages.append({"role": "user", "content": f"Tool result for {action.tool}:\n{json.dumps(result)}"})
 
         self._finalize_unresolved(state, property_ids, "max_steps_exhausted")
@@ -114,12 +139,20 @@ class SecurityAgentKernel:
     @staticmethod
     def _apply_conclusion(state: ClusterInvestigationState, property_ids: list[str],
                            conclude: ConcludeAction) -> None:
+        for item in conclude.evidence:
+            state.add_evidence(Evidence.model_validate(item.model_dump()))
         seen: set[str] = set()
         for entry in conclude.properties:
             if entry.property_id not in state.requirement_states:
                 continue  # a hallucinated property_id -- ignored, not crashed on
             seen.add(entry.property_id)
-            state.resolve_requirement(entry.property_id, RequirementResolution(entry.verdict), reason=entry.reasoning)
+            state.record_verdict(
+                entry.property_id,
+                claim=entry.claim,
+                evidence_ids=entry.evidence_ids,
+                interpretation=entry.interpretation,
+                verdict=RequirementResolution(entry.verdict),
+            )
         missing = set(property_ids) - seen
         if missing:
             SecurityAgentKernel._finalize_unresolved(

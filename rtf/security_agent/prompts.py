@@ -1,14 +1,11 @@
 """Prompt assembly for the security-agent kernel's cluster investigation
 loop.
 
-Increment 2 scope only: a plain "inspect the code, cite evidence,
-conclude" instruction set. Deliberately does NOT yet include the
-counterexample-driven/hypothesis-first framing (brief Phases 4-5) --
-that is a separate, later increment, kept out here on purpose so a
-future before/after comparison between increments is meaningful (the
-brief's own "keep RTF + clustering fixed, change only the investigator"
-discipline applies just as much between OUR OWN increments as it does
-against Codex).
+Increment 3 requires a shared structured evidence pool and a separate
+Claim / Evidence / Interpretation / Verdict chain per property.
+Deliberately does NOT yet include the counterexample-driven/hypothesis-
+first framing (brief Phases 4-5) -- that is a separate later increment,
+kept out on purpose so a future before/after comparison stays meaningful.
 
 Generic reasoning-shape guidance only where it does appear -- no
 benchmark-specific hints anywhere in this module (brief's explicit
@@ -42,14 +39,23 @@ To call a tool:
 {{"action": "call_tool", "tool": "<tool name>", "args": {{"...": "..."}}, "reasoning": "<why you need this>"}}
 ```
 
-To conclude the investigation for ALL properties in this cluster at once:
+To conclude the investigation for ALL properties in this cluster at once,
+provide one shared evidence pool followed by a separate Claim / Evidence /
+Interpretation / Verdict chain for each property:
 ```json
-{{"action": "conclude", "properties": [
-  {{"property_id": "<id>", "verdict": "PASS", "reasoning": "<cite specific evidence: file, contract, function, and what it shows>"}}
+{{"action": "conclude", "evidence": [
+  {{"id": "ev-1", "claim": "<concrete fact established by inspected code>", "source_file": "<path>", "source_contract": "<contract or null>", "source_function": "<function or null>", "source_lines": "<line or range>", "tool_call_id": "<tool-1, tool-2, ...>", "raw_excerpt": "<short exact excerpt or null>"}}
+], "properties": [
+  {{"property_id": "<id>", "claim": "<security assertion being decided>", "evidence_ids": ["ev-1"], "interpretation": "<why that evidence establishes or refutes the claim>", "verdict": "PASS"}}
 ]}}
 ```
 
 `verdict` must be exactly one of PASS, FAIL, or NOT_APPLICABLE.
+
+Every property must cite at least one evidence id from the shared evidence
+pool. Reuse the same evidence id across properties when one inspected fact
+is relevant to several properties; do not duplicate it. `tool_call_id`
+refers to calls in order (`tool-1`, `tool-2`, ...).
 
 `conclude` must include EXACTLY one entry for EVERY property_id listed \
 in the initial message -- no more, no fewer. Do not conclude until you \

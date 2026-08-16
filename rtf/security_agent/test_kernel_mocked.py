@@ -18,7 +18,9 @@ import tempfile
 from pathlib import Path
 
 from a4v.llm import ChatResult
-from rtf.security_agent.kernel import RESPONSE_MODELS, SecurityAgentKernel
+from pydantic import ValidationError
+
+from rtf.security_agent.kernel import ConcludeAction, RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import ModelClient
 from rtf.security_agent.state import RequirementResolution
 from rtf.security_agent.tools import SecurityAgentTools
@@ -87,7 +89,27 @@ class ScriptedChatClient:
         self.calls.append([dict(m) for m in messages])
         if len(self.calls) > len(self._script):
             raise AssertionError(f"kernel made more model calls ({len(self.calls)}) than scripted ({len(self._script)})")
-        return self._script[len(self.calls) - 1]
+        raw, result = self._script[len(self.calls) - 1]
+        # Keep Increment-2 scenario fixtures concise while exercising the
+        # stricter Increment-3 production schema. Tests specifically about
+        # CEIV behavior below provide the full shape themselves.
+        if raw.get("action") == "conclude" and "evidence" not in raw:
+            raw = dict(raw)
+            raw["evidence"] = [{
+                "id": "ev-shared", "claim": "inspected fixture evidence",
+                "source_file": "Vault.sol", "source_contract": "Vault",
+                "source_function": "withdraw", "source_lines": "30-42",
+                "tool_call_id": "tool-1", "raw_excerpt": None,
+            }]
+            raw["properties"] = [dict(
+                p,
+                claim=p.get("reasoning", "property claim"),
+                evidence_ids=["ev-shared"],
+                interpretation=p.get("reasoning", "fixture interpretation"),
+            ) for p in raw["properties"]]
+            for prop in raw["properties"]:
+                prop.pop("reasoning", None)
+        return raw, result
 
 
 def _model_client(script: list[tuple[dict, "ChatResult | None"]]) -> ModelClient:
@@ -124,6 +146,50 @@ def test_tool_call_then_conclude_resolves_all_properties():
     check("exactly 2 model calls made", len(fake.calls) == 2, len(fake.calls))
     check("one tool call recorded in shared tool_history", len(state.tool_history) == 1, state.tool_history)
     check("tool_history entry is get_contract_source", state.tool_history[0].tool == "get_contract_source")
+
+
+def test_structured_conclusion_records_shared_ceiv_chain():
+    script = [({"action": "conclude", "evidence": [{
+        "id": "ev-ordering", "claim": "external call precedes share decrement",
+        "source_file": "Vault.sol", "source_contract": "Vault",
+        "source_function": "withdraw", "source_lines": "38-41",
+        "tool_call_id": "tool-1", "raw_excerpt": "call; shares -= amount;",
+    }], "properties": [
+        {"property_id": "p1", "claim": "withdraw follows checks-effects-interactions",
+         "evidence_ids": ["ev-ordering"],
+         "interpretation": "the observed ordering refutes the claim", "verdict": "FAIL"},
+        {"property_id": "p2", "claim": "the same ordering preserves accounting invariants",
+         "evidence_ids": ["ev-ordering"],
+         "interpretation": "stale accounting also refutes this claim", "verdict": "FAIL"},
+    ]}, None)]
+    kernel, _fake = _kernel(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("one shared evidence object stored", list(state.evidence) == ["ev-ordering"], state.evidence)
+    check("both assessments reference the same evidence id", all(
+        rs.final_assessment and rs.final_assessment.evidence_ids == ["ev-ordering"]
+        for rs in state.requirement_states.values()))
+    check("claim is separate from interpretation",
+          state.requirement_states["p1"].final_assessment.claim ==
+          "withdraw follows checks-effects-interactions")
+    check("interpretation becomes compatibility reason",
+          state.requirement_states["p1"].resolution_reason ==
+          "the observed ordering refutes the claim")
+
+
+def test_structured_conclusion_rejects_dangling_evidence_reference():
+    try:
+        ConcludeAction.model_validate({
+            "action": "conclude",
+            "evidence": [{"id": "ev-known", "claim": "fact", "source_file": "Vault.sol"}],
+            "properties": [{
+                "property_id": "p1", "claim": "claim",
+                "evidence_ids": ["ev-missing"],
+                "interpretation": "interpretation", "verdict": "FAIL",
+            }],
+        })
+        check("dangling evidence id rejected", False, "did not raise")
+    except ValidationError:
+        check("dangling evidence id rejected", True)
 
 
 def test_one_cluster_multiple_properties_is_one_shared_loop():
