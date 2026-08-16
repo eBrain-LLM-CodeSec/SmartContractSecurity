@@ -34,14 +34,23 @@ def _verdicts(result) -> dict[str, str]:
 
 
 def arm_metrics(result) -> ArmMetrics:
+    if hasattr(result, "tool_calls"):
+        tool_calls = int(getattr(result, "tool_calls", 0) or 0)
+    else:
+        tool_calls = int(getattr(result, "graph_tool_calls", 0) or 0) + int(
+            getattr(result, "actual_shell_commands", 0) or 0)
+    if hasattr(result, "files_inspected"):
+        files_inspected = int(getattr(result, "files_inspected", 0) or 0)
+    else:
+        files = set(getattr(result, "revealed_files", ()) or ())
+        files.update(getattr(result, "actual_shell_files_touched", ()) or ())
+        files_inspected = len(files)
     return ArmMetrics(
         verdicts=_verdicts(result), cost_usd=float(getattr(result, "cost_usd", 0.0) or 0.0),
         input_tokens=int(getattr(result, "input_tokens", 0) or 0),
         output_tokens=int(getattr(result, "output_tokens", 0) or 0),
-        tool_calls=int(getattr(result, "tool_calls",
-                               getattr(result, "graph_tool_calls", 0)) or 0),
-        files_inspected=int(getattr(result, "files_inspected",
-                                    len(getattr(result, "revealed_files", ()))) or 0),
+        tool_calls=tool_calls,
+        files_inspected=files_inspected,
         wall_clock_s=float(getattr(result, "wall_clock_s", 0.0) or 0.0),
     )
 

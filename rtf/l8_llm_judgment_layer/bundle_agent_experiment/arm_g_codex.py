@@ -15,6 +15,7 @@ report, not hidden.
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import signal
@@ -194,6 +195,41 @@ def _kill_process_tree(pid: int, grace_s: float = 2.0) -> None:
         pass
 
 
+def recover_codex_rollout(home: Path) -> tuple[str, int, int, int]:
+    """Recover the final response and cumulative usage from Codex's rollout.
+
+    Codex CLI 0.147 can complete successfully without flushing either the
+    requested ``-o`` file or the final events to ``--json`` stdout.  Its
+    canonical session rollout still contains both values.  Returning empty
+    values when no usable rollout exists keeps this a safe, best-effort
+    compatibility fallback.
+    """
+    rollouts = sorted(
+        (home / ".codex" / "sessions").glob("**/rollout-*.jsonl"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not rollouts:
+        return "", 0, 0, 0
+
+    final_text = ""
+    input_tokens = cached_input_tokens = output_tokens = 0
+    for line in rollouts[0].read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        payload = event.get("payload") or {}
+        if event.get("type") == "event_msg" and payload.get("type") == "task_complete":
+            final_text = payload.get("last_agent_message", final_text)
+        if event.get("type") == "event_msg" and payload.get("type") == "token_count":
+            usage = (payload.get("info") or {}).get("total_token_usage") or {}
+            input_tokens = int(usage.get("input_tokens", input_tokens) or 0)
+            cached_input_tokens = int(usage.get("cached_input_tokens", cached_input_tokens) or 0)
+            output_tokens = int(usage.get("output_tokens", output_tokens) or 0)
+    return final_text, input_tokens, cached_input_tokens, output_tokens
+
+
 def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Path,
                       api_key: str, model: str, case_id: str,
                       entry_file: Path, repo_root: Path, candidate_location: str,
@@ -340,7 +376,6 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
                 _kill_process_tree(proc.pid)
     wall_clock_s = time.time() - start
 
-    import json
     commands: list[str] = []
     files_touched: list[str] = []
     input_tokens = cached_input_tokens = output_tokens = 0
@@ -366,6 +401,12 @@ def run_arm_g_bundle(*, codex_bin: Path, python_bin: Path, mcp_server_script: Pa
                 input_tokens = usage.get("input_tokens", input_tokens)
                 cached_input_tokens = usage.get("cached_input_tokens", cached_input_tokens)
                 output_tokens = usage.get("output_tokens", output_tokens)
+
+    rollout_text, rollout_input, rollout_cached, rollout_output = recover_codex_rollout(home)
+    if not agent_message_text:
+        agent_message_text = rollout_text
+    if input_tokens == cached_input_tokens == output_tokens == 0:
+        input_tokens, cached_input_tokens, output_tokens = rollout_input, rollout_cached, rollout_output
 
     final_text = out_path.read_text(encoding="utf-8", errors="replace") if out_path.exists() else agent_message_text
     final_decision = _extract_last_fenced_json(final_text)

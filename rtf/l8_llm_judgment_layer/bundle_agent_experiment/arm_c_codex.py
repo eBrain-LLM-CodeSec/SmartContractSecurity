@@ -143,23 +143,27 @@ Explicitly unresolved facts noted by the tool that produced this evidence:
 
 
 def _extract_last_fenced_json(text: str) -> dict | None:
-    fence = "```"
-    first_open = text.find(fence)
-    last_close = text.rfind(fence)
-    if first_open == -1 or first_open == last_close:
-        return None
-    body = text[first_open + len(fence):last_close]
-    first_newline = body.find("\n")
-    if first_newline != -1 and body[:first_newline].strip().isalpha():
-        body = body[first_newline + 1:]
-    try:
-        return json.loads(body.strip())
-    except json.JSONDecodeError:
+    """Return the last valid JSON object in a Markdown code fence.
+
+    Agent responses commonly contain an explanatory Solidity/Python fence
+    before their final JSON fence.  Pair fences rather than spanning from
+    the first opening fence to the last closing fence.
+    """
+    parts = text.split("```")
+    for body in reversed(parts[1::2]):
+        first_newline = body.find("\n")
+        if first_newline != -1 and body[:first_newline].strip().isalpha():
+            body = body[first_newline + 1:]
         try:
-            obj, _ = json.JSONDecoder().raw_decode(body.strip())
-            return obj
+            parsed = json.loads(body.strip())
         except json.JSONDecodeError:
-            return None
+            try:
+                parsed, _ = json.JSONDecoder().raw_decode(body.strip())
+            except json.JSONDecodeError:
+                continue
+        if isinstance(parsed, dict):
+            return parsed
+    return None
 
 
 def _extract_touched_files(command: str) -> list[str]:
@@ -167,7 +171,9 @@ def _extract_touched_files(command: str) -> list[str]:
     for pat in _FILE_READ_CMD_PATTERNS:
         m = pat.search(command)
         if m:
-            touched.append(m.group(1).strip("'\""))
+            candidate = m.group(1).strip("'\"")
+            if not candidate.startswith("-"):
+                touched.append(candidate)
     return touched
 
 
