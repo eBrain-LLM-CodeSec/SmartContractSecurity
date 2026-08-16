@@ -31,8 +31,12 @@ def check(name: str, condition: bool, detail: str = "") -> None:
 def test_build_codex_prompt_inputs_carries_exception_text_for_real_requirement():
     """req-1-no-tx.origin's real corpus record has a real, non-empty
     `overriding_requirements`/`exceptions_referenced` entry
-    (req-3-verify-tx.origin) -- this must now reach `requirement_text`,
-    not just the bare normative sentence."""
+    (req-3-verify-tx.origin) -- this must now reach
+    `requirement_context_text` (the field actually sent to Codex), not
+    just the bare normative sentence. `requirement_text` itself must stay
+    BARE (it feeds `expand_investigation_instances`' clause-splitter --
+    a real regression this session found and fixed: inflating that field
+    instead corrupted clause-splitting on an unrelated live test)."""
     result = RoutedRequirementResult(
         req_id="req-1-no-tx.origin",
         applicability_state=ApplicabilityState.APPLICABLE,
@@ -51,14 +55,19 @@ def test_build_codex_prompt_inputs_carries_exception_text_for_real_requirement()
         inputs.requirement_text,
     )
     check(
-        "requirement_text now carries the exception cross-reference (was previously dropped)",
-        "req-3-verify-tx.origin" in inputs.requirement_text,
+        "requirement_text stays BARE -- no markdown headers leak into the clause-splitter input",
+        "##" not in inputs.requirement_text,
         inputs.requirement_text,
     )
     check(
-        "requirement_text explanatory text (SWC-115) now included",
-        "SWC-115" in inputs.requirement_text,
-        inputs.requirement_text,
+        "requirement_context_text carries the exception cross-reference (was previously dropped)",
+        "req-3-verify-tx.origin" in inputs.requirement_context_text,
+        inputs.requirement_context_text,
+    )
+    check(
+        "requirement_context_text explanatory text (SWC-115) now included",
+        "SWC-115" in inputs.requirement_context_text,
+        inputs.requirement_context_text,
     )
 
 

@@ -260,6 +260,23 @@ def categorize_generated_clause(clause_text: str) -> ReasoningCategory | None:
     return None
 
 
+def requirements_in_category(category: ReasoningCategory) -> tuple[str, ...]:
+    """Reverse lookup over `REQ_ID_TO_CATEGORY` -- every static-corpus
+    req_id sharing `category`, sorted for determinism. Used by
+    `property_grounding.py` (RTF_V3_REDESIGN_PLAN.md Phase 4) to find
+    candidate PARENT EthTrust requirements for a semantic property that
+    shares the same reasoning shape, without inventing a second mapping:
+    a semantic property's `reasoning_category` (via `semantic_taxonomy.
+    map_property_type_to_reasoning_category`) already uses these exact
+    category values, so this is a pure reuse of the existing taxonomy,
+    not a new heuristic. Returns () for `AGGREGATION_META` and any
+    category with no static-corpus member (the 3 "RTF v2 additions"
+    categories module-documented above as having no matching static
+    requirement by design -- an empty result there is correct, not a
+    gap)."""
+    return tuple(sorted(req_id for req_id, cat in REQ_ID_TO_CATEGORY.items() if cat == category))
+
+
 def is_unsafe_combination(categories: set[ReasoningCategory]) -> bool:
     """True if ANY pair within `categories` is a listed unsafe
     combination -- checked pairwise, not just "is the whole set a listed

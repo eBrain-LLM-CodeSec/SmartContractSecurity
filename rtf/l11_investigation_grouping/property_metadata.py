@@ -156,6 +156,23 @@ class PropertyMetadata:
     `property_grounding.ground_semantic_property` for how this gets
     populated and why an ungrounded property is rejected rather than kept
     with an empty tuple here."""
+    parent_requirement_id: str | None = None
+    """RTF_V3_REDESIGN_PLAN.md Phase 4: for a `"code_semantics"` property
+    (which has no pre-existing `requirement_id` of its own -- see
+    `source_kind`), the static-corpus `req_id` of a REAL EthTrust
+    requirement sharing this property's `reasoning_category`, when one
+    exists (`taxonomy.requirements_in_category`, deterministic, no LLM).
+    `None` when no static requirement shares this property's category --
+    a real, legitimate case (RTF_V2_ARCHITECTURE.md's "RTF v2 additions"
+    categories have no static-corpus member by design), NOT an error.
+    Always `None` for `"ethtrust"`/`"erc_gp"` properties, which already
+    carry their own authoritative `requirement_id`. When set, the
+    investigator must be shown BOTH this property's own statement AND
+    the parent's full official obligation, and a PASS verdict must
+    address both (see `context_artifacts.generate_cluster_plan_md` and
+    `cluster_response_validation.parent_obligation_check_is_sufficient`)
+    -- the concrete fix for the brief's "generated property narrows/
+    replaces the original requirement" failure mode."""
 
 
 def _structured_symbols_and_types(evidence: EvidenceItem | None) -> tuple[tuple[str, ...], tuple[str, ...]]:

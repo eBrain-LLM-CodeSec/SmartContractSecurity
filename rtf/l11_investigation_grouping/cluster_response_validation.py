@@ -140,6 +140,42 @@ def property_counterexample_is_sufficient(property_result: dict) -> tuple[bool, 
     return True, None
 
 
+_TRIVIAL_PARENT_CHECK_VALUES = frozenset({
+    "n/a", "n/a - no parent requirement linked", "none", "-", "na",
+})
+"""Case-insensitive-compared placeholder values that don't count as a
+real `parent_obligation_check` answer WHEN a parent obligation actually
+is linked -- the schema's own literal escape hatch text
+("N/A - no parent requirement linked") is legitimate ONLY when there is
+in fact no parent; reusing that same phrase to dodge a real parent link
+is exactly the placeholder-answer failure mode `_MIN_MEANINGFUL_LENGTH`
+already guards against elsewhere in this module."""
+
+
+def parent_obligation_check_is_sufficient(
+    property_result: dict, has_parent_requirement: bool,
+) -> tuple[bool, str | None]:
+    """RTF_V3_REDESIGN_PLAN.md Phase 4: harness-side enforcement that a
+    PASS on a property WITH a linked parent EthTrust requirement
+    (`PropertyMetadata.parent_requirement_id`) actually engaged that
+    broader obligation, not just its own narrow derived statement --
+    the concrete fix for the brief's "generated property narrows/
+    replaces the original requirement" failure mode. Same shape/
+    discipline as `property_counterexample_is_sufficient` above: only
+    meaningful for `verdict == "PASS"`; always (True, None) otherwise
+    AND always (True, None) when this property has no parent requirement
+    at all (nothing to dual-check).
+    """
+    if not has_parent_requirement or property_result.get("verdict") != "PASS":
+        return True, None
+    check = property_result.get("parent_obligation_check")
+    if not isinstance(check, str) or len(check.strip()) < _MIN_MEANINGFUL_LENGTH:
+        return False, "parent_obligation_check_missing_or_too_thin"
+    if check.strip().lower() in _TRIVIAL_PARENT_CHECK_VALUES:
+        return False, "parent_obligation_check_falsely_claims_no_parent"
+    return True, None
+
+
 @dataclass(frozen=True)
 class PropertyVerdict:
     conformance_state: ConformanceState
@@ -149,7 +185,7 @@ class PropertyVerdict:
     `codex_bridge.resolve_conformance_from_arm_g` already uses."""
 
 
-def resolve_property_verdicts(response: dict) -> dict[str, PropertyVerdict]:
+def resolve_property_verdicts(response: dict, properties_by_id: dict | None = None) -> dict[str, PropertyVerdict]:
     """Resolves EVERY property entry present in `response["properties"]`
     to a `PropertyVerdict`, applying counterexample-before-PASS
     enforcement per property. Callers should check
@@ -157,6 +193,11 @@ def resolve_property_verdicts(response: dict) -> dict[str, PropertyVerdict]:
     only resolves what's present, it does not itself detect missing
     property_ids (a missing property simply has no entry here at all,
     which is exactly what `validate_cluster_response` is for).
+
+    `properties_by_id`, when given (a `{property_id: PropertyMetadata}`
+    map -- purely additive, default `None` preserves prior behavior
+    exactly), additionally applies `parent_obligation_check_is_sufficient`
+    for any property whose metadata carries a `parent_requirement_id`.
     """
     resolved: dict[str, PropertyVerdict] = {}
     for entry in response.get("properties", []):
@@ -172,6 +213,12 @@ def resolve_property_verdicts(response: dict) -> dict[str, PropertyVerdict]:
             continue
         if state == ConformanceState.PASS:
             sufficient, reason = property_counterexample_is_sufficient(entry)
+            if not sufficient:
+                resolved[pid] = PropertyVerdict(ConformanceState.INCONCLUSIVE, f"insufficient_reasoning_rigor:{reason}")
+                continue
+            meta = (properties_by_id or {}).get(pid)
+            has_parent = bool(getattr(meta, "parent_requirement_id", None))
+            sufficient, reason = parent_obligation_check_is_sufficient(entry, has_parent)
             if not sufficient:
                 resolved[pid] = PropertyVerdict(ConformanceState.INCONCLUSIVE, f"insufficient_reasoning_rigor:{reason}")
                 continue

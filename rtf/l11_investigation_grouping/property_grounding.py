@@ -33,6 +33,7 @@ from dataclasses import dataclass, replace
 from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata, _slither_enrichment
 from rtf.l11_investigation_grouping.semantic_property_generation import ProjectManifest, RawSemanticProperty
 from rtf.l11_investigation_grouping.semantic_taxonomy import map_property_type_to_reasoning_category
+from rtf.l11_investigation_grouping.taxonomy import requirements_in_category
 
 # Defense-in-depth against the task brief's own literal banned examples and
 # close variants -- checked in ADDITION to (not instead of) the real
@@ -135,6 +136,17 @@ def ground_semantic_property(
         *(f"affected_contract:{c}" for c in raw.affected_contracts if not raw.affected_functions),
     ]))
 
+    reasoning_category = map_property_type_to_reasoning_category(raw.property_type, raw.statement)
+    parent_requirement_id: str | None = None
+    if reasoning_category is not None:
+        candidates = requirements_in_category(reasoning_category)
+        if candidates:
+            # Deterministic (sorted, first-wins), not an LLM choice --
+            # RTF_V3_REDESIGN_PLAN.md Phase 4: attach a REAL static-corpus
+            # requirement sharing this property's reasoning shape as its
+            # parent EthTrust obligation, when one exists.
+            parent_requirement_id = candidates[0]
+
     return PropertyMetadata(
         property_id=f"{requirement_id}::loc0",
         requirement_id=requirement_id,
@@ -152,7 +164,7 @@ def ground_semantic_property(
         relevant_constants=constants,
         callgraph_neighbors=(),
         inheritance_context=inheritance,
-        reasoning_category=map_property_type_to_reasoning_category(raw.property_type, raw.statement),
+        reasoning_category=reasoning_category,
         estimated_complexity=None,
         source_provenance=f"semantic_derivation; property_type={raw.property_type}; source_refs={list(raw.source_refs)}",
         requirement_explanatory_text=raw.rationale,
@@ -162,6 +174,7 @@ def ground_semantic_property(
         confidence=raw.confidence,
         rationale=raw.rationale,
         grounding_evidence=grounding_evidence,
+        parent_requirement_id=parent_requirement_id,
     )
 
 

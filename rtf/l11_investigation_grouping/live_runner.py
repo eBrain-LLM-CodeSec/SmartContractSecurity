@@ -144,11 +144,31 @@ def prepare_cluster_investigations(
         )
 
     corpus = corpus_by_req_id()
+    # RTF_V3_REDESIGN_PLAN.md Phase 4: also render context for every
+    # PARENT requirement a semantic property links to (`parent_requirement_
+    # id`), not just each property's own `requirement_id` -- a semantic
+    # property's own req_id is a synthetic hash with no real corpus entry
+    # (see `property_grounding.py`'s fallback record below), so without
+    # this its "requirement context" would be nothing but a restatement of
+    # its own derived statement. The parent_requirement_id, when set, IS a
+    # real static-corpus req_id, so `corpus.get(...)` resolves it to the
+    # genuine official EthTrust text via the same, already-fixed
+    # `generate_requirement_context_md` renderer -- no special-casing.
+    all_req_ids = {p.requirement_id for p in properties} | {
+        p.parent_requirement_id for p in properties if p.parent_requirement_id
+    }
     requirement_context_by_req_id: dict[str, str] = {}
-    for req_id in sorted({p.requirement_id for p in properties}):
+    for req_id in sorted(all_req_ids):
         record = corpus.get(req_id)
         if record is None:
-            rep = next(p for p in properties if p.requirement_id == req_id)
+            rep = next((p for p in properties if p.requirement_id == req_id), None)
+            if rep is None:
+                # A `parent_requirement_id` not resolvable in EITHER the
+                # corpus or the property pool (corpus/taxonomy drift) --
+                # skip rather than crash; this req_id was only a
+                # supplementary parent link, not something anything else
+                # depends on existing.
+                continue
             record = {
                 "req_id": req_id, "level": rep.requirement_level or "GP",
                 "title": rep.requirement_semantic_intent or req_id,
@@ -392,13 +412,22 @@ def run_cluster_investigations_live(
         total_cost += checkpoint_cost
 
     def _prepare(cluster: Cluster) -> dict:
-        req_ids_in_cluster = sorted({properties_by_id[pid].requirement_id for pid in cluster.property_ids})
+        # Include each member property's PARENT requirement id too (Phase
+        # 4) -- otherwise the parent's context markdown, even though
+        # `requirement_context_by_req_id` already has it, would never
+        # actually be written to `extra_files`/linked in the cluster plan.
+        req_ids_in_cluster = sorted({properties_by_id[pid].requirement_id for pid in cluster.property_ids} | {
+            properties_by_id[pid].parent_requirement_id for pid in cluster.property_ids
+            if properties_by_id[pid].parent_requirement_id
+        })
         req_context_paths = {rid: f".rtf/context/requirements/{rid}.md" for rid in req_ids_in_cluster}
         plan_path = f".rtf/plans/{cluster.cluster_id}.md"
 
         extra_files = {".rtf/context/protocol_context.md": protocol_context_md}
         for rid in req_ids_in_cluster:
-            extra_files[req_context_paths[rid]] = requirement_context_by_req_id[rid]
+            content = requirement_context_by_req_id.get(rid)
+            if content is not None:
+                extra_files[req_context_paths[rid]] = content
         extra_files[plan_path] = generate_cluster_plan_md(
             cluster, properties_by_id, ".rtf/context/protocol_context.md", req_context_paths,
         )
@@ -432,7 +461,7 @@ def run_cluster_investigations_live(
 
         response = getattr(result, "final_decision", None)
         validation = validate_cluster_response(list(cluster.property_ids), response)
-        resolved = resolve_property_verdicts(response) if isinstance(response, dict) else {}
+        resolved = resolve_property_verdicts(response, properties_by_id) if isinstance(response, dict) else {}
         call_raw_entries: dict[str, dict] = {}
         if isinstance(response, dict):
             for entry in response.get("properties", []):

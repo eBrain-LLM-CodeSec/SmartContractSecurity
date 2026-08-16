@@ -467,7 +467,12 @@ def _run_escalations_concurrent(
             except Exception as e:  # noqa: BLE001 -- resolution failure is informational only, never blocks the agent
                 escalation_skip_reasons[req_id] = f"graph_seed_not_resolved (agent still investigates): {type(e).__name__}: {e}"
 
-            requirement_text = base_prompt_inputs.requirement_text
+            # RTF_V3_REDESIGN_PLAN.md Phase 3 finding 2: the actual prompt
+            # text uses the RICH rendering (`requirement_context_text`),
+            # not the bare `requirement_text` clause-splitting used above
+            # -- see `CodexPromptInputs`'s own docstring for why these
+            # must stay two separate fields.
+            requirement_text = base_prompt_inputs.requirement_context_text
             if instance.focused_clause is not None:
                 requirement_text = (
                     f"{requirement_text}\n\nFor THIS SPECIFIC investigation, focus "
@@ -752,7 +757,7 @@ def run_pipeline_e2e(
                 bundle_record=generated_bundles.get(req_id),
             )
             prompt = build_arm_g_prompt(
-                prompt_inputs.requirement_text, prompt_inputs.context_bundle_text,
+                prompt_inputs.requirement_context_text, prompt_inputs.context_bundle_text,
                 prompt_inputs.candidate_location, prompt_inputs.evidence_bundle_text,
                 prompt_inputs.unresolved_facts,
             )

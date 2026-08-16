@@ -7,8 +7,10 @@ from __future__ import annotations
 import sys
 
 from rtf.l11_investigation_grouping.cluster_response_validation import (
-    property_counterexample_is_sufficient, resolve_property_verdicts, validate_cluster_response,
+    parent_obligation_check_is_sufficient, property_counterexample_is_sufficient,
+    resolve_property_verdicts, validate_cluster_response,
 )
+from rtf.l11_investigation_grouping.property_metadata import PropertyMetadata
 from rtf.l12_evaluation.metrics import ConformanceState
 
 PASSES: list[str] = []
@@ -176,6 +178,105 @@ def test_unknown_verdict_value_resolves_to_inconclusive_with_reason():
     resolved = resolve_property_verdicts({"properties": [entry]})
     check("unknown verdict value: INCONCLUSIVE", resolved["P001"].conformance_state == ConformanceState.INCONCLUSIVE)
     check("unknown verdict value: reason names it", resolved["P001"].reason == "unknown_verdict:MAYBE", resolved["P001"].reason)
+
+
+# --- RTF_V3_REDESIGN_PLAN.md Phase 4: parent_obligation_check gate ----------
+
+def _prop(pid: str, parent_requirement_id: str | None) -> PropertyMetadata:
+    return PropertyMetadata(
+        property_id=pid, requirement_id=f"semantic__accounting__{pid}", requirement_level="SEMANTIC",
+        requirement_semantic_intent="test", property_text="Vault.totalAssets must be correct.",
+        target_contract="Vault", target_function="totalAssets",
+        source_provenance="semantic_derivation", parent_requirement_id=parent_requirement_id,
+    )
+
+
+def test_parent_obligation_check_not_required_when_no_parent_linked():
+    ok, reason = parent_obligation_check_is_sufficient(_entry("P001"), has_parent_requirement=False)
+    check("no parent linked: always sufficient regardless of the field", ok, reason)
+
+
+def test_parent_obligation_check_not_required_for_non_pass_verdicts():
+    ok, reason = parent_obligation_check_is_sufficient(_entry("P001", verdict="FAIL"), has_parent_requirement=True)
+    check("FAIL with parent linked: not required (only PASS is dual-checked)", ok, reason)
+
+
+def test_parent_obligation_check_missing_downgrades_a_pass_with_linked_parent():
+    entry = _entry("P001")  # no parent_obligation_check field at all
+    ok, reason = parent_obligation_check_is_sufficient(entry, has_parent_requirement=True)
+    check("PASS with parent linked but field missing: insufficient", not ok, reason)
+    check("reason names the gap", reason == "parent_obligation_check_missing_or_too_thin", reason)
+
+
+def test_parent_obligation_check_trivial_na_downgrades_when_parent_actually_linked():
+    # Long enough to clear the bare-length check on its own -- this is
+    # specifically the schema's OWN legitimate "no parent" escape-hatch
+    # phrase, reused here despite a real parent being linked -- distinct
+    # from a merely-too-short answer like bare "N/A".
+    entry = _entry("P001", parent_obligation_check="N/A - no parent requirement linked")
+    ok, reason = parent_obligation_check_is_sufficient(entry, has_parent_requirement=True)
+    check("PASS falsely claiming N/A despite a real linked parent: insufficient", not ok, reason)
+    check("reason distinguishes this from a bare missing/thin field", reason == "parent_obligation_check_falsely_claims_no_parent", reason)
+
+
+def test_parent_obligation_check_bare_short_na_caught_by_length_check_first():
+    """A too-short placeholder ("N/A" alone, 3 chars) is caught by the
+    ordinary length floor before ever reaching the trivial-value check --
+    both are real rejections, just via the more fundamental reason."""
+    entry = _entry("P001", parent_obligation_check="N/A")
+    ok, reason = parent_obligation_check_is_sufficient(entry, has_parent_requirement=True)
+    check("bare short N/A still rejected", not ok, reason)
+    check("rejected via the length check, not the trivial-phrase check", reason == "parent_obligation_check_missing_or_too_thin", reason)
+
+
+def test_parent_obligation_check_genuine_na_accepted_when_no_parent_linked():
+    entry = _entry("P001", parent_obligation_check="N/A - no parent requirement linked")
+    ok, reason = parent_obligation_check_is_sufficient(entry, has_parent_requirement=False)
+    check("genuine N/A accepted when there really is no parent", ok, reason)
+
+
+def test_parent_obligation_check_real_engagement_accepted():
+    entry = _entry(
+        "P001",
+        parent_obligation_check=(
+            "Parent req-2-check-rounding also requires no biased rounding; "
+            "confirmed totalAssets rounds down consistently, so the parent "
+            "obligation is also satisfied, not just this property's own statement."
+        ),
+    )
+    ok, reason = parent_obligation_check_is_sufficient(entry, has_parent_requirement=True)
+    check("real engagement with the parent obligation is accepted", ok, reason)
+
+
+def test_resolve_property_verdicts_downgrades_pass_missing_parent_obligation_check():
+    properties_by_id = {"P001": _prop("P001", parent_requirement_id="req-2-check-rounding")}
+    response = {"properties": [_entry("P001")]}  # no parent_obligation_check field
+    resolved = resolve_property_verdicts(response, properties_by_id)
+    check(
+        "PASS on a parent-linked property with no parent_obligation_check downgrades to INCONCLUSIVE",
+        resolved["P001"].conformance_state == ConformanceState.INCONCLUSIVE, resolved["P001"],
+    )
+    check(
+        "downgrade reason is the parent-obligation-specific one",
+        "parent_obligation_check" in (resolved["P001"].reason or ""), resolved["P001"].reason,
+    )
+
+
+def test_resolve_property_verdicts_stays_pass_when_no_parent_linked():
+    properties_by_id = {"P001": _prop("P001", parent_requirement_id=None)}
+    response = {"properties": [_entry("P001")]}
+    resolved = resolve_property_verdicts(response, properties_by_id)
+    check("no parent linked: PASS is not downgraded by the new gate", resolved["P001"].conformance_state == ConformanceState.PASS, resolved["P001"])
+
+
+def test_resolve_property_verdicts_without_properties_by_id_arg_is_unaffected():
+    """Omitting `properties_by_id` entirely (every pre-existing caller,
+    and any future caller that doesn't have it) must behave EXACTLY as
+    before this Phase 4 change -- no parent-obligation gate applied at
+    all, since there's nothing to know a parent even exists."""
+    response = {"properties": [_entry("P001")]}
+    resolved = resolve_property_verdicts(response)
+    check("no properties_by_id given: PASS stays PASS, prior behavior preserved", resolved["P001"].conformance_state == ConformanceState.PASS, resolved["P001"])
 
 
 def main() -> int:

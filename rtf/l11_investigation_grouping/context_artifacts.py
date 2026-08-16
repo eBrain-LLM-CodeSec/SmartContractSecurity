@@ -331,6 +331,19 @@ def generate_cluster_plan_md(
         req_ctx_path = requirement_context_paths.get(m.requirement_id)
         if req_ctx_path:
             lines.append(f"- Requirement context: `{req_ctx_path}`")
+        parent_req_id = getattr(m, "parent_requirement_id", None)
+        if parent_req_id:
+            parent_ctx_path = requirement_context_paths.get(parent_req_id)
+            lines.append(
+                f"- **Parent EthTrust obligation**: `{parent_req_id}`"
+                + (f" (full official text: `{parent_ctx_path}`)" if parent_ctx_path else "")
+                + " -- this derived property is ONE concrete angle on that"
+                " broader obligation, not a replacement for it. A PASS on"
+                " this property alone is NOT sufficient: also determine"
+                " whether the parent requirement's own obligation is"
+                " violated by a narrower reading of the same code. Report"
+                " this in `parent_obligation_check` below."
+            )
         for note in m.related_out_of_scope_context:
             lines.append(f"- {note}")
         lines.append("")
@@ -358,10 +371,22 @@ def generate_cluster_plan_md(
   "counterexample_result": "...",
   "reasoning": "...",
   "vulnerable_location": "... (if applicable, else null)",
-  "confidence": "HIGH | MEDIUM | LOW"
+  "confidence": "HIGH | MEDIUM | LOW",
+  "parent_obligation_check": "..."
 }
 ```
 """)
+    lines.append(
+        "`parent_obligation_check`: for a property listing a **Parent"
+        " EthTrust obligation** above, state explicitly whether that"
+        " broader obligation (read its full text at the linked path, not"
+        " just this property's own derived statement) is ALSO satisfied --"
+        " a property can PASS its own narrow statement while the parent"
+        " requirement is still violated by a different aspect of the same"
+        " code; if so, the correct verdict for THIS property is FAIL, not"
+        " PASS. For a property with no listed parent obligation, write"
+        " exactly `\"N/A - no parent requirement linked\"`.\n"
+    )
     lines.append(
         "A PASS for one property is NOT evidence for another. Every"
         " property requires its own explicit counterexample search"

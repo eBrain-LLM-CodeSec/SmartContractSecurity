@@ -231,6 +231,44 @@ def test_cluster_plan_includes_requirement_context_reference_when_given():
     check("requirement context path referenced", ".rtf/context/requirements/req-3-all-valid-inputs.md" in md, md)
 
 
+# --- RTF_V3_REDESIGN_PLAN.md Phase 4: parent EthTrust obligation link -----
+
+def test_cluster_plan_flags_parent_obligation_when_semantic_property_has_one():
+    a = _prop(
+        "p1", requirement_id="semantic__accounting__abc123", requirement_level="SEMANTIC",
+        source_provenance="semantic_derivation", parent_requirement_id="req-2-check-rounding",
+    )
+    cluster = Cluster(cluster_id="cluster_007", property_ids=("p1",), grouping_reason=(),
+                       shared_context={}, estimated_context_size=1)
+    md = generate_cluster_plan_md(
+        cluster, {"p1": a}, "protocol_context.md",
+        {"req-2-check-rounding": ".rtf/context/requirements/req-2-check-rounding.md"},
+    )
+    check("parent obligation line present", "Parent EthTrust obligation" in md, md)
+    check("parent req_id named", "req-2-check-rounding" in md, md)
+    check("parent context file path linked", ".rtf/context/requirements/req-2-check-rounding.md" in md, md)
+    check("schema includes parent_obligation_check field", "parent_obligation_check" in md, md)
+    check("dual-satisfaction instruction present", "not sufficient" in md.lower(), md)
+
+
+def test_cluster_plan_omits_parent_obligation_line_when_none_linked():
+    a = _prop("p1", requirement_id="req-a")  # default PropertyMetadata: parent_requirement_id=None
+    cluster = Cluster(cluster_id="cluster_008", property_ids=("p1",), grouping_reason=(),
+                       shared_context={}, estimated_context_size=1)
+    md = generate_cluster_plan_md(cluster, {"p1": a}, "protocol_context.md", {})
+    # The literal phrase "Parent EthTrust obligation" also appears inside
+    # the ALWAYS-present schema-field description below the JSON block
+    # (it explains what the field means in general) -- the per-property
+    # marker line uses the bolded bullet form specifically, so check for
+    # THAT, not the bare phrase, to distinguish "this property has a
+    # parent" from "the schema mentions parents in general."
+    check("no per-property parent-obligation bullet for a property with no linked parent", "- **Parent EthTrust obligation**:" not in md, md)
+    # The schema field itself is always present (uniform schema across all
+    # properties in a cluster -- see the module's own field description),
+    # but nothing in THIS property's own block claims a parent exists.
+    check("schema field still documented generically (not property-specific)", "parent_obligation_check" in md, md)
+
+
 # --- generate_protocol_context_md (real compiled fixture) -----------------
 
 _PROTOCOL_SOURCE = """// SPDX-License-Identifier: MIT

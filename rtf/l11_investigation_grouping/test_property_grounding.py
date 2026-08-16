@@ -70,6 +70,42 @@ def test_ground_accepts_a_well_formed_property():
           any("erc4626-totalassets-must-include-fees" in e for e in md.grounding_evidence), md.grounding_evidence)
 
 
+# --- RTF_V3_REDESIGN_PLAN.md Phase 4: parent_requirement_id attachment -----
+
+def test_ground_attaches_a_real_parent_requirement_when_category_has_static_members():
+    """"accounting" -> ARITHMETIC_VALUE_CORRECTNESS, a category with real
+    static-corpus members (e.g. req-2-check-rounding) -- the semantic
+    property must NOT be left parentless when a genuine EthTrust
+    obligation shares its reasoning shape."""
+    md = ground_semantic_property(_raw(), _MANIFEST)
+    check("ground: parent_requirement_id is set", md.parent_requirement_id is not None, md.parent_requirement_id)
+    check(
+        "ground: parent_requirement_id is a REAL static-corpus id, not the property's own synthetic id",
+        md.parent_requirement_id != md.requirement_id and not md.parent_requirement_id.startswith("semantic__"),
+        md.parent_requirement_id,
+    )
+
+
+def test_ground_leaves_parent_requirement_id_none_for_a_category_with_no_static_member():
+    """"state_consistency" -> STATE_CONSISTENCY, one of the "RTF v2
+    additions" categories the taxonomy module itself documents as having
+    NO static-corpus requirement -- must stay a real, honest None, not a
+    forced/guessed attachment to an unrelated requirement."""
+    raw = _raw(
+        property_type="state_consistency",
+        statement="Vault.totalAssets and FeeManager.accruedFees must remain mutually consistent across calls.",
+    )
+    md = ground_semantic_property(raw, _MANIFEST)
+    check("ground: reasoning_category is STATE_CONSISTENCY", md.reasoning_category == ReasoningCategory.STATE_CONSISTENCY, md.reasoning_category)
+    check("ground: parent_requirement_id stays None (no static requirement shares this shape)", md.parent_requirement_id is None, md.parent_requirement_id)
+
+
+def test_ground_parent_requirement_id_is_deterministic_across_calls():
+    md1 = ground_semantic_property(_raw(), _MANIFEST)
+    md2 = ground_semantic_property(_raw(), _MANIFEST)
+    check("ground: parent_requirement_id is deterministic, not randomly chosen", md1.parent_requirement_id == md2.parent_requirement_id, (md1.parent_requirement_id, md2.parent_requirement_id))
+
+
 def test_ground_target_falls_back_to_contract_when_no_functions_named():
     raw = _raw(affected_functions=(), statement="FeeManager must track accruedFees accurately at all times.")
     result = ground_semantic_property(raw, _MANIFEST)

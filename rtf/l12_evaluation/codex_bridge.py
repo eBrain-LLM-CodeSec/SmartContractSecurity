@@ -42,6 +42,23 @@ def corpus_by_req_id() -> dict[str, dict]:
 @dataclass(frozen=True)
 class CodexPromptInputs:
     requirement_text: str
+    """The BARE normative sentence (or `bundle["self"]` fallback) --
+    deliberately kept minimal, NOT the rich rendered context, because
+    `derive_investigations.expand_investigation_instances` clause-splits
+    this exact string on sentence boundaries (see
+    `build_property_pool`/`pipeline_e2e.py`'s instance-expansion call
+    sites) -- feeding it a full Markdown block with headers/exceptions/
+    provenance sections would corrupt clause-splitting (found live,
+    RTF_V3_REDESIGN_PLAN.md Phase 4 regression check: `test_live_runner.
+    test_build_property_pool_multi_location_requirement_expands_into_
+    multiple_properties` silently lost one location's instance the one
+    time this field was made richer instead of adding a separate one)."""
+    requirement_context_text: str
+    """The RICH rendering (`context_artifacts.generate_requirement_
+    context_md` -- normative + explanatory + exceptions/overriding/
+    referenced requirements, see RTF_V3_REDESIGN_PLAN.md Phase 3 finding
+    2) -- this is what should actually reach the Codex prompt via
+    `build_arm_g_prompt`, never `requirement_text` above."""
     context_bundle_text: str
     candidate_location: str
     evidence_bundle_text: str
@@ -96,19 +113,20 @@ def build_codex_prompt_inputs(
         bundle_record = json.loads(bundle_path.read_text(encoding="utf-8"))
     bundle = bundle_record["bundle"]
 
-    # RTF_V3_REDESIGN_PLAN.md finding 2 (fixed): this used to forward only
-    # the bare `normative_text`, dropping `explanatory_text`/exceptions/
-    # overriding-requirements/referenced-requirements even though the
-    # corpus carries all of them. Now reuses the SAME renderer the L11
-    # grouped pipeline uses (`context_artifacts.generate_requirement_
-    # context_md`) so this older, still-live single-property path (used by
-    # `pilot5_driver.py`'s main loop) gets the identical fidelity, with no
-    # second, possibly-drifting rendering to maintain. `requirement_record`
-    # falls back to `{}` (renders as "<unknown>"/empty fields) only if the
-    # req_id truly isn't in the corpus, matching the prior fallback to
-    # `bundle["self"]` in spirit -- still non-empty, still evidence-rankable.
     requirement_record = corpus_by_req_id().get(req_id, {})
-    requirement_text = (
+    requirement_text = requirement_record.get("normative_text", bundle["self"])
+    # RTF_V3_REDESIGN_PLAN.md finding 2 (fixed): the actual Codex-facing
+    # prompt used to get only this bare `normative_text`, dropping
+    # `explanatory_text`/exceptions/overriding-requirements/referenced-
+    # requirements even though the corpus carries all of them. Now reuses
+    # the SAME renderer the L11 grouped pipeline uses (`context_artifacts.
+    # generate_requirement_context_md`) so this older, still-live single-
+    # property path (used by `pilot5_driver.py`'s main loop) gets the
+    # identical fidelity -- via the SEPARATE `requirement_context_text`
+    # field below, not by inflating `requirement_text` itself (that field
+    # is also clause-split by `expand_investigation_instances`, which
+    # needs the bare sentence -- see `CodexPromptInputs`'s own docstring).
+    requirement_context_text = (
         generate_requirement_context_md(requirement_record, explanatory_text=requirement_record.get("explanatory_text") or None)
         if requirement_record
         else bundle["self"]
@@ -122,6 +140,7 @@ def build_codex_prompt_inputs(
 
     return CodexPromptInputs(
         requirement_text=requirement_text,
+        requirement_context_text=requirement_context_text,
         context_bundle_text=context_bundle_text,
         candidate_location=candidate_location,
         evidence_bundle_text=evidence_bundle_text,
