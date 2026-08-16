@@ -427,23 +427,20 @@ coverage is future work, disclosed as such (§H).
 
 ---
 
-## Representative first slice (Phase 2 target)
+## Representative first slice (Phase 2 target) — FINAL, as implemented
 
-Chosen to exercise each of the task's 6 required categories using REAL
-corpus `req_id`s (not invented):
+Phase 2's audit script surfaced `req-3-all-valid-inputs` ("Process All
+Inputs" — "Tested Code MUST validate inputs, and function correctly
+whether the input is as designed or malformed") as the real corpus
+requirement for category 2, better than this document's original
+placeholder guess (`req-2-check-rounding`). Final slice, all 6 now
+implemented + conformance-tested (Phase 7) — see
+`RTF_V3_IMPLEMENTATION_STATUS_REPORT.md` for full results:
 
 1. Block data / semantic-value cross-boundary: `req-2-block-data-misuse`
-2. Processing/validating inputs: `req-2-check-rounding` (division/value-
-   context) as the general domain-validation exemplar, since no single
-   corpus req is titled "validate inputs" generically — confirmed by
-   corpus keyword search in Phase 2 below.
+2. Processing/validating inputs: `req-3-all-valid-inputs`
 3. Gas usage with growing data structures: `req-3-enough-gas`
-4. Access control: `req-2-signature-verification` /
-   `req-1-use-c-e-i`-adjacent access-control corpus entries (finalized in
-   Phase 2's script output)
+4. Access control: `req-3-access-control` ("Enforce Least Privilege")
 5. External calls: `req-2-external-calls`
 6. One straightforward static requirement: `req-1-no-tx.origin`
    (`DETERMINISTIC_COMPLETE`, zero-LLM, simplest possible conformance case)
-
-Phase 2's audit script output is the authority for the final list; this is
-the working hypothesis used to scope Phase 7 fixtures.
