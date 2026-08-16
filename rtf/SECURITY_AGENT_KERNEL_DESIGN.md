@@ -618,6 +618,11 @@ real spend**.
    the 7 fixture pairs listed in §2, each asserting the expected verdict
    AND the expected *behavior* (counterexample attempted, cross-contract
    traversal happened), not just the final PASS/FAIL.
+   **Implemented:** seven requirement-derived, benchmark-independent
+   fixtures cover cross-contract mismatch/safe alignment, missing/safe
+   input validation, unbounded/bounded growth, and missing access control.
+   Real Slither-backed tools plus a deterministic model script assert 24
+   verdict/behavior properties, with a benchmark-identifier leakage check.
 9. **Live single-cluster integration test** (brief Phase 15) — small,
    explicit-go-ahead-required real spend, repeated a few times for
    variance, before any larger run.
