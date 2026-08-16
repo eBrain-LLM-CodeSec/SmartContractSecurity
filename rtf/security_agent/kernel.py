@@ -9,7 +9,7 @@ blocking reasons; FAIL remains CEIV/evidence-gated without PASS-only rules.
 from __future__ import annotations
 
 import json
-from typing import Literal
+from typing import Callable, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -128,12 +128,14 @@ class SecurityAgentKernel:
     def __init__(self, tools: SecurityAgentTools, model_client: ModelClient,
                  max_steps: int = DEFAULT_MAX_STEPS,
                  max_malformed_retries: int = DEFAULT_MAX_MALFORMED_RETRIES,
-                 enforce_completion: bool = True):
+                 enforce_completion: bool = True,
+                 event_sink: Callable[[str, dict], None] | None = None):
         self.tools = tools
         self.model_client = model_client
         self.max_steps = max_steps
         self.max_malformed_retries = max_malformed_retries
         self.enforce_completion = enforce_completion
+        self.event_sink = event_sink
 
     def run_cluster(
         self, cluster_id: str, property_ids: list[str],
@@ -149,6 +151,7 @@ class SecurityAgentKernel:
         one_shared_state_object for the state-layer version of this same
         check)."""
         state = ClusterInvestigationState.initial(cluster_id, property_ids, parent_requirement_ids)
+        self._emit("cluster_started", {"cluster_id": cluster_id, "property_ids": property_ids})
         messages: list[dict] = [
             {"role": "system", "content": build_system_prompt()},
             {"role": "user", "content": build_initial_user_message(
@@ -160,9 +163,11 @@ class SecurityAgentKernel:
             try:
                 turn = self.model_client.decide(messages)
             except MalformedModelResponse as e:
+                self._emit("malformed_model_response", {"errors": e.errors, "raw": e.raw})
                 malformed_retries += 1
                 if malformed_retries > self.max_malformed_retries:
                     self._finalize_unresolved(state, property_ids, "kernel_malformed_response_exhausted")
+                    self._emit("cluster_finished", {"reason": "kernel_malformed_response_exhausted"})
                     return state
                 messages.append({"role": "assistant", "content": json.dumps(e.raw)})
                 messages.append({"role": "user", "content":
@@ -171,6 +176,8 @@ class SecurityAgentKernel:
                 continue
 
             self._record_token_usage(state, turn.chat_result)
+            self._emit("model_action", {"action": turn.raw,
+                                         "token_usage": state.token_usage.model_dump()})
             messages.append({"role": "assistant", "content": json.dumps(turn.raw)})
 
             if isinstance(turn.parsed, ConcludeAction):
@@ -183,8 +190,12 @@ class SecurityAgentKernel:
                         "Conclusion rejected by the mechanical completion gate: "
                         + "; ".join(completion.blocking_reasons)
                         + ". Continue investigating and update structured state before concluding again."})
+                    self._emit("conclusion_rejected", {"blocking_reasons": completion.blocking_reasons})
                     continue
                 state = proposed
+                self._emit("cluster_finished", {"reason": "concluded",
+                                                 "verdicts": {pid: rs.status.value
+                                                              for pid, rs in state.requirement_states.items()}})
                 return state
 
             if isinstance(turn.parsed, UpdateInvestigationAction):
@@ -192,15 +203,25 @@ class SecurityAgentKernel:
                 state.step_count += 1
                 messages.append({"role": "user", "content":
                     f"Investigation-state update {'rejected: ' + error if error else 'recorded.'}"})
+                self._emit("investigation_updated", {"rejected_reason": error,
+                                                      "hypothesis_ids": [h.id for h in turn.parsed.hypotheses],
+                                                      "counterexample_attempts": len(turn.parsed.counterexample_attempts)})
                 continue
 
             action: ToolCallAction = turn.parsed
             result = self.tools.call(action.tool, action.args)
             state.record_tool_call(action.tool, action.args, _summarize_tool_result(result), result)
+            self._emit("tool_result", {"tool": action.tool, "args": action.args,
+                                        "summary": _summarize_tool_result(result)})
             messages.append({"role": "user", "content": f"Tool result for {action.tool}:\n{json.dumps(result)}"})
 
         self._finalize_unresolved(state, property_ids, "max_steps_exhausted")
+        self._emit("cluster_finished", {"reason": "max_steps_exhausted"})
         return state
+
+    def _emit(self, event_type: str, payload: dict) -> None:
+        if self.event_sink is not None:
+            self.event_sink(event_type, payload)
 
     @staticmethod
     def _apply_conclusion(state: ClusterInvestigationState, property_ids: list[str],

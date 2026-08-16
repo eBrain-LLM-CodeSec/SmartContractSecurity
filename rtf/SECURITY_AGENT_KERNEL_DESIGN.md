@@ -611,6 +611,9 @@ real spend**.
    remains intentionally deferred to the explicit live-test gate.
 7. **Observability** (`trajectory.py`) — per-cluster JSONL trajectory,
    matching the existing checkpoint/cost-log conventions.
+   **Implemented:** append-only, monotonically sequenced events cover the
+   model/tool/state/completion lifecycle, while `investigator.py` also
+   persists the full final Pydantic state and exposes aggregate telemetry.
 8. **Deterministic + synthetic fixture tests** (brief Phases 13/14) —
    the 7 fixture pairs listed in §2, each asserting the expected verdict
    AND the expected *behavior* (counterexample attempted, cross-contract

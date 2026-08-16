@@ -14,6 +14,7 @@ from rtf.security_agent.kernel import RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import ModelClient
 from rtf.security_agent.state import ClusterInvestigationState
 from rtf.security_agent.tools import SecurityAgentTools
+from rtf.security_agent.trajectory import TrajectoryWriter
 
 _PROPERTY_HEADING = re.compile(r"^### `([^`]+)`\s*$", re.MULTILINE)
 _PARENT_LINE = re.compile(r"\*\*Parent EthTrust obligation\*\*: `([^`]+)`")
@@ -97,7 +98,9 @@ def run_security_agent_bundle(
         compile_via_foundry=compile_via_foundry, solc_remaps=solc_remaps,
         extra_compile_kwargs=compile_kwargs,
     )
-    kernel = SecurityAgentKernel(tools, ModelClient(chat, RESPONSE_MODELS))
+    trajectory_path = case_root / "trajectory.jsonl"
+    kernel = SecurityAgentKernel(tools, ModelClient(chat, RESPONSE_MODELS),
+                                 event_sink=TrajectoryWriter(trajectory_path))
     state = kernel.run_cluster(
         case_id, property_ids, protocol, requirement_contexts, plan,
         parent_requirement_ids=parent_ids,
@@ -110,7 +113,7 @@ def run_security_agent_bundle(
         final_decision={"properties": state.to_property_verdict_entries()},
         cost_usd=state.token_usage.cost_usd,
         investigation_state=state,
-        trajectory_path=str(state_path),
+        trajectory_path=str(trajectory_path),
         wall_clock_s=time.monotonic() - started,
         input_tokens=state.token_usage.input_tokens,
         cached_input_tokens=state.token_usage.cached_input_tokens,

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import json
 from pathlib import Path
 
 from a4v.llm import ChatResult
@@ -96,7 +97,15 @@ def test_adapter_returns_live_runner_compatible_result():
     check("FAIL verdict projected", result.final_decision["properties"][0]["verdict"] == "FAIL")
     check("token cost accumulated", result.cost_usd == 0.002, result.cost_usd)
     check("tool telemetry projected", result.tool_calls == 1 and result.files_inspected == 1)
-    check("state artifact written", Path(result.trajectory_path).exists(), result.trajectory_path)
+    trajectory_events = [json.loads(line) for line in Path(result.trajectory_path).read_text().splitlines()]
+    check("trajectory artifact written", Path(result.trajectory_path).exists(), result.trajectory_path)
+    check("trajectory has ordered start/tool/finish events",
+          trajectory_events[0]["event_type"] == "cluster_started" and
+          any(event["event_type"] == "tool_result" for event in trajectory_events) and
+          trajectory_events[-1]["event_type"] == "cluster_finished", trajectory_events)
+    check("sequence numbers are monotonic",
+          [event["sequence"] for event in trajectory_events] ==
+          list(range(1, len(trajectory_events) + 1)), trajectory_events)
     check("explicit solc path forwarded without mutating PATH",
           build_args["extra_compile_kwargs"] == {"solc": "/opt/solc-bin/solc"}, build_args)
 
