@@ -2,10 +2,9 @@
 Phase 2). Deliberately small -- understandable by reading this file plus
 state.py/tools.py/model_client.py/prompts.py in one sitting.
 
-Increment 3 adds a structured final-answer boundary: a conclusion carries
-one cluster-wide evidence pool and a separate Claim / Evidence ids /
-Interpretation / Verdict chain for every property. No hypotheses,
-counterexamples, or PASS-discipline gate yet (Increments 4-5).
+Increment 4 adds first-class hypothesis updates and recorded counterexample
+attempts inside the same cluster loop. The mechanical PASS-discipline gate
+remains Increment 5.
 """
 from __future__ import annotations
 
@@ -16,7 +15,10 @@ from pydantic import BaseModel, Field, model_validator
 
 from rtf.security_agent.model_client import MalformedModelResponse, ModelClient
 from rtf.security_agent.prompts import build_initial_user_message, build_system_prompt
-from rtf.security_agent.state import ClusterInvestigationState, Evidence, RequirementResolution
+from rtf.security_agent.state import (
+    ClusterInvestigationState, Evidence, Hypothesis, HypothesisStatus,
+    RequirementResolution,
+)
 from rtf.security_agent.tools import SecurityAgentTools
 
 DEFAULT_MAX_STEPS = 15
@@ -34,6 +36,7 @@ class PropertyVerdictInput(BaseModel):
     property_id: str
     claim: str
     evidence_ids: list[str] = Field(min_length=1)
+    hypothesis_ids: list[str] = Field(min_length=1)
     interpretation: str
     verdict: Literal["PASS", "FAIL", "NOT_APPLICABLE"]
 
@@ -49,9 +52,39 @@ class EvidenceInput(BaseModel):
     raw_excerpt: str | None = None
 
 
+class HypothesisInput(BaseModel):
+    id: str
+    claim: str
+    originating_property_ids: list[str] = Field(min_length=1)
+    status: Literal["OPEN", "SUPPORTED", "REFUTED", "INCONCLUSIVE"] = "OPEN"
+    supporting_evidence_ids: list[str] = Field(default_factory=list)
+    contradicting_evidence_ids: list[str] = Field(default_factory=list)
+    next_evidence_needed: str | None = None
+
+
+class CounterexampleAttemptInput(BaseModel):
+    property_id: str
+    hypothesis_id: str
+    attempt: str = Field(min_length=1)
+    result: str = Field(min_length=1)
+
+
+class UpdateInvestigationAction(BaseModel):
+    action: Literal["update_investigation"]
+    hypotheses: list[HypothesisInput] = Field(default_factory=list)
+    counterexample_attempts: list[CounterexampleAttemptInput] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def contains_an_update(self) -> "UpdateInvestigationAction":
+        if not self.hypotheses and not self.counterexample_attempts:
+            raise ValueError("update_investigation must include a hypothesis or counterexample attempt")
+        return self
+
+
 class ConcludeAction(BaseModel):
     action: Literal["conclude"]
     evidence: list[EvidenceInput] = Field(min_length=1)
+    hypotheses: list[HypothesisInput] = Field(min_length=1)
     properties: list[PropertyVerdictInput]
 
     @model_validator(mode="after")
@@ -64,10 +97,22 @@ class ConcludeAction(BaseModel):
                           for eid in prop.evidence_ids if eid not in known})
         if missing:
             raise ValueError(f"property assessments reference unknown evidence ids: {missing}")
+        hypothesis_ids = {item.id for item in self.hypotheses}
+        missing_hypotheses = sorted({hid for prop in self.properties
+                                     for hid in prop.hypothesis_ids if hid not in hypothesis_ids})
+        if missing_hypotheses:
+            raise ValueError(f"property assessments reference unknown hypothesis ids: {missing_hypotheses}")
+        hypothesis_evidence = {eid for hypothesis in self.hypotheses
+                               for eid in (*hypothesis.supporting_evidence_ids,
+                                           *hypothesis.contradicting_evidence_ids)}
+        if not hypothesis_evidence <= known:
+            raise ValueError("hypotheses reference unknown evidence ids")
         return self
 
 
-RESPONSE_MODELS: tuple[type[BaseModel], ...] = (ToolCallAction, ConcludeAction)
+RESPONSE_MODELS: tuple[type[BaseModel], ...] = (
+    ToolCallAction, UpdateInvestigationAction, ConcludeAction,
+)
 
 
 def _summarize_tool_result(result: dict) -> str:
@@ -128,6 +173,13 @@ class SecurityAgentKernel:
                 self._apply_conclusion(state, property_ids, turn.parsed)
                 return state
 
+            if isinstance(turn.parsed, UpdateInvestigationAction):
+                error = self._apply_investigation_update(state, turn.parsed)
+                state.step_count += 1
+                messages.append({"role": "user", "content":
+                    f"Investigation-state update {'rejected: ' + error if error else 'recorded.'}"})
+                continue
+
             action: ToolCallAction = turn.parsed
             result = self.tools.call(action.tool, action.args)
             state.record_tool_call(action.tool, action.args, _summarize_tool_result(result), result)
@@ -141,6 +193,8 @@ class SecurityAgentKernel:
                            conclude: ConcludeAction) -> None:
         for item in conclude.evidence:
             state.add_evidence(Evidence.model_validate(item.model_dump()))
+        for item in conclude.hypotheses:
+            state.upsert_hypothesis(Hypothesis.model_validate(item.model_dump()))
         seen: set[str] = set()
         for entry in conclude.properties:
             if entry.property_id not in state.requirement_states:
@@ -150,6 +204,7 @@ class SecurityAgentKernel:
                 entry.property_id,
                 claim=entry.claim,
                 evidence_ids=entry.evidence_ids,
+                hypothesis_ids=entry.hypothesis_ids,
                 interpretation=entry.interpretation,
                 verdict=RequirementResolution(entry.verdict),
             )
@@ -157,6 +212,27 @@ class SecurityAgentKernel:
         if missing:
             SecurityAgentKernel._finalize_unresolved(
                 state, sorted(missing), "conclude_response_missing_this_property_id")
+
+    @staticmethod
+    def _apply_investigation_update(state: ClusterInvestigationState,
+                                    update: UpdateInvestigationAction) -> str | None:
+        property_ids = set(state.property_ids)
+        mentioned_properties = {pid for h in update.hypotheses for pid in h.originating_property_ids}
+        mentioned_properties |= {a.property_id for a in update.counterexample_attempts}
+        unknown_properties = sorted(mentioned_properties - property_ids)
+        if unknown_properties:
+            return f"unknown property ids: {unknown_properties}"
+        known_hypotheses = set(state.hypotheses) | {h.id for h in update.hypotheses}
+        unknown_hypotheses = sorted({a.hypothesis_id for a in update.counterexample_attempts}
+                                    - known_hypotheses)
+        if unknown_hypotheses:
+            return f"unknown hypothesis ids: {unknown_hypotheses}"
+        for item in update.hypotheses:
+            state.upsert_hypothesis(Hypothesis.model_validate(item.model_dump()))
+        for attempt in update.counterexample_attempts:
+            state.record_counterexample_attempt(
+                attempt.property_id, attempt.hypothesis_id, attempt.attempt, attempt.result)
+        return None
 
     @staticmethod
     def _finalize_unresolved(state: ClusterInvestigationState, property_ids: list[str], reason: str) -> None:

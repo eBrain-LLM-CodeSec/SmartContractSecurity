@@ -93,19 +93,27 @@ class ScriptedChatClient:
         # Keep Increment-2 scenario fixtures concise while exercising the
         # stricter Increment-3 production schema. Tests specifically about
         # CEIV behavior below provide the full shape themselves.
-        if raw.get("action") == "conclude" and "evidence" not in raw:
+        if raw.get("action") == "conclude":
             raw = dict(raw)
-            raw["evidence"] = [{
+            raw.setdefault("evidence", [{
                 "id": "ev-shared", "claim": "inspected fixture evidence",
                 "source_file": "Vault.sol", "source_contract": "Vault",
                 "source_function": "withdraw", "source_lines": "30-42",
                 "tool_call_id": "tool-1", "raw_excerpt": None,
-            }]
+            }])
+            first_evidence_id = raw["evidence"][0]["id"]
+            raw.setdefault("hypotheses", [{
+                "id": "hyp-shared", "claim": "fixture failure hypothesis",
+                "originating_property_ids": [p["property_id"] for p in raw["properties"]],
+                "status": "SUPPORTED", "supporting_evidence_ids": [first_evidence_id],
+                "contradicting_evidence_ids": [], "next_evidence_needed": None,
+            }])
             raw["properties"] = [dict(
                 p,
-                claim=p.get("reasoning", "property claim"),
-                evidence_ids=["ev-shared"],
-                interpretation=p.get("reasoning", "fixture interpretation"),
+                claim=p.get("claim", p.get("reasoning", "property claim")),
+                evidence_ids=p.get("evidence_ids", [first_evidence_id]),
+                hypothesis_ids=p.get("hypothesis_ids", [raw["hypotheses"][0]["id"]]),
+                interpretation=p.get("interpretation", p.get("reasoning", "fixture interpretation")),
             ) for p in raw["properties"]]
             for prop in raw["properties"]:
                 prop.pop("reasoning", None)
@@ -181,15 +189,49 @@ def test_structured_conclusion_rejects_dangling_evidence_reference():
         ConcludeAction.model_validate({
             "action": "conclude",
             "evidence": [{"id": "ev-known", "claim": "fact", "source_file": "Vault.sol"}],
+            "hypotheses": [{"id": "hyp-1", "claim": "failure", "originating_property_ids": ["p1"]}],
             "properties": [{
                 "property_id": "p1", "claim": "claim",
                 "evidence_ids": ["ev-missing"],
+                "hypothesis_ids": ["hyp-1"],
                 "interpretation": "interpretation", "verdict": "FAIL",
             }],
         })
         check("dangling evidence id rejected", False, "did not raise")
     except ValidationError:
         check("dangling evidence id rejected", True)
+
+
+def test_hypothesis_update_and_counterexample_are_state_transitions():
+    script = [
+        ({"action": "update_investigation", "hypotheses": [{
+            "id": "hyp-reentry", "claim": "withdraw can re-enter before accounting updates",
+            "originating_property_ids": ["p1", "p2"], "status": "OPEN",
+            "next_evidence_needed": "ordering of the external call and share decrement",
+        }], "counterexample_attempts": []}, None),
+        ({"action": "update_investigation", "hypotheses": [{
+            "id": "hyp-reentry", "claim": "withdraw can re-enter before accounting updates",
+            "originating_property_ids": ["p1", "p2"], "status": "SUPPORTED",
+            "next_evidence_needed": None,
+        }], "counterexample_attempts": [{
+            "property_id": "p1", "hypothesis_id": "hyp-reentry",
+            "attempt": "receiver re-enters withdraw from its fallback",
+            "result": "share decrement occurs only after the receiver call",
+        }]}, None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "reentrant ordering"},
+            {"property_id": "p2", "verdict": "PASS", "reasoning": "separate property holds"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("one loop handles updates and final conclusion", len(fake.calls) == 3)
+    check("hypothesis persisted as first-class state",
+          state.hypotheses["hyp-reentry"].status.value == "SUPPORTED")
+    check("one hypothesis is shared across both properties", all(
+        "hyp-reentry" in state.requirement_states[pid].hypothesis_ids for pid in _PROPERTY_IDS))
+    check("counterexample attempt recorded on property",
+          "receiver re-enters" in state.requirement_states["p1"].counterexample_attempts[0])
 
 
 def test_one_cluster_multiple_properties_is_one_shared_loop():

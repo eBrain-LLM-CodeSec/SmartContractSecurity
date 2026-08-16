@@ -170,8 +170,11 @@ def test_successful_source_tool_result_tracks_inspection():
 def test_record_verdict_persists_ceiv_and_links_shared_evidence():
     state = ClusterInvestigationState.initial("c1", ["p1"])
     state.add_evidence(_evidence("ev1", claim="call precedes state update"))
+    state.add_hypothesis(Hypothesis(id="h1", claim="unsafe ordering",
+                                    originating_property_ids=["p1"]))
     state.record_verdict(
         "p1", claim="withdraw uses safe ordering", evidence_ids=["ev1"],
+        hypothesis_ids=["h1"],
         interpretation="the cited ordering refutes the claim",
         verdict=RequirementResolution.FAIL,
     )

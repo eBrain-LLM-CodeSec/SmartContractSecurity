@@ -587,7 +587,12 @@ real spend**.
    no additional live call was made for this increment.
 4. **Hypotheses first-class** (Phase 4) + **counterexample-driven
    prompting** (Phase 5) — mostly prompt/loop changes on top of existing
-   infra, not new modules.
+   infra, not new modules. **Implemented:** `update_investigation` is a
+   validated third loop action; hypotheses can span properties and evolve
+   status in shared state, while concrete counterexample attempts are
+   recorded per property. The prompt requires falsification-oriented
+   investigation before conclusion. Enforcement of that requirement is
+   deliberately Increment 5's completion gate, not prompt-only trust.
 5. **PASS discipline** (`completion.py`, Phase 9) gating the loop's exit.
 6. **`investigator.py`**: wire as `run_arm_g_bundle_fn` into
    `run_cluster_investigations_live` against ONE real cluster from an

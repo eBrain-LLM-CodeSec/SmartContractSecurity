@@ -1,11 +1,9 @@
 """Prompt assembly for the security-agent kernel's cluster investigation
 loop.
 
-Increment 3 requires a shared structured evidence pool and a separate
-Claim / Evidence / Interpretation / Verdict chain per property.
-Deliberately does NOT yet include the counterexample-driven/hypothesis-
-first framing (brief Phases 4-5) -- that is a separate later increment,
-kept out on purpose so a future before/after comparison stays meaningful.
+Increment 4 makes hypotheses and counterexample attempts first-class state
+transitions. The model must formulate plausible failure hypotheses before
+concluding and explicitly try to falsify its emerging answer.
 
 Generic reasoning-shape guidance only where it does appear -- no
 benchmark-specific hints anywhere in this module (brief's explicit
@@ -31,7 +29,7 @@ You have the following tools available. Call at most ONE tool per turn.
 ## How to respond
 
 Respond with EXACTLY ONE fenced JSON code block (```json ... ```), \
-containing EXACTLY ONE of the two shapes below. Nothing else in your \
+containing EXACTLY ONE of the three shapes below. Nothing else in your \
 response is read -- only this JSON block is parsed.
 
 To call a tool:
@@ -39,21 +37,39 @@ To call a tool:
 {{"action": "call_tool", "tool": "<tool name>", "args": {{"...": "..."}}, "reasoning": "<why you need this>"}}
 ```
 
+To record or update hypotheses and counterexample attempts:
+```json
+{{"action": "update_investigation", "hypotheses": [
+  {{"id": "hyp-1", "claim": "<plausible concrete failure mode>", "originating_property_ids": ["<property id>"], "status": "OPEN", "supporting_evidence_ids": [], "contradicting_evidence_ids": [], "next_evidence_needed": "<specific code fact or test needed>"}}
+], "counterexample_attempts": [
+  {{"property_id": "<property id>", "hypothesis_id": "hyp-1", "attempt": "<specific adversarial scenario tried>", "result": "<what inspection established>"}}
+]}}
+```
+
+Use `update_investigation` before concluding. Start with at least one
+plausible failure hypothesis per property (one hypothesis may span several
+properties). After inspecting code, record the concrete adversarial or
+boundary scenario you tried and its result. Seek evidence that could REFUTE
+your current belief, especially before PASS; do not merely collect facts
+that agree with your first impression.
+
 To conclude the investigation for ALL properties in this cluster at once,
 provide one shared evidence pool followed by a separate Claim / Evidence /
 Interpretation / Verdict chain for each property:
 ```json
 {{"action": "conclude", "evidence": [
   {{"id": "ev-1", "claim": "<concrete fact established by inspected code>", "source_file": "<path>", "source_contract": "<contract or null>", "source_function": "<function or null>", "source_lines": "<line or range>", "tool_call_id": "<tool-1, tool-2, ...>", "raw_excerpt": "<short exact excerpt or null>"}}
+], "hypotheses": [
+  {{"id": "hyp-1", "claim": "<failure mode tested>", "originating_property_ids": ["<property id>"], "status": "REFUTED", "supporting_evidence_ids": [], "contradicting_evidence_ids": ["ev-1"], "next_evidence_needed": null}}
 ], "properties": [
-  {{"property_id": "<id>", "claim": "<security assertion being decided>", "evidence_ids": ["ev-1"], "interpretation": "<why that evidence establishes or refutes the claim>", "verdict": "PASS"}}
+  {{"property_id": "<id>", "claim": "<security assertion being decided>", "evidence_ids": ["ev-1"], "hypothesis_ids": ["hyp-1"], "interpretation": "<why that evidence establishes or refutes the claim>", "verdict": "PASS"}}
 ]}}
 ```
 
 `verdict` must be exactly one of PASS, FAIL, or NOT_APPLICABLE.
 
 Every property must cite at least one evidence id from the shared evidence
-pool. Reuse the same evidence id across properties when one inspected fact
+pool and one hypothesis that was actually investigated. Reuse the same evidence id across properties when one inspected fact
 is relevant to several properties; do not duplicate it. `tool_call_id`
 refers to calls in order (`tool-1`, `tool-2`, ...).
 

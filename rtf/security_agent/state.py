@@ -83,6 +83,7 @@ class VerdictRecord(BaseModel):
 
     claim: str
     evidence_ids: list[str]
+    hypothesis_ids: list[str]
     interpretation: str
     verdict: RequirementResolution
 
@@ -185,6 +186,33 @@ class ClusterInvestigationState(BaseModel):
             if pid in self.requirement_states:
                 self.requirement_states[pid].hypothesis_ids.append(hypothesis.id)
 
+    def upsert_hypothesis(self, hypothesis: Hypothesis) -> None:
+        """Create a hypothesis or replace its evolving fields without
+        duplicating its per-property links."""
+        if hypothesis.id not in self.hypotheses:
+            self.add_hypothesis(hypothesis)
+            return
+        for eid in (*hypothesis.supporting_evidence_ids, *hypothesis.contradicting_evidence_ids):
+            self._require_evidence(eid)
+        old = self.hypotheses[hypothesis.id]
+        linked_properties = set(old.originating_property_ids) | set(hypothesis.originating_property_ids)
+        hypothesis.originating_property_ids = sorted(linked_properties)
+        self.hypotheses[hypothesis.id] = hypothesis
+        for pid in linked_properties:
+            if pid in self.requirement_states and hypothesis.id not in self.requirement_states[pid].hypothesis_ids:
+                self.requirement_states[pid].hypothesis_ids.append(hypothesis.id)
+
+    def record_counterexample_attempt(self, property_id: str, hypothesis_id: str,
+                                      attempt: str, result: str) -> None:
+        req_state = self._require_requirement(property_id)
+        if hypothesis_id not in self.hypotheses:
+            raise KeyError(f"hypothesis_id not in this cluster: {hypothesis_id}")
+        if hypothesis_id not in req_state.hypothesis_ids:
+            req_state.hypothesis_ids.append(hypothesis_id)
+        record = f"Hypothesis {hypothesis_id} — attempt: {attempt}; result: {result}"
+        if record not in req_state.counterexample_attempts:
+            req_state.counterexample_attempts.append(record)
+
     def link_evidence_to_requirement(self, property_id: str, evidence_id: str, *, supports: bool) -> None:
         """The mechanism that makes evidence SHARED rather than
         duplicated: evidence gathered once (via add_evidence, possibly
@@ -221,7 +249,7 @@ class ClusterInvestigationState(BaseModel):
         req_state.resolution_reason = reason
 
     def record_verdict(self, property_id: str, *, claim: str,
-                       evidence_ids: list[str], interpretation: str,
+                       evidence_ids: list[str], hypothesis_ids: list[str], interpretation: str,
                        verdict: RequirementResolution) -> None:
         """Persist one complete CEIV chain and resolve the property.
 
@@ -233,9 +261,15 @@ class ClusterInvestigationState(BaseModel):
         for evidence_id in evidence_ids:
             self._require_evidence(evidence_id)
             self.link_evidence_to_requirement(property_id, evidence_id, supports=True)
+        for hypothesis_id in hypothesis_ids:
+            if hypothesis_id not in self.hypotheses:
+                raise KeyError(f"hypothesis_id not in this cluster: {hypothesis_id}")
+            if hypothesis_id not in req_state.hypothesis_ids:
+                req_state.hypothesis_ids.append(hypothesis_id)
         req_state.final_assessment = VerdictRecord(
             claim=claim,
             evidence_ids=list(evidence_ids),
+            hypothesis_ids=list(hypothesis_ids),
             interpretation=interpretation,
             verdict=verdict,
         )
@@ -308,6 +342,8 @@ class ClusterInvestigationState(BaseModel):
                                    if req_state.final_assessment else None),
                 "evidence_ids": (list(req_state.final_assessment.evidence_ids)
                                  if req_state.final_assessment else []),
+                "hypothesis_ids": (list(req_state.final_assessment.hypothesis_ids)
+                                   if req_state.final_assessment else []),
                 "counterexample_attempts": list(req_state.counterexample_attempts),
                 "evidence_for": [self.evidence[eid].model_dump() for eid in req_state.evidence_for_ids],
                 "evidence_against": [self.evidence[eid].model_dump() for eid in req_state.evidence_against_ids],
