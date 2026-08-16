@@ -18,6 +18,7 @@ increments, added only once static investigation is proven.
 """
 from __future__ import annotations
 
+import inspect
 import re
 from pathlib import Path
 from typing import Literal
@@ -202,12 +203,14 @@ class SecurityAgentTools:
             return None, status, str(e)
 
     def get_function_source(self, contract: str, function: str) -> SourceExcerptResult:
+        """Numbered source of one function, by contract+function name."""
         node_id, status, reason = self._resolve_function(contract, function)
         if status != "OK":
             return SourceExcerptResult(status=status, reason=reason)
         return self._source_excerpt_for_node(node_id)
 
     def get_contract_source(self, contract: str) -> SourceExcerptResult:
+        """Numbered source of an entire contract, by name."""
         node_id = f"contract::{contract}"
         if node_id not in self.pg.graph:
             return SourceExcerptResult(status="NOT_FOUND", reason=f"no contract node for {contract!r}")
@@ -229,6 +232,7 @@ class SecurityAgentTools:
     # -- callers / callees / external calls ----------------------------------
 
     def get_callers(self, contract: str, function: str) -> FunctionListResult:
+        """Functions (internal or via an external interface) that call this one."""
         node_id, status, reason = self._resolve_function(contract, function)
         if status != "OK":
             return FunctionListResult(status=status, reason=reason)
@@ -237,6 +241,7 @@ class SecurityAgentTools:
         return FunctionListResult(status="OK", functions=[self._function_ref(n) for n in sorted(callers)])
 
     def get_callees(self, contract: str, function: str) -> FunctionListResult:
+        """Internal/library functions this function calls."""
         node_id, status, reason = self._resolve_function(contract, function)
         if status != "OK":
             return FunctionListResult(status=status, reason=reason)
@@ -244,6 +249,7 @@ class SecurityAgentTools:
         return FunctionListResult(status="OK", functions=[self._function_ref(n) for n in sorted(callees)])
 
     def get_external_calls(self, contract: str, function: str) -> ExternalCallListResult:
+        """Cross-contract/interface/low-level calls this function makes."""
         node_id, status, reason = self._resolve_function(contract, function)
         if status != "OK":
             return ExternalCallListResult(status=status, reason=reason)
@@ -262,9 +268,9 @@ class SecurityAgentTools:
         return ExternalCallListResult(status="OK", external_calls=refs)
 
     def get_related_functions(self, contract: str, function: str) -> FunctionListResult:
-        """One-hop union: callers + callees + resolved external-call
-        targets. A single starting point for "what else is relevant here"
-        without the agent having to call three separate tools first."""
+        """One-hop union of callers + callees + resolved external-call
+        targets -- a single starting point for "what else is relevant
+        here" without calling three separate tools first."""
         node_id, status, reason = self._resolve_function(contract, function)
         if status != "OK":
             return FunctionListResult(status=status, reason=reason)
@@ -279,9 +285,12 @@ class SecurityAgentTools:
     # -- state reads / writes / modifiers -------------------------------------
 
     def get_state_reads(self, contract: str, function: str) -> StateVarListResult:
+        """State variables this function reads."""
         return self._state_vars(contract, function, STATE_READ)
 
     def get_state_writes(self, contract: str, function: str, *, include_transitive: bool = True) -> StateVarListResult:
+        """State variables this function writes, directly or (by default)
+        transitively via internal/library calls it makes."""
         node_id, status, reason = self._resolve_function(contract, function)
         if status != "OK":
             return StateVarListResult(status=status, reason=reason)
@@ -302,6 +311,7 @@ class SecurityAgentTools:
         return StateVarListResult(status="OK", state_vars=[self._statevar_ref(n) for n in sorted(var_nodes)])
 
     def get_modifiers(self, contract: str, function: str) -> ModifierListResult:
+        """Modifiers applied to this function (e.g. onlyOwner)."""
         node_id, status, reason = self._resolve_function(contract, function)
         if status != "OK":
             return ModifierListResult(status=status, reason=reason)
@@ -318,6 +328,7 @@ class SecurityAgentTools:
     # -- inheritance --------------------------------------------------------
 
     def get_inheritance(self, contract: str) -> InheritanceResult:
+        """Base contracts this contract inherits from."""
         node_id = f"contract::{contract}"
         if node_id not in self.pg.graph:
             return InheritanceResult(status="NOT_FOUND", reason=f"no contract node for {contract!r}")
@@ -328,6 +339,7 @@ class SecurityAgentTools:
     # -- filesystem -----------------------------------------------------------
 
     def read_file(self, path: str) -> ReadFileResult:
+        """Raw content of a file, by path relative to the repo root."""
         try:
             resolved = (self.repo_root / path).resolve()
         except (ValueError, OSError) as e:
@@ -343,6 +355,8 @@ class SecurityAgentTools:
         return ReadFileResult(status="OK", path=str(resolved.relative_to(self.repo_root)), content=content)
 
     def search_repository(self, pattern: str, *, file_glob: str = "*.sol") -> SearchRepositoryResult:
+        """Regex search over repository files (default: all .sol files),
+        returning matching file/line/text hits."""
         try:
             regex = re.compile(pattern)
         except re.error as e:
@@ -383,3 +397,47 @@ class SecurityAgentTools:
         # indirectly via the owning contract, same as graph_mcp_server does.
         return StateVarRef(node_id=node_id, contract=data.get("contract"), name=data.get("name") or node_id,
                             type=data.get("type"), file=node_file(self.pg, node_id), lines=data.get("lines") or [])
+
+    # -- generic dispatch (for the kernel's tool-calling loop) ----------------
+
+    TOOL_NAMES: "frozenset[str]" = frozenset({
+        "get_function_source", "get_contract_source", "get_callers", "get_callees",
+        "get_external_calls", "get_related_functions", "get_state_reads",
+        "get_state_writes", "get_modifiers", "get_inheritance", "read_file", "search_repository",
+    })
+    """Whitelist, not just a convenience list: `call()` dispatches by name
+    ONLY through this set, so a model-supplied tool name can never reach
+    `build`/private helpers/dunder methods -- the one real safety boundary
+    on an otherwise-generic name->method dispatch."""
+
+    def call(self, tool_name: str, args: dict) -> dict:
+        """Generic dispatch for the kernel's tool-calling loop: validates
+        `tool_name` against TOOL_NAMES, binds `args` against the real
+        method signature (so a wrong/missing/extra argument is reported
+        as a normal tool error, never a crash), and returns a plain JSON-
+        serializable dict either way -- always feedable straight back
+        into a chat message."""
+        if tool_name not in self.TOOL_NAMES:
+            return {"status": "ERROR", "reason": f"unknown tool {tool_name!r}; available: {sorted(self.TOOL_NAMES)}"}
+        method = getattr(self, tool_name)
+        try:
+            bound = inspect.signature(method).bind(**args)
+        except TypeError as e:
+            return {"status": "ERROR", "reason": f"invalid arguments for {tool_name}({args}): {e}"}
+        result = method(*bound.args, **bound.kwargs)
+        return result.model_dump()
+
+
+def describe_tools() -> str:
+    """One line per whitelisted tool: `name(params) -- first docstring
+    line`. Generated from the real method signatures/docstrings (not a
+    hand-maintained parallel copy) so the prompt layer can never drift
+    from what `SecurityAgentTools.call` actually accepts."""
+    lines = []
+    for name in sorted(SecurityAgentTools.TOOL_NAMES):
+        method = getattr(SecurityAgentTools, name)
+        sig = inspect.signature(method)
+        params = ", ".join(p for p in sig.parameters if p != "self")
+        doc = (method.__doc__ or "").strip().splitlines()[0] if method.__doc__ else ""
+        lines.append(f"- {name}({params}) -- {doc}")
+    return "\n".join(lines)

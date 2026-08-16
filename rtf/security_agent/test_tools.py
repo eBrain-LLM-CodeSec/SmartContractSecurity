@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from rtf.security_agent.tools import SecurityAgentTools
+from rtf.security_agent.tools import SecurityAgentTools, describe_tools
 
 PASSES: list[str] = []
 FAILURES: list[str] = []
@@ -217,6 +217,46 @@ def test_search_repository_no_match():
 def test_search_repository_invalid_regex():
     result = _tools().search_repository("(unclosed")
     check("status ERROR for invalid regex", result.status == "ERROR", result)
+
+
+# --- generic dispatch (call/describe_tools) --------------------------------
+
+def test_call_dispatches_by_name():
+    result = _tools().call("get_function_source", {"contract": "Vault", "function": "withdraw"})
+    check("call() returns a plain dict", isinstance(result, dict), type(result))
+    check("call() status OK", result.get("status") == "OK", result)
+    check("call() result matches direct method call",
+          "getPrice" in (result.get("source") or ""), result)
+
+
+def test_call_rejects_unknown_tool():
+    result = _tools().call("build", {})
+    check("call() rejects non-whitelisted method (safety boundary)", result["status"] == "ERROR", result)
+    check("build is not reachable via call()", "unknown tool" in result["reason"], result)
+
+
+def test_call_rejects_dunder_method():
+    result = _tools().call("__init__", {})
+    check("call() rejects dunder method", result["status"] == "ERROR", result)
+
+
+def test_call_reports_invalid_arguments_without_crashing():
+    result = _tools().call("get_function_source", {"contract": "Vault"})  # missing "function"
+    check("call() reports missing arg as a tool error, not a crash", result["status"] == "ERROR", result)
+    check("reason mentions the bad call", "get_function_source" in result["reason"], result)
+
+
+def test_call_accepts_keyword_only_optional_arg():
+    result = _tools().call("get_state_writes", {"contract": "Vault", "function": "withdraw",
+                                                  "include_transitive": False})
+    check("call() accepts a keyword-only optional arg", result["status"] == "OK", result)
+
+
+def test_describe_tools_lists_every_whitelisted_tool_once():
+    text = describe_tools()
+    for name in SecurityAgentTools.TOOL_NAMES:
+        check(f"describe_tools mentions {name}", text.count(name) >= 1, text)
+    check("describe_tools never mentions build() (not a callable tool)", "- build(" not in text, text)
 
 
 def main() -> int:

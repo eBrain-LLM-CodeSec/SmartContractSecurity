@@ -207,6 +207,21 @@ class ClusterInvestigationState(BaseModel):
         req_state.status = status
         req_state.resolution_reason = reason
 
+    def mark_unresolved_reason(self, property_id: str, reason: str) -> None:
+        """Records WHY a property is still UNRESOLVED (e.g. the kernel
+        exhausted its step budget, or the model never mentioned this
+        property_id in its final answer) without inventing a status the
+        brief's own RequirementState schema doesn't define -- there is no
+        INCONCLUSIVE in {UNRESOLVED, PASS, FAIL, NOT_APPLICABLE}.
+        UNRESOLVED + a recorded reason IS the "gave up explicitly, never
+        silently dropped" signal; to_property_verdict_entries() surfaces
+        it the same way a genuine resolution's reason is surfaced. A
+        no-op if the property was already resolved (never overwrites a
+        real PASS/FAIL/NOT_APPLICABLE with a bookkeeping note)."""
+        req_state = self._require_requirement(property_id)
+        if req_state.status == RequirementResolution.UNRESOLVED:
+            req_state.resolution_reason = reason
+
     def evidence_for(self, property_id: str) -> list[Evidence]:
         req_state = self._require_requirement(property_id)
         return [self.evidence[eid] for eid in req_state.evidence_for_ids]
