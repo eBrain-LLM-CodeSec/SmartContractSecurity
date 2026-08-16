@@ -1903,3 +1903,160 @@ def _emit_ecrecover_finding(findings, req_id, location, named_var, zero_check_fn
             "affected_functions": [location],
         },
     })
+
+
+_GROWTH_INSERT_METHOD_NAMES = ("push", "add", "set", "insert", "append", "enqueue")
+"""Generic method-name signals for "something was added to a collection" --
+deliberately covers both a raw dynamic array's own `.push` AND the common
+member-function names OpenZeppelin-style `using X for Y` library wrappers
+(EnumerableSet/EnumerableMap and hand-rolled equivalents) expose for the
+same operation. Matched as a SUBSTRING of a node's own expression text
+(e.g. `shareBalance.set(who, amount)` naturally contains `.set(` even
+though `set` is defined in a separate library contract, confirmed against
+a real compiled OZ-shaped Map-library fixture this session -- Slither
+does not need to resolve the library call target for this signal to
+fire, only the syntax of the call site itself)."""
+
+_GROWTH_REMOVE_METHOD_NAMES = ("pop", "remove", "delete", "dequeue")
+"""Same mechanism as `_GROWTH_INSERT_METHOD_NAMES`, for the inverse
+operation. `"delete"` matches both `.delete(...)`-shaped library calls
+and Solidity's own `delete x[...]` statement (checked separately below
+via a literal `delete ` prefix, since that's a keyword, not a method
+call, and would never match a `.delete(` substring)."""
+
+
+def _is_growth_capable_container_type(t, _depth: int = 0) -> bool:
+    """True for a dynamic array, a plain mapping, or a struct-typed
+    variable that itself CONTAINS a dynamic array or mapping member
+    (the generic structural shape of OpenZeppelin's EnumerableSet/
+    EnumerableMap AND any hand-rolled equivalent -- verified against a
+    real compiled fixture mirroring EnumerableMap's actual internal
+    struct layout, `bytes32[] _keys` + `mapping(bytes32 => uint256)
+    _values`, this session). Deliberately does NOT check the type's own
+    NAME anywhere (no "EnumerableMap"/"EnumerableSet" string match) --
+    req-3-enough-gas's own normative text names the general class
+    ("data structures... that grow over time"), not any specific
+    library, so detection is purely structural. `_depth` caps recursion
+    into nested struct members at 1 level (a struct-of-structs-of-
+    arrays is a real but rare pattern; unbounded recursion risks a
+    pathological cycle in a self-referential type graph)."""
+    from slither.core.declarations.structure_contract import StructureContract
+    from slither.core.solidity_types import ArrayType, MappingType, UserDefinedType
+
+    if isinstance(t, ArrayType) and t.length is None:
+        return True
+    if isinstance(t, MappingType):
+        return True
+    if _depth < 1 and isinstance(t, UserDefinedType):
+        underlying = getattr(t, "type", None)
+        if isinstance(underlying, StructureContract):
+            for member in underlying.elems.values():
+                if _is_growth_capable_container_type(member.type, _depth=_depth + 1):
+                    return True
+    return False
+
+
+def find_unbounded_growth_with_downstream_iteration(
+    slither: Slither, req_id: str = "req-3-enough-gas",
+) -> list[dict]:
+    """req-3-enough-gas (Q): "Sufficient Gas MUST be available to work
+    with data structures in the Tested Code that grow over time" -- its
+    own explanatory text names the exact mechanism this predicate
+    detects verbatim: "Iterating over a structure whose size is not
+    clear in advance... can result in significant increases in gas
+    usage." Also registered under req-3-protect-gas ("MUST protect
+    against malicious actors stealing or wasting gas" / Gas Griefing),
+    a closely related obligation over the same code pattern.
+
+    RTF_V3_REDESIGN_PLAN.md Phase 5: before this predicate, BOTH
+    requirements had only `collect_documentary_and_implementation_
+    evidence` registered -- a documentary README/NatSpec-vs-
+    implementation comparison with NO code-pattern detection at all, so
+    applicability silently depended on whether a target happened to
+    document its own growth-management approach. This predicate adds a
+    real structural signal, generalized (per the task brief's explicit
+    instruction) across dynamic arrays, plain mappings, and any struct-
+    typed collection wrapper (EnumerableSet/EnumerableMap and hand-
+    rolled equivalents alike) -- see `_is_growth_capable_container_type`.
+
+    Flags a function at the SITE WHERE THE RISK MATERIALIZES (the
+    iterating/enumerating function, matching this module's existing
+    convention of flagging the location an investigation should focus
+    on, not the requirement's abstract subject) when, for some state
+    variable of a growth-capable container type in the SAME contract:
+    (1) some function calls an insertion-shaped method on it
+    (`_GROWTH_INSERT_METHOD_NAMES`), (2) NO function in the contract
+    calls a removal-shaped method on it (`_GROWTH_REMOVE_METHOD_NAMES`)
+    -- i.e. no detected pruning path at all, and (3) this function
+    contains a loop construct and reads the same variable somewhere
+    within it (approximated as "the function has a loop AND reads the
+    variable anywhere in its body" -- a deliberately generic, slightly
+    over-inclusive signal; per Phase 5's own design principle this is
+    ROUTING, not a verdict, so over-inclusion here trades a small
+    false-positive-applicability cost for not missing a real pattern,
+    while the investigating agent remains responsible for confirming an
+    actual reachable gas-DoS path).
+
+    Deliberately per-contract (not whole-project call-graph traversal
+    like `find_cross_boundary_block_data_argument`) for this first
+    version -- a removal method genuinely defined only in a SEPARATE
+    contract this one never calls is, correctly, treated as "no removal
+    path from this contract's own reachable surface," matching the real
+    phi H-03 shape (a library CAN remove entries but the contract using
+    it never calls that path).
+    """
+    from slither.core.cfg.node import NodeType
+
+    findings: list[dict] = []
+    for contract in slither.contracts:
+        if contract.is_interface:
+            continue
+        growth_vars = [
+            v for v in contract.state_variables_declared
+            if _is_growth_capable_container_type(v.type)
+        ]
+        if not growth_vars:
+            continue
+
+        for gv in growth_vars:
+            insert_funcs: set[str] = set()
+            has_removal = False
+            for func in contract.functions_and_modifiers_declared:
+                for node in func.nodes:
+                    touched = {x.name for x in node.state_variables_written} | {x.name for x in node.state_variables_read}
+                    if gv.name not in touched:
+                        continue
+                    expr = str(node.expression or "")
+                    if any(f".{name}(" in expr for name in _GROWTH_INSERT_METHOD_NAMES):
+                        insert_funcs.add(func.name)
+                    if any(f".{name}(" in expr for name in _GROWTH_REMOVE_METHOD_NAMES) or expr.strip().startswith("delete "):
+                        has_removal = True
+
+            if not insert_funcs or has_removal:
+                continue  # no insertion path found, or a real removal/pruning path exists
+
+            for func in contract.functions_and_modifiers_declared:
+                has_loop = any(n.type == NodeType.STARTLOOP for n in func.nodes)
+                if not has_loop:
+                    continue
+                reads_gv = any(gv.name in {x.name for x in n.state_variables_read} for n in func.nodes)
+                if not reads_gv:
+                    continue
+                findings.append({
+                    "req_id": req_id,
+                    "location": f"{contract.name}.{func.name}",
+                    "detail": (
+                        f"iterates/enumerates {contract.name}.{gv.name}, a growth-capable "
+                        f"container written to via {', '.join(sorted(insert_funcs))} with no "
+                        f"detected removal/pruning path anywhere in {contract.name} -- "
+                        f"potential unbounded gas cost as the structure grows over the "
+                        f"contract's operational lifetime"
+                    ),
+                    "structured_evidence": {
+                        "growth_variable": f"{contract.name}.{gv.name}",
+                        "insertion_sites": sorted(f"{contract.name}.{f}" for f in insert_funcs),
+                        "removal_sites_found": [],
+                        "iterating_function": f"{contract.name}.{func.name}",
+                    },
+                })
+    return findings

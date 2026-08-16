@@ -1352,6 +1352,143 @@ def test_ecrecover_borderline_no_intermediate_variable():
         check("ecrecover_check: borderline case is reported as UNKNOWN, not silently checked or unchecked", se.get("validation_found", "").startswith("UNKNOWN"), se)
 
 
+# --- find_unbounded_growth_with_downstream_iteration (RTF_V3_REDESIGN_PLAN.md Phase 5) ---
+
+_GROWTH_ARRAY_SRC = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+contract Holders {
+    address[] public holderList;
+    mapping(address => uint256) public balances;
+    function addHolder(address who, uint256 amount) public {
+        if (balances[who] == 0) { holderList.push(who); }
+        balances[who] += amount;
+    }
+    function distributeRewards() public {
+        for (uint256 i = 0; i < holderList.length; i++) {
+            balances[holderList[i]] += 1;
+        }
+    }
+}
+"""
+
+_GROWTH_ARRAY_WITH_PRUNING_SRC = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+contract Holders {
+    address[] public holderList;
+    mapping(address => uint256) public balances;
+    function addHolder(address who, uint256 amount) public {
+        if (balances[who] == 0) { holderList.push(who); }
+        balances[who] += amount;
+    }
+    function removeHolder(uint256 idx) public {
+        holderList[idx] = holderList[holderList.length - 1];
+        holderList.pop();
+    }
+    function distributeRewards() public {
+        for (uint256 i = 0; i < holderList.length; i++) {
+            balances[holderList[i]] += 1;
+        }
+    }
+}
+"""
+
+_GROWTH_STRUCT_MAP_SRC = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+library MapLib {
+    struct Map { bytes32[] _keys; mapping(bytes32 => uint256) _values; }
+    function set(Map storage m, bytes32 k, uint256 v) internal { m._keys.push(k); m._values[k] = v; }
+    function remove(Map storage m, bytes32 k) internal { delete m._values[k]; }
+    function length(Map storage m) internal view returns (uint256) { return m._keys.length; }
+    function at(Map storage m, uint256 i) internal view returns (bytes32) { return m._keys[i]; }
+}
+contract Cred {
+    using MapLib for MapLib.Map;
+    MapLib.Map private shareBalance;
+    function updateShare(bytes32 who, uint256 amount) public { shareBalance.set(who, amount); }
+    function distribute() public {
+        uint256 n = shareBalance.length();
+        for (uint256 i = 0; i < n; i++) { bytes32 who = shareBalance.at(i); }
+    }
+}
+"""
+
+_GROWTH_STRUCT_MAP_WITH_REMOVAL_SRC = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+library MapLib {
+    struct Map { bytes32[] _keys; mapping(bytes32 => uint256) _values; }
+    function set(Map storage m, bytes32 k, uint256 v) internal { m._keys.push(k); m._values[k] = v; }
+    function remove(Map storage m, bytes32 k) internal { delete m._values[k]; }
+    function length(Map storage m) internal view returns (uint256) { return m._keys.length; }
+    function at(Map storage m, uint256 i) internal view returns (bytes32) { return m._keys[i]; }
+}
+contract Cred {
+    using MapLib for MapLib.Map;
+    MapLib.Map private shareBalance;
+    function updateShare(bytes32 who, uint256 amount) public { shareBalance.set(who, amount); }
+    function removeShare(bytes32 who) public { shareBalance.remove(who); }
+    function distribute() public {
+        uint256 n = shareBalance.length();
+        for (uint256 i = 0; i < n; i++) { bytes32 who = shareBalance.at(i); }
+    }
+}
+"""
+
+_GROWTH_NO_ITERATION_SRC = """// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+contract Simple {
+    address[] public items;
+    function addItem(address who) public { items.push(who); }
+}
+"""
+
+
+def test_growth_iteration_flags_dynamic_array_grown_and_iterated_with_no_pruning():
+    r = P.find_unbounded_growth_with_downstream_iteration(_write_and_compile(_GROWTH_ARRAY_SRC))
+    check("growth: flags the iterating function", len(r) == 1, r)
+    if r:
+        check("growth: location is the iterating function", r[0]["location"] == "Holders.distributeRewards", r[0])
+        check("growth: names the insertion site", "addHolder" in r[0]["detail"], r[0])
+
+
+def test_growth_iteration_does_not_flag_when_a_real_pruning_path_exists():
+    r = P.find_unbounded_growth_with_downstream_iteration(_write_and_compile(_GROWTH_ARRAY_WITH_PRUNING_SRC))
+    check("growth: does not flag when .pop() removal path exists elsewhere in the contract", len(r) == 0, r)
+
+
+def test_growth_iteration_flags_oz_shaped_struct_wrapped_map_with_no_type_name_reliance():
+    """Generalization check (task brief Phase 5 constraint): this fires
+    on a struct-wrapped collection (bytes32[] _keys + mapping) accessed
+    via using-for library calls (.set()/.length()/.at()) -- the SAME
+    shape OpenZeppelin's real EnumerableMap uses -- without the predicate
+    or its type-detection helper ever matching on the string "Map",
+    "EnumerableMap", or "EnumerableSet" anywhere -- the fixture's own
+    struct is plainly named "Map" and never mentions "Enumerable*" at
+    all, so a positive result here is itself the evidence that detection
+    is purely structural (dynamic array + mapping members), not name-
+    based."""
+    r = P.find_unbounded_growth_with_downstream_iteration(_write_and_compile(_GROWTH_STRUCT_MAP_SRC))
+    check("growth: flags the struct-wrapped-collection iterating function", len(r) == 1, r)
+    if r:
+        check("growth: location is Cred.distribute", r[0]["location"] == "Cred.distribute", r[0])
+        check("growth: names shareBalance as the growth variable", "shareBalance" in r[0]["detail"], r[0])
+
+
+def test_growth_iteration_does_not_flag_struct_wrapped_map_with_removal_called():
+    r = P.find_unbounded_growth_with_downstream_iteration(_write_and_compile(_GROWTH_STRUCT_MAP_WITH_REMOVAL_SRC))
+    check("growth: does not flag when .remove() is called somewhere in the contract", len(r) == 0, r)
+
+
+def test_growth_iteration_does_not_flag_a_grown_but_never_iterated_array():
+    r = P.find_unbounded_growth_with_downstream_iteration(_write_and_compile(_GROWTH_NO_ITERATION_SRC))
+    check("growth: no downstream iteration -> no finding (growth alone is not the trigger)", len(r) == 0, r)
+
+
+def test_growth_iteration_findings_carry_req_id_and_structured_evidence():
+    r = P.find_unbounded_growth_with_downstream_iteration(_write_and_compile(_GROWTH_ARRAY_SRC), req_id="req-3-protect-gas")
+    check("growth: req_id parameter is honored", r and r[0]["req_id"] == "req-3-protect-gas", r)
+    check("growth: structured_evidence names insertion/iterating sites", r and "insertion_sites" in r[0]["structured_evidence"], r)
+
+
 def main() -> int:
     tests = [
         test_compiler_version_floor,
@@ -1407,6 +1544,12 @@ def main() -> int:
         test_ecrecover_result_checked,
         test_ecrecover_wrapper_function_traced_one_level,
         test_ecrecover_borderline_no_intermediate_variable,
+        test_growth_iteration_flags_dynamic_array_grown_and_iterated_with_no_pruning,
+        test_growth_iteration_does_not_flag_when_a_real_pruning_path_exists,
+        test_growth_iteration_flags_oz_shaped_struct_wrapped_map_with_no_type_name_reliance,
+        test_growth_iteration_does_not_flag_struct_wrapped_map_with_removal_called,
+        test_growth_iteration_does_not_flag_a_grown_but_never_iterated_array,
+        test_growth_iteration_findings_carry_req_id_and_structured_evidence,
     ]
     for t in tests:
         try:

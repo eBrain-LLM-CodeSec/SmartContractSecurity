@@ -182,12 +182,15 @@ _DOC_EVIDENCE_REQ_IDS = (
     "req-3-document-system",
     "req-3-document-threats",
     "req-3-documented",
-    "req-3-enough-gas",
+    # req-3-enough-gas / req-3-protect-gas deliberately NOT here -- see
+    # their own explicit `_reg` calls below, which register a REAL
+    # structural predicate (`find_unbounded_growth_with_downstream_
+    # iteration`) alongside this same documentary-evidence one, per
+    # RTF_V3_REDESIGN_PLAN.md Phase 5.
     "req-3-implement-as-documented",
     "req-3-intended-replay",
     "req-3-no-private-data",
     "req-3-no-single-admin-eoa",
-    "req-3-protect-gas",
     "req-3-protect-governance",
     "req-3-revocable-permisions",
     "req-3-timelock-for-privileged-actions",
@@ -201,6 +204,23 @@ for _rid in _DOC_EVIDENCE_REQ_IDS:
                               ("entry_sol_file", "repo_root")))
 del _rid
 
+# req-3-enough-gas / req-3-protect-gas (RTF_V3_REDESIGN_PLAN.md Phase 5):
+# BOTH the documentary-evidence collector (kept -- a target's own stated
+# growth-management rationale is still real, useful evidence) AND a real
+# structural predicate for the code pattern their own normative text
+# names (a persistent growth-capable container with an insertion path,
+# no detected removal/pruning path, and downstream iteration -- see
+# `find_unbounded_growth_with_downstream_iteration`'s own docstring for
+# the full requirement-to-code-pattern grounding). Applicability no
+# longer depends solely on whether the target happens to document the
+# issue -- either source producing evidence is now sufficient.
+_reg("req-3-enough-gas",
+     PredicateSpec(P.collect_documentary_and_implementation_evidence, ("entry_sol_file", "repo_root")),
+     PredicateSpec(P.find_unbounded_growth_with_downstream_iteration, ("slither",)))
+_reg("req-3-protect-gas",
+     PredicateSpec(P.collect_documentary_and_implementation_evidence, ("entry_sol_file", "repo_root")),
+     PredicateSpec(P.find_unbounded_growth_with_downstream_iteration, ("slither",)))
+
 # Public alias: which registered req_ids reach a verdict only through the
 # shared L8 LLM Judgment Layer's semantic reading of generically-collected
 # documentary/implementation evidence, as opposed to a real deterministic
@@ -209,7 +229,9 @@ del _rid
 # itself judges evidence from BOTH kinds of requirement alike (that part
 # of the architecture was already unified before this change), so this
 # distinction is about EVIDENCE PROVENANCE, not which requirements get an
-# LLM call at all.
+# LLM call at all. req-3-enough-gas/req-3-protect-gas are correctly
+# EXCLUDED here (registered separately above, now with real structural-
+# predicate evidence too, not documentary-only).
 LLM_MEDIATED_REQ_IDS = frozenset(_DOC_EVIDENCE_REQ_IDS)
 
 # --- Deterministic-complete vs agent-required routing ----------------------
