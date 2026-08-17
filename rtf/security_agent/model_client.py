@@ -26,20 +26,25 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, ValidationError
 
-from a4v.llm import ChatClient, ChatResult
+from a4v.llm import ChatClient, ChatResult, extract_last_fenced_json
 
-DEFAULT_MAX_COMPLETION_TOKENS = 8000
-"""Real incident, not a guess: a live 2026-08-17 run against 2025-04-forte
-(z-ai/glm-5.2, no cap set anywhere -- confirmed by grep, `complete_json`
-was never called with `max_tokens`) produced repeated runaway completions
-hitting an apparent ~65,536-token provider ceiling on verbose clusters
-(cluster_006 alone: 29209, 33813, 23069, 29414, then 65536 completion
-tokens on successive turns, the last one costing $0.067 alone) --
-truncated/anomalous output that crashed downstream parsing. 8000 is
-comfortably above what a legitimate single turn needs (the CEIV schema's
-own conclude payload for an 8-property cluster measured ~3000-5000
-completion tokens in an earlier, non-runaway live sample) while firmly
-capping the pathological case."""
+DEFAULT_MAX_COMPLETION_TOKENS = 16000
+"""Real incident #1 (2026-08-17, first forte run): no cap set anywhere
+produced repeated runaway completions hitting an apparent ~65,536-token
+provider ceiling on verbose clusters (cluster_006: 29209, 33813, 23069,
+29414, then 65536 completion tokens on successive turns, the last one
+costing $0.067 alone) -- truncated/anomalous output that crashed
+downstream parsing. An 8000 cap was applied to fix this.
+
+Real incident #2 (2026-08-17, rerun with that 8000 cap): z-ai/glm-5.2 is
+a reasoning model -- on large/complex clusters (8 properties) it can
+spend its ENTIRE completion budget on internal reasoning tokens without
+ever emitting a visible answer (`content: null`, `completion_tokens`
+exactly at the 8000 cap, confirmed live in two separate clusters' cached
+raw responses). Raised to 16000 to give real reasoning headroom while
+staying well below the original 65,536-token pathological ceiling; see
+ModelClient.decide's own None-content guard for what happens when even
+this isn't enough."""
 
 
 class MalformedModelResponse(Exception):
@@ -75,20 +80,31 @@ class ModelClient:
         self.max_tokens = max_tokens
 
     def decide(self, messages: list[dict]) -> ModelTurn:
+        # Calls ChatClient.complete() directly (not complete_json) so
+        # content=None can be caught BEFORE it ever reaches
+        # extract_last_fenced_json -- see incident #2 in
+        # DEFAULT_MAX_COMPLETION_TOKENS's docstring: a real, previously-
+        # uncaught crash (extract_last_fenced_json(None) -> AttributeError,
+        # 'NoneType' object has no attribute 'find') confirmed live in two
+        # separate clusters' cached raw responses on 2026-08-17.
+        chat_result = self.chat_client.complete(
+            messages, temperature=self.temperature, max_tokens=self.max_tokens)
+        if not chat_result.content:
+            raise MalformedModelResponse(
+                {}, "response had no content -- the model likely exhausted its reasoning "
+                    "budget without producing an answer; respond more concisely, one action per turn")
         try:
-            raw, chat_result = self.chat_client.complete_json(
-                messages, temperature=self.temperature, max_tokens=self.max_tokens)
+            raw = extract_last_fenced_json(chat_result.content)
         except json.JSONDecodeError as e:
             # A real, previously-uncaught crash path (2026-08-17 live run,
             # cluster_invocation_crashed:JSONDecodeError): genuinely
             # malformed model output -- not just "extra trailing data",
-            # which a4v.llm.extract_last_fenced_json's tolerant fallback
-            # already recovers from -- re-raises through ChatClient.
-            # Philosophically the SAME failure mode as "matched no
-            # accepted action schema" (MalformedModelResponse already
-            # covers that), just caught one parsing stage earlier; folded
-            # into the same retry-then-give-up path rather than left to
-            # crash the whole cluster invocation.
+            # which extract_last_fenced_json's tolerant fallback already
+            # recovers from. Philosophically the SAME failure mode as
+            # "matched no accepted action schema" (MalformedModelResponse
+            # already covers that), just caught one parsing stage earlier;
+            # folded into the same retry-then-give-up path rather than
+            # left to crash the whole cluster invocation.
             raise MalformedModelResponse({}, f"response was not valid JSON: {e}") from e
         errors = []
         for model_cls in self.response_models:

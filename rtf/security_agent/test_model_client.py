@@ -4,9 +4,9 @@ Run with:
 """
 from __future__ import annotations
 
-import json
 import sys
 
+from a4v.llm import ChatResult
 from rtf.security_agent.kernel import RESPONSE_MODELS, ToolCallAction
 from rtf.security_agent.model_client import (
     DEFAULT_MAX_COMPLETION_TOKENS, MalformedModelResponse, ModelClient,
@@ -23,78 +23,118 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(f"{name}: {detail}")
 
 
-class RaisesJSONDecodeError:
-    """Stands in for a4v.llm.ChatClient in the exact failure mode a real
-    genuinely-malformed model response produces: complete_json's own
-    extract_last_fenced_json re-raises json.JSONDecodeError for content
-    that still isn't valid JSON after the tolerant "extra trailing data"
-    recovery -- confirmed by reading a4v/llm.py, not assumed."""
-
-    def complete_json(self, messages, temperature: float = 0.0, **kwargs):
-        raise json.JSONDecodeError("Expecting value", "not json at all {{{", 0)
+_VALID_TOOL_CALL_CONTENT = (
+    '```json\n{"action": "call_tool", "tool": "read_file", '
+    '"args": {"path": "x.sol"}, "reasoning": "r"}\n```'
+)
 
 
-class SpyChatClient:
-    """Records the kwargs it was called with; returns a fixed valid
-    tool_call response."""
+class FakeChatClient:
+    """Stands in for a4v.llm.ChatClient. ModelClient.decide() calls
+    .complete() directly (not .complete_json()) so it can inspect
+    content=None before extract_last_fenced_json ever sees it -- this
+    fake matches that real interface."""
 
-    def __init__(self):
+    def __init__(self, content, prompt_tokens: int = 100, completion_tokens: int = 50):
+        self.content = content
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
         self.calls: list[dict] = []
 
-    def complete_json(self, messages, temperature: float = 0.0, **kwargs):
-        self.calls.append({"temperature": temperature, **kwargs})
-        return ({"action": "call_tool", "tool": "read_file", "args": {"path": "x.sol"}, "reasoning": "r"}, None)
+    def complete(self, messages, temperature: float = 0.0, top_p=None, max_tokens=None) -> ChatResult:
+        self.calls.append({"temperature": temperature, "top_p": top_p, "max_tokens": max_tokens})
+        return ChatResult(content=self.content, prompt_tokens=self.prompt_tokens,
+                          completion_tokens=self.completion_tokens, cached=False, cost_usd=0.001)
 
 
-# --- root cause 1: JSONDecodeError must not propagate uncaught -------------
+# --- root cause: genuinely malformed (non-JSON) content ---------------------
 
-def test_json_decode_error_is_converted_to_malformed_model_response():
-    """Before the fix: this raised a raw json.JSONDecodeError, uncaught
-    anywhere in kernel.py, propagating all the way to live_runner.py's
-    generic except Exception as cluster_invocation_crashed:JSONDecodeError
-    -- confirmed live, 32/147 properties in the 2026-08-17 forte run."""
-    client = ModelClient(RaisesJSONDecodeError(), RESPONSE_MODELS)
+def test_malformed_json_content_is_converted_to_malformed_model_response():
+    """Before the fix: extract_last_fenced_json's own json.JSONDecodeError
+    propagated uncaught, all the way to live_runner.py's generic except
+    Exception as cluster_invocation_crashed:JSONDecodeError -- confirmed
+    live, 32/147 properties in the 2026-08-17 forte run."""
+    client = ModelClient(FakeChatClient("not json at all {{{"), RESPONSE_MODELS)
     try:
         client.decide([{"role": "user", "content": "x"}])
         check("raises MalformedModelResponse, not JSONDecodeError", False, "did not raise")
     except MalformedModelResponse as e:
         check("raises MalformedModelResponse, not JSONDecodeError", True)
         check("error message references the JSON problem", "not valid JSON" in e.errors, e.errors)
-    except json.JSONDecodeError:
+    except Exception as e:  # noqa: BLE001
         check("raises MalformedModelResponse, not JSONDecodeError", False,
-              "raw JSONDecodeError escaped uncaught -- this is the exact live crash")
+              f"a different exception escaped uncaught: {type(e).__name__}: {e}")
 
 
-# --- root cause 3 (mitigation): max_tokens must be sent on every call ------
+# --- root cause 2: content=None (reasoning-budget exhaustion) --------------
+
+def test_none_content_is_converted_to_malformed_model_response_not_attributeerror():
+    """Real, previously-uncaught live crash (2026-08-17 forte RERUN, after
+    the max_tokens cap fix): z-ai/glm-5.2 returned content=null with
+    completion_tokens exactly at the configured cap on 2 separate large
+    clusters (confirmed by reading the raw cached API responses) -- it
+    exhausted its entire completion budget on internal reasoning tokens
+    without ever emitting a visible answer. extract_last_fenced_json(None)
+    crashes with AttributeError ('NoneType' object has no attribute
+    'find'); this must never reach that call uncaught."""
+    client = ModelClient(FakeChatClient(None, completion_tokens=16000), RESPONSE_MODELS)
+    try:
+        client.decide([{"role": "user", "content": "x"}])
+        check("raises MalformedModelResponse for content=None", False, "did not raise")
+    except MalformedModelResponse as e:
+        check("raises MalformedModelResponse for content=None", True)
+        check("error message explains the likely cause", "reasoning budget" in e.errors, e.errors)
+    except AttributeError as e:
+        check("raises MalformedModelResponse for content=None", False,
+              f"raw AttributeError escaped uncaught -- this is the exact live crash: {e}")
+
+
+def test_empty_string_content_also_treated_as_malformed():
+    """Defense in depth: an empty (not None, but falsy) content string
+    should be treated the same way, not passed to extract_last_fenced_json
+    only to fail there with a less clear error."""
+    client = ModelClient(FakeChatClient(""), RESPONSE_MODELS)
+    try:
+        client.decide([{"role": "user", "content": "x"}])
+        check("empty content treated as malformed", False, "did not raise")
+    except MalformedModelResponse:
+        check("empty content treated as malformed", True)
+
+
+# --- max_tokens is forwarded with a sane, now-higher default --------------
 
 def test_max_tokens_is_forwarded_with_a_sane_default():
-    """Real live incident (2026-08-17 forte run): no max_tokens was ever
-    sent, and the model repeatedly generated runaway completions hitting
-    an apparent ~65,536-token provider ceiling (cluster_006: 29209,
-    33813, 23069, 29414, then 65536 completion tokens across successive
-    turns, the last costing $0.067 alone) -- truncated/anomalous output
-    that crashed downstream parsing (all 3 AttributeError-crashed
-    clusters showed this exact signature)."""
-    spy = SpyChatClient()
-    client = ModelClient(spy, RESPONSE_MODELS)
+    """Real live incident (2026-08-17 forte run #1): no max_tokens was
+    ever sent, and the model repeatedly generated runaway completions
+    hitting an apparent ~65,536-token provider ceiling. Real live
+    incident #2 (forte run #2, WITH the first fix's 8000 cap in place):
+    z-ai/glm-5.2 exhausted that whole budget on reasoning alone for large
+    clusters -- cap raised to 16000 as a result (see model_client.py's
+    own DEFAULT_MAX_COMPLETION_TOKENS docstring for both incidents)."""
+    fake = FakeChatClient(_VALID_TOOL_CALL_CONTENT)
+    client = ModelClient(fake, RESPONSE_MODELS)
     client.decide([{"role": "user", "content": "x"}])
-    check("max_tokens was sent", spy.calls[0].get("max_tokens") is not None, spy.calls)
+    check("max_tokens was sent", fake.calls[0].get("max_tokens") is not None, fake.calls)
     check("default is the documented DEFAULT_MAX_COMPLETION_TOKENS",
-          spy.calls[0].get("max_tokens") == DEFAULT_MAX_COMPLETION_TOKENS, spy.calls)
+          fake.calls[0].get("max_tokens") == DEFAULT_MAX_COMPLETION_TOKENS, fake.calls)
+    check("default reflects the raised (not original 8000) value",
+          DEFAULT_MAX_COMPLETION_TOKENS == 16000, DEFAULT_MAX_COMPLETION_TOKENS)
 
 
 def test_max_tokens_is_configurable():
-    spy = SpyChatClient()
-    client = ModelClient(spy, RESPONSE_MODELS, max_tokens=1234)
+    fake = FakeChatClient(_VALID_TOOL_CALL_CONTENT)
+    client = ModelClient(fake, RESPONSE_MODELS, max_tokens=1234)
     client.decide([{"role": "user", "content": "x"}])
-    check("configured max_tokens forwarded", spy.calls[0].get("max_tokens") == 1234, spy.calls)
+    check("configured max_tokens forwarded", fake.calls[0].get("max_tokens") == 1234, fake.calls)
 
 
 def test_decide_still_returns_parsed_action_normally():
-    spy = SpyChatClient()
-    client = ModelClient(spy, RESPONSE_MODELS)
+    fake = FakeChatClient(_VALID_TOOL_CALL_CONTENT)
+    client = ModelClient(fake, RESPONSE_MODELS)
     turn = client.decide([{"role": "user", "content": "x"}])
     check("still parses a valid response normally", isinstance(turn.parsed, ToolCallAction), turn.parsed)
+    check("chat_result carries real token/cost accounting",
+          turn.chat_result.cost_usd == 0.001, turn.chat_result)
 
 
 def main() -> int:

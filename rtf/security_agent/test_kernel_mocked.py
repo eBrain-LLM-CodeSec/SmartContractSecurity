@@ -11,6 +11,7 @@ tools inside a real multi-turn loop. Run with:
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -75,17 +76,20 @@ def _tools() -> SecurityAgentTools:
 # --- scripted model responses -----------------------------------------------
 
 class ScriptedChatClient:
-    """Stands in for a4v.llm.ChatClient: complete_json(messages, ...)
-    returns the next (raw_dict, ChatResult|None) pair from a pre-scripted
-    list, in order. Records every `messages` list it was called with, so
-    tests can assert on conversation growth (e.g. a corrective retry
-    message got appended)."""
+    """Stands in for a4v.llm.ChatClient. ModelClient.decide() calls
+    .complete() directly (not .complete_json()) so it can inspect
+    content=None before extract_last_fenced_json ever sees it -- each
+    script entry's raw_dict is JSON-serialized and fence-wrapped into a
+    real ChatResult.content string, so the real extract_last_fenced_json
+    parsing path is genuinely exercised, not bypassed. Records every
+    `messages` list it was called with, so tests can assert on
+    conversation growth (e.g. a corrective retry message got appended)."""
 
     def __init__(self, script: list[tuple[dict, "ChatResult | None"]]):
         self._script = list(script)
         self.calls: list[list[dict]] = []
 
-    def complete_json(self, messages, temperature: float = 0.0, **kwargs):
+    def complete(self, messages, temperature: float = 0.0, top_p=None, max_tokens=None):
         self.calls.append([dict(m) for m in messages])
         if len(self.calls) > len(self._script):
             raise AssertionError(f"kernel made more model calls ({len(self.calls)}) than scripted ({len(self._script)})")
@@ -117,7 +121,11 @@ class ScriptedChatClient:
             ) for p in raw["properties"]]
             for prop in raw["properties"]:
                 prop.pop("reasoning", None)
-        return raw, result
+        content = "```json\n" + json.dumps(raw) + "\n```"
+        if result is None:
+            return ChatResult(content=content, prompt_tokens=0, completion_tokens=0, cached=False, cost_usd=None)
+        return ChatResult(content=content, prompt_tokens=result.prompt_tokens,
+                          completion_tokens=result.completion_tokens, cached=result.cached, cost_usd=result.cost_usd)
 
 
 def _model_client(script: list[tuple[dict, "ChatResult | None"]]) -> ModelClient:

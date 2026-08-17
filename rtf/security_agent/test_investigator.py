@@ -35,28 +35,34 @@ PLAN = """# Cluster investigation plan: c1
 
 
 class FakeChatClient:
+    """ModelClient.decide() calls .complete() directly (not
+    .complete_json()) -- see model_client.py's own docstring on why
+    (content=None must be caught before extract_last_fenced_json)."""
+
     def __init__(self, *args, **kwargs):
         self.turn = 0
 
-    def complete_json(self, messages, temperature=0.0, **kwargs):
+    def complete(self, messages, temperature=0.0, top_p=None, max_tokens=None):
         self.turn += 1
-        usage = ChatResult("", 10, 5, False, 0.001)
         if self.turn == 1:
-            return ({"action": "call_tool", "tool": "get_function_source",
-                     "args": {"contract": "Vault", "function": "withdraw"},
-                     "reasoning": "inspect ordering"}, usage)
-        return ({"action": "conclude", "evidence": [{
-            "id": "ev1", "claim": "call precedes state update", "source_file": "Vault.sol",
-            "source_contract": "Vault", "source_function": "withdraw", "source_lines": "38-41",
-            "tool_call_id": "tool-1",
-        }], "hypotheses": [{
-            "id": "h1", "claim": "withdraw is reentrant", "originating_property_ids": ["p1"],
-            "status": "SUPPORTED", "supporting_evidence_ids": ["ev1"],
-        }], "properties": [{
-            "property_id": "p1", "claim": "withdraw follows safe ordering",
-            "evidence_ids": ["ev1"], "hypothesis_ids": ["h1"],
-            "interpretation": "external interaction precedes effects", "verdict": "FAIL",
-        }]}, usage)
+            raw = {"action": "call_tool", "tool": "get_function_source",
+                   "args": {"contract": "Vault", "function": "withdraw"},
+                   "reasoning": "inspect ordering"}
+        else:
+            raw = {"action": "conclude", "evidence": [{
+                "id": "ev1", "claim": "call precedes state update", "source_file": "Vault.sol",
+                "source_contract": "Vault", "source_function": "withdraw", "source_lines": "38-41",
+                "tool_call_id": "tool-1",
+            }], "hypotheses": [{
+                "id": "h1", "claim": "withdraw is reentrant", "originating_property_ids": ["p1"],
+                "status": "SUPPORTED", "supporting_evidence_ids": ["ev1"],
+            }], "properties": [{
+                "property_id": "p1", "claim": "withdraw follows safe ordering",
+                "evidence_ids": ["ev1"], "hypothesis_ids": ["h1"],
+                "interpretation": "external interaction precedes effects", "verdict": "FAIL",
+            }]}
+        content = "```json\n" + json.dumps(raw) + "\n```"
+        return ChatResult(content, 10, 5, False, 0.001)
 
 
 class FakeTools:

@@ -13,6 +13,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from a4v.llm import ChatResult
 from rtf.l11_investigation_grouping.taxonomy import ReasoningCategory
 from rtf.security_agent.kernel import RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import ModelClient
@@ -87,14 +88,18 @@ def _select_solc() -> None:
 
 
 class ScriptedClient:
+    """ModelClient.decide() calls .complete() directly (not
+    .complete_json()) -- see model_client.py's own docstring."""
+
     def __init__(self, responses):
         self.responses = responses
         self.index = 0
 
-    def complete_json(self, messages, temperature=0.0, **kwargs):
+    def complete(self, messages, temperature=0.0, top_p=None, max_tokens=None):
         response = self.responses[self.index]
         self.index += 1
-        return response, None
+        content = "```json\n" + json.dumps(response) + "\n```"
+        return ChatResult(content, 0, 0, False, None)
 
 
 def _responses(case: Case):
