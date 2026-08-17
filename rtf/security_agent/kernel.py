@@ -180,41 +180,67 @@ class SecurityAgentKernel:
                                          "token_usage": state.token_usage.model_dump()})
             messages.append({"role": "assistant", "content": json.dumps(turn.raw)})
 
-            if isinstance(turn.parsed, ConcludeAction):
-                proposed = state.model_copy(deep=True)
-                self._apply_conclusion(proposed, property_ids, turn.parsed)
-                completion = cluster_can_conclude(proposed, reasoning_categories_by_property)
-                if self.enforce_completion and not completion.ready:
-                    self._apply_conclusion_material(state, turn.parsed)
+            # Defense in depth (2026-08-17 live run): everything below
+            # applies an already-schema-validated action to state, but
+            # "validated by Pydantic" only means internally consistent,
+            # not consistent with everything the kernel already knows
+            # (see _apply_investigation_update's own up-front evidence-id
+            # check above for the specific bug this generalizes past).
+            # ANY unexpected exception here previously propagated all the
+            # way to live_runner.py's generic catch-all, discarding the
+            # cluster's entire accumulated tool history/evidence/
+            # hypotheses. Treated with the SAME bounded retry-then-give-up
+            # discipline as a malformed response instead, so an unknown
+            # bug degrades to one wasted turn, not a lost cluster.
+            try:
+                if isinstance(turn.parsed, ConcludeAction):
+                    proposed = state.model_copy(deep=True)
+                    self._apply_conclusion(proposed, property_ids, turn.parsed)
+                    completion = cluster_can_conclude(proposed, reasoning_categories_by_property)
+                    if self.enforce_completion and not completion.ready:
+                        self._apply_conclusion_material(state, turn.parsed)
+                        state.step_count += 1
+                        messages.append({"role": "user", "content":
+                            "Conclusion rejected by the mechanical completion gate: "
+                            + "; ".join(completion.blocking_reasons)
+                            + ". Continue investigating and update structured state before concluding again."})
+                        self._emit("conclusion_rejected", {"blocking_reasons": completion.blocking_reasons})
+                        continue
+                    state = proposed
+                    self._emit("cluster_finished", {"reason": "concluded",
+                                                     "verdicts": {pid: rs.status.value
+                                                                  for pid, rs in state.requirement_states.items()}})
+                    return state
+
+                if isinstance(turn.parsed, UpdateInvestigationAction):
+                    error = self._apply_investigation_update(state, turn.parsed)
                     state.step_count += 1
                     messages.append({"role": "user", "content":
-                        "Conclusion rejected by the mechanical completion gate: "
-                        + "; ".join(completion.blocking_reasons)
-                        + ". Continue investigating and update structured state before concluding again."})
-                    self._emit("conclusion_rejected", {"blocking_reasons": completion.blocking_reasons})
+                        f"Investigation-state update {'rejected: ' + error if error else 'recorded.'}"})
+                    self._emit("investigation_updated", {"rejected_reason": error,
+                                                          "hypothesis_ids": [h.id for h in turn.parsed.hypotheses],
+                                                          "counterexample_attempts": len(turn.parsed.counterexample_attempts)})
                     continue
-                state = proposed
-                self._emit("cluster_finished", {"reason": "concluded",
-                                                 "verdicts": {pid: rs.status.value
-                                                              for pid, rs in state.requirement_states.items()}})
-                return state
 
-            if isinstance(turn.parsed, UpdateInvestigationAction):
-                error = self._apply_investigation_update(state, turn.parsed)
+                action: ToolCallAction = turn.parsed
+                result = self.tools.call(action.tool, action.args)
+                state.record_tool_call(action.tool, action.args, _summarize_tool_result(result), result)
+                self._emit("tool_result", {"tool": action.tool, "args": action.args,
+                                            "summary": _summarize_tool_result(result)})
+                messages.append({"role": "user", "content": f"Tool result for {action.tool}:\n{json.dumps(result)}"})
+            except Exception as e:  # noqa: BLE001 -- see comment above: an unknown bug must not crash the cluster
+                self._emit("action_application_error", {"error": f"{type(e).__name__}: {e}"})
+                malformed_retries += 1
+                if malformed_retries > self.max_malformed_retries:
+                    reason = f"kernel_action_application_error:{type(e).__name__}"
+                    self._finalize_unresolved(state, property_ids, reason)
+                    self._emit("cluster_finished", {"reason": reason})
+                    return state
                 state.step_count += 1
                 messages.append({"role": "user", "content":
-                    f"Investigation-state update {'rejected: ' + error if error else 'recorded.'}"})
-                self._emit("investigation_updated", {"rejected_reason": error,
-                                                      "hypothesis_ids": [h.id for h in turn.parsed.hypotheses],
-                                                      "counterexample_attempts": len(turn.parsed.counterexample_attempts)})
-                continue
-
-            action: ToolCallAction = turn.parsed
-            result = self.tools.call(action.tool, action.args)
-            state.record_tool_call(action.tool, action.args, _summarize_tool_result(result), result)
-            self._emit("tool_result", {"tool": action.tool, "args": action.args,
-                                        "summary": _summarize_tool_result(result)})
-            messages.append({"role": "user", "content": f"Tool result for {action.tool}:\n{json.dumps(result)}"})
+                    f"An internal error occurred while applying your last action "
+                    f"({type(e).__name__}: {e}). Try again -- only reference evidence/hypothesis "
+                    "ids that were already established in a prior turn."})
 
         self._finalize_unresolved(state, property_ids, "max_steps_exhausted")
         self._emit("cluster_finished", {"reason": "max_steps_exhausted"})
@@ -268,6 +294,22 @@ class SecurityAgentKernel:
                                     - known_hypotheses)
         if unknown_hypotheses:
             return f"unknown hypothesis ids: {unknown_hypotheses}"
+        # Real crash fixed here (2026-08-17 live run,
+        # cluster_invocation_crashed:UnknownEvidenceIdError, 42 properties
+        # across the run): a hypothesis's supporting/contradicting
+        # evidence ids were never checked against state.evidence before
+        # upsert_hypothesis -> add_hypothesis's own _require_evidence
+        # call raised uncaught. The prompt actively encourages recording
+        # hypotheses via update_investigation BEFORE a conclude action
+        # has declared evidence, so this fired often, not as an edge
+        # case. Validated up front, like the two checks above, so nothing
+        # is mutated before we know the whole update is applicable.
+        referenced_evidence = {eid for h in update.hypotheses
+                               for eid in (*h.supporting_evidence_ids, *h.contradicting_evidence_ids)}
+        unknown_evidence = sorted(referenced_evidence - set(state.evidence))
+        if unknown_evidence:
+            return (f"unknown evidence ids in hypotheses: {unknown_evidence} -- evidence must be "
+                    "declared via a conclude action's own evidence list before a hypothesis can cite it")
         for item in update.hypotheses:
             state.upsert_hypothesis(Hypothesis.model_validate(item.model_dump()))
         for attempt in update.counterexample_attempts:

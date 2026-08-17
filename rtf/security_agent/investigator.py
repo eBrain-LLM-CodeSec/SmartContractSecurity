@@ -11,13 +11,40 @@ from typing import Callable
 
 from a4v.llm import ChatClient
 from rtf.security_agent.kernel import RESPONSE_MODELS, SecurityAgentKernel
-from rtf.security_agent.model_client import ModelClient
+from rtf.security_agent.model_client import DEFAULT_MAX_COMPLETION_TOKENS, ModelClient
 from rtf.security_agent.state import ClusterInvestigationState
 from rtf.security_agent.tools import SecurityAgentTools
 from rtf.security_agent.trajectory import TrajectoryWriter
 
 _PROPERTY_HEADING = re.compile(r"^### `([^`]+)`\s*$", re.MULTILINE)
 _PARENT_LINE = re.compile(r"\*\*Parent EthTrust obligation\*\*: `([^`]+)`")
+
+# rtf.security_agent.state.RequirementResolution (PASS/FAIL/NOT_APPLICABLE/
+# UNRESOLVED, taken literally from the kernel's own task brief) does not
+# line up with the pre-existing pipeline's rtf.l12_evaluation.metrics.
+# ConformanceState (PASS/FAIL/INCONCLUSIVE/INSUFFICIENT_EVIDENCE) --
+# confirmed live (2026-08-17 forte run, 15/147 properties): cluster_
+# response_validation.py's _DECISION_TO_CONFORMANCE only recognizes the
+# latter four literal strings; NOT_APPLICABLE/UNRESOLVED fell through as
+# "unknown_verdict:X" and were force-downgraded to INCONCLUSIVE anyway,
+# just with the WRONG reason recorded and no chance for the legacy
+# harness's own PASS-sufficiency checks to even run. Translated here,
+# isolated to this adapter -- cluster_response_validation.py (shared with
+# the real Codex path) is untouched. NOT_APPLICABLE has no real analog in
+# ConformanceState; INSUFFICIENT_EVIDENCE ("not enough of a signal for a
+# real PASS/FAIL") is the closer of the two non-terminal states. UNRESOLVED
+# (the kernel's own "gave up, reason recorded" state) maps cleanly onto
+# INCONCLUSIVE -- the same concept under a different name.
+_VERDICT_FOR_LEGACY_HARNESS = {"NOT_APPLICABLE": "INSUFFICIENT_EVIDENCE", "UNRESOLVED": "INCONCLUSIVE"}
+
+
+def _property_entries_for_legacy_harness(state: ClusterInvestigationState) -> list[dict]:
+    entries = []
+    for entry in state.to_property_verdict_entries():
+        entry = dict(entry)
+        entry["verdict"] = _VERDICT_FOR_LEGACY_HARNESS.get(entry["verdict"], entry["verdict"])
+        entries.append(entry)
+    return entries
 
 
 @dataclass
@@ -71,6 +98,7 @@ def run_security_agent_bundle(
     compile_via_foundry: bool,
     chat_client_factory: Callable[..., ChatClient] | None = None,
     tools_factory: Callable[..., SecurityAgentTools] | None = None,
+    max_completion_tokens: int = DEFAULT_MAX_COMPLETION_TOKENS,
 ) -> SecurityAgentResult:
     """Signature-compatible replacement for `run_arm_g_bundle`.
 
@@ -99,8 +127,8 @@ def run_security_agent_bundle(
         extra_compile_kwargs=compile_kwargs,
     )
     trajectory_path = case_root / "trajectory.jsonl"
-    kernel = SecurityAgentKernel(tools, ModelClient(chat, RESPONSE_MODELS),
-                                 event_sink=TrajectoryWriter(trajectory_path))
+    model_client = ModelClient(chat, RESPONSE_MODELS, max_tokens=max_completion_tokens)
+    kernel = SecurityAgentKernel(tools, model_client, event_sink=TrajectoryWriter(trajectory_path))
     state = kernel.run_cluster(
         case_id, property_ids, protocol, requirement_contexts, plan,
         parent_requirement_ids=parent_ids,
@@ -110,7 +138,7 @@ def run_security_agent_bundle(
     attempts = sum(len(req.counterexample_attempts) for req in state.requirement_states.values())
     return SecurityAgentResult(
         case_id=case_id,
-        final_decision={"properties": state.to_property_verdict_entries()},
+        final_decision={"properties": _property_entries_for_legacy_harness(state)},
         cost_usd=state.token_usage.cost_usd,
         investigation_state=state,
         trajectory_path=str(trajectory_path),

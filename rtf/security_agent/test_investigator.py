@@ -7,10 +7,15 @@ import json
 from pathlib import Path
 
 from a4v.llm import ChatResult
-from rtf.l11_investigation_grouping.cluster_response_validation import validate_cluster_response
-from rtf.security_agent.investigator import (
-    _extract_context, _property_metadata_from_plan, run_security_agent_bundle,
+from rtf.l11_investigation_grouping.cluster_response_validation import (
+    resolve_property_verdicts, validate_cluster_response,
 )
+from rtf.l12_evaluation.metrics import ConformanceState
+from rtf.security_agent.investigator import (
+    _extract_context, _property_entries_for_legacy_harness, _property_metadata_from_plan,
+    run_security_agent_bundle,
+)
+from rtf.security_agent.state import ClusterInvestigationState, RequirementResolution
 
 PASSES: list[str] = []
 FAILURES: list[str] = []
@@ -108,6 +113,52 @@ def test_adapter_returns_live_runner_compatible_result():
           list(range(1, len(trajectory_events) + 1)), trajectory_events)
     check("explicit solc path forwarded without mutating PATH",
           build_args["extra_compile_kwargs"] == {"solc": "/opt/solc-bin/solc"}, build_args)
+
+
+# --- root cause 4: verdict-vocabulary mismatch with the legacy harness -----
+
+def test_not_applicable_and_unresolved_verdicts_translated_for_legacy_harness():
+    """Real live finding (2026-08-17 forte run, 15/147 properties):
+    rtf.security_agent.state.RequirementResolution is PASS/FAIL/
+    NOT_APPLICABLE/UNRESOLVED (the brief's own literal 4-state schema);
+    the pre-existing pipeline's ConformanceState is PASS/FAIL/
+    INCONCLUSIVE/INSUFFICIENT_EVIDENCE. NOT_APPLICABLE and UNRESOLVED
+    were never recognized keys in cluster_response_validation.py's
+    _DECISION_TO_CONFORMANCE -- both fell into its unknown_verdict:X
+    branch and were force-downgraded to INCONCLUSIVE anyway, just
+    without ever reaching the harness's own resolution logic under the
+    RIGHT verdict."""
+    state = ClusterInvestigationState.initial("c1", ["p1", "p2", "p3"])
+    state.resolve_requirement("p1", RequirementResolution.NOT_APPLICABLE, reason="construct never used here")
+    state.mark_unresolved_reason("p2", "max_steps_exhausted")
+    state.resolve_requirement("p3", RequirementResolution.FAIL, reason="real finding")
+
+    entries = {e["property_id"]: e for e in _property_entries_for_legacy_harness(state)}
+    check("NOT_APPLICABLE translated to INSUFFICIENT_EVIDENCE", entries["p1"]["verdict"] == "INSUFFICIENT_EVIDENCE",
+          entries["p1"])
+    check("UNRESOLVED translated to INCONCLUSIVE", entries["p2"]["verdict"] == "INCONCLUSIVE", entries["p2"])
+    check("PASS/FAIL/etc. pass through unchanged", entries["p3"]["verdict"] == "FAIL", entries["p3"])
+
+
+def test_translated_verdicts_never_hit_unknown_verdict_in_the_real_harness():
+    """Integration-style check against the REAL, unmodified
+    cluster_response_validation.resolve_property_verdicts (the exact
+    function that produced unknown_verdict:X live) -- proves end-to-end
+    compatibility without needing a live run to observe it."""
+    state = ClusterInvestigationState.initial("c1", ["p1", "p2"])
+    state.resolve_requirement("p1", RequirementResolution.NOT_APPLICABLE, reason="n/a")
+    state.mark_unresolved_reason("p2", "max_steps_exhausted")
+
+    response = {"properties": _property_entries_for_legacy_harness(state)}
+    resolved = resolve_property_verdicts(response)
+    check("p1 resolved to a REAL ConformanceState", resolved["p1"].conformance_state == ConformanceState.INSUFFICIENT_EVIDENCE,
+          resolved["p1"])
+    check("p2 resolved to a REAL ConformanceState", resolved["p2"].conformance_state == ConformanceState.INCONCLUSIVE,
+          resolved["p2"])
+    check("p1 was NOT downgraded via the unknown_verdict path",
+          not (resolved["p1"].reason or "").startswith("unknown_verdict"), resolved["p1"].reason)
+    check("p2 was NOT downgraded via the unknown_verdict path",
+          not (resolved["p2"].reason or "").startswith("unknown_verdict"), resolved["p2"].reason)
 
 
 def main() -> int:

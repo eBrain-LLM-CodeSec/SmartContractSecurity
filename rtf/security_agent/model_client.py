@@ -21,11 +21,25 @@ same fix already applied everywhere else in this codebase).
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from pydantic import BaseModel, ValidationError
 
 from a4v.llm import ChatClient, ChatResult
+
+DEFAULT_MAX_COMPLETION_TOKENS = 8000
+"""Real incident, not a guess: a live 2026-08-17 run against 2025-04-forte
+(z-ai/glm-5.2, no cap set anywhere -- confirmed by grep, `complete_json`
+was never called with `max_tokens`) produced repeated runaway completions
+hitting an apparent ~65,536-token provider ceiling on verbose clusters
+(cluster_006 alone: 29209, 33813, 23069, 29414, then 65536 completion
+tokens on successive turns, the last one costing $0.067 alone) --
+truncated/anomalous output that crashed downstream parsing. 8000 is
+comfortably above what a legitimate single turn needs (the CEIV schema's
+own conclude payload for an 8-property cluster measured ~3000-5000
+completion tokens in an earlier, non-runaway live sample) while firmly
+capping the pathological case."""
 
 
 class MalformedModelResponse(Exception):
@@ -54,13 +68,28 @@ class ModelTurn:
 
 class ModelClient:
     def __init__(self, chat_client: ChatClient, response_models: tuple[type[BaseModel], ...],
-                 temperature: float = 0.0):
+                 temperature: float = 0.0, max_tokens: int | None = DEFAULT_MAX_COMPLETION_TOKENS):
         self.chat_client = chat_client
         self.response_models = response_models
         self.temperature = temperature
+        self.max_tokens = max_tokens
 
     def decide(self, messages: list[dict]) -> ModelTurn:
-        raw, chat_result = self.chat_client.complete_json(messages, temperature=self.temperature)
+        try:
+            raw, chat_result = self.chat_client.complete_json(
+                messages, temperature=self.temperature, max_tokens=self.max_tokens)
+        except json.JSONDecodeError as e:
+            # A real, previously-uncaught crash path (2026-08-17 live run,
+            # cluster_invocation_crashed:JSONDecodeError): genuinely
+            # malformed model output -- not just "extra trailing data",
+            # which a4v.llm.extract_last_fenced_json's tolerant fallback
+            # already recovers from -- re-raises through ChatClient.
+            # Philosophically the SAME failure mode as "matched no
+            # accepted action schema" (MalformedModelResponse already
+            # covers that), just caught one parsing stage earlier; folded
+            # into the same retry-then-give-up path rather than left to
+            # crash the whole cluster invocation.
+            raise MalformedModelResponse({}, f"response was not valid JSON: {e}") from e
         errors = []
         for model_cls in self.response_models:
             try:

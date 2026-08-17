@@ -384,6 +384,109 @@ def test_token_usage_accumulates_across_turns():
           state.token_usage.cost_usd)
 
 
+# --- root cause 2: update_investigation citing unknown evidence ids --------
+
+def test_update_investigation_with_unknown_evidence_id_is_rejected_not_crashed():
+    """Real live crash (2026-08-17 forte run,
+    cluster_invocation_crashed:UnknownEvidenceIdError, 42/147 properties):
+    a hypothesis's supporting_evidence_ids referenced an id that was
+    never declared via a conclude action's own evidence list --
+    upsert_hypothesis -> add_hypothesis's _require_evidence raised
+    uncaught. Before the fix this test's kernel.run_cluster call itself
+    raised UnknownEvidenceIdError; after the fix it's a normal rejected
+    update, and the loop continues to a real conclusion."""
+    script = [
+        ({"action": "update_investigation", "hypotheses": [{
+            "id": "hyp-1", "claim": "x", "originating_property_ids": ["p1"],
+            "status": "OPEN", "supporting_evidence_ids": ["ev-never-declared"],
+        }], "counterexample_attempts": []}, None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "PASS", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "PASS", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("did not crash with UnknownEvidenceIdError", True)
+    check("hypothesis with the bad reference was NOT recorded", "hyp-1" not in state.hypotheses, state.hypotheses)
+    check("a corrective rejection message was sent",
+          any("unknown evidence ids" in str(m.get("content", "")) for m in fake.calls[-1]), fake.calls[-1])
+    check("loop continued to a real conclusion afterward", all(
+        state.requirement_states[pid].status == RequirementResolution.PASS for pid in _PROPERTY_IDS))
+
+
+def test_update_investigation_with_known_evidence_id_still_works():
+    """Regression guard for the fix above, at the unit level (avoids
+    ScriptedChatClient's own conclude auto-fill defaults, which are
+    tuned for the happy-path tests elsewhere and would obscure this
+    specific check): a hypothesis referencing evidence that WAS already
+    established must still be accepted normally, not rejected."""
+    from rtf.security_agent.kernel import HypothesisInput, SecurityAgentKernel as K, UpdateInvestigationAction
+    from rtf.security_agent.state import ClusterInvestigationState, Evidence
+
+    state = ClusterInvestigationState.initial("c1", _PROPERTY_IDS)
+    state.add_evidence(Evidence(id="ev-1", claim="fact", source_file="Vault.sol"))
+    update = UpdateInvestigationAction(action="update_investigation", hypotheses=[
+        HypothesisInput(id="hyp-1", claim="x", originating_property_ids=["p1"],
+                        status="SUPPORTED", supporting_evidence_ids=["ev-1"]),
+    ])
+    error = K._apply_investigation_update(state, update)
+    check("no rejection error for a known evidence id", error is None, error)
+    check("hypothesis referencing already-known evidence was accepted", "hyp-1" in state.hypotheses, state.hypotheses)
+
+
+# --- root cause 3 (defense in depth): any unexpected exception during ------
+# --- action application is retried, then gives up gracefully --------------
+
+class _ExplodingTools:
+    """A tools stub whose call() raises an arbitrary exception a fixed
+    number of times before succeeding -- simulates an unanticipated bug
+    in action-application code that isn't specifically validated against
+    (unlike root cause 2 above), the general backstop this fix adds."""
+
+    def __init__(self, exceptions: list[Exception]):
+        self._exceptions = list(exceptions)
+        self.calls = 0
+
+    def call(self, tool, args):
+        self.calls += 1
+        if self._exceptions:
+            raise self._exceptions.pop(0)
+        return {"status": "OK", "source": "ok"}
+
+
+def test_unexpected_exception_during_tool_call_retries_then_gives_up():
+    script = [({"action": "call_tool", "tool": "read_file", "args": {"path": "x"},
+                "reasoning": "r"}, None)] * 3
+    fake = ScriptedChatClient(script)
+    mc = ModelClient(fake, RESPONSE_MODELS)
+    exploding = _ExplodingTools([RuntimeError("boom"), RuntimeError("boom"), RuntimeError("boom")])
+    kernel = SecurityAgentKernel(exploding, mc, enforce_completion=False, max_malformed_retries=2)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("gave up after max_malformed_retries+1 attempts", exploding.calls == 3, exploding.calls)
+    check("did not crash the whole process", True)
+    check("both properties left UNRESOLVED with a specific reason", all(
+        state.requirement_states[pid].resolution_reason == "kernel_action_application_error:RuntimeError"
+        for pid in _PROPERTY_IDS), {pid: state.requirement_states[pid].resolution_reason for pid in _PROPERTY_IDS})
+
+
+def test_unexpected_exception_during_tool_call_recovers_on_retry():
+    script = [
+        ({"action": "call_tool", "tool": "read_file", "args": {"path": "x"}, "reasoning": "r"}, None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "PASS", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "PASS", "reasoning": "r2"},
+        ]}, None),
+    ]
+    fake = ScriptedChatClient(script)
+    mc = ModelClient(fake, RESPONSE_MODELS)
+    exploding = _ExplodingTools([RuntimeError("boom")])
+    kernel = SecurityAgentKernel(exploding, mc, enforce_completion=False)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("recovered and reached a real conclusion", all(
+        state.requirement_states[pid].status == RequirementResolution.PASS for pid in _PROPERTY_IDS))
+
+
 # --- an ERROR tool result (e.g. bad args) doesn't crash the loop -----------
 
 def test_tool_error_result_does_not_crash_loop():
