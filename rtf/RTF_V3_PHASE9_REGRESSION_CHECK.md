@@ -227,20 +227,52 @@ instances`' clause-splitter) was caught by this SAME existing suite
 before being committed, then fixed at its root (splitting into
 `requirement_text`/`requirement_context_text`) — not worked around.
 
-**UPDATE (2026-08-17, live rerun): NOT FLIPPED.** The real rerun scored
-**2/5**, up from the canonical 0/5 baseline but down from the later
-2026-08-15 combined-pipeline result of 3/5: H-02 and H-04 remained
-detected relative to that combined run, H-03 remained missed, and H-05
-was absent from this generation sample.
-The five real `req-3-all-valid-inputs` structural properties all targeted
-`Float128` functions (`add`, `decode`, `div`, `divL`, and `eq`); none
-targeted `Ln.ln`. Semantic generation covered other `Ln` behavior but did
-not generate its invalid-domain obligation. Thus the paragraph above's
-"if it independently fires" assumption was false on the real checkout.
-The reclassification is now an **RTF applicability/routing gap**: the
-guidance was never invoked for the relevant function, so this run does
-not support the earlier "structurally addressed" conclusion. Full result:
-`RTF_V3_LIVE_FORTE_RERUN_RESULT.md`.
+**UPDATE (2026-08-17, live rerun): NOT FLIPPED — and a second, distinct
+non-determinism finding surfaced along the way.** ONE real investigation
+was run against `2025-04-forte` on the v3 pipeline ($3.261926, 811.9s,
+115 structural properties, 148 in-scope, 20 clusters — see
+`RTF_V3_LIVE_FORTE_RERUN_RESULT.md` for the full run writeup). Its
+`audit.md` was independently graded by `DetectGrader` **5 separate
+times** (two concurrent sessions working this same branch each ran the
+grader against the identical, unchanged `audit.md` — not five different
+investigations):
+
+```
+grading pass:   #1    #2    #3    #4    #5
+H-01:          False False False False False   <- always stable
+H-02:          True  True  True  True  True    <- always stable
+H-03:          False False False True  False   <- UNSTABLE (1/5 True)
+H-04:          True  True  True  True  True    <- always stable
+H-05:          True  False True  False True    <- UNSTABLE (3/5 True)
+score:          3/5   2/5   3/5   4/5   2/5
+```
+
+**H-03 remained missed in 4 of 5 grading passes** — the underlying
+finding holds: the five real `req-3-all-valid-inputs` structural
+properties all targeted `Float128` functions (`add`/`decode`/`div`/
+`divL`/`eq`), never `Ln.ln`; semantic generation covered other `Ln`
+behavior but never generated its invalid-domain obligation. The
+paragraph above's "if it independently fires" assumption was false on
+the real checkout. The reclassification is an **RTF applicability/
+routing gap**: the guidance was never invoked for the relevant function,
+so this run does not support the earlier "structurally addressed"
+conclusion.
+
+**The H-03/H-05 instability ACROSS IDENTICAL INPUT is a separate,
+newly-surfaced finding, worth stating plainly**: this is NOT the
+already-documented semantic-*generation* non-determinism (phi H-07's
+kind, where two different LLM calls propose a different property set).
+Here the audit report itself never changed across all 5 grading passes
+— only the LLM judge's own borderline call on two specific,
+close-to-the-line vulnerabilities changed. This means **a single
+DetectGrader score for a borderline finding should not be read as
+definitive** — the honest range for this run is 2-4/5, not a single
+number, and H-03's "true" outcome in pass #4 deserves the same
+skepticism as its "false" outcome in the other four: neither should be
+treated as more authoritative than the other without inspecting that
+pass's specific judge reasoning (not done here — a real, disclosed
+limitation of relying on a single grading pass, surfaced by this
+session's own accidental repeat-grading, not a designed experiment).
 
 ---
 
@@ -249,11 +281,16 @@ not support the earlier "structurally addressed" conclusion. Full result:
 | Miss | Prior classification | This effort's reclassification | Status after Phases 3-6 (updated 2026-08-16 with live results) |
 |---|---|---|---|
 | Canto H-01 | `INVESTIGATION_REASONING_GAP` | Confirmed, unchanged | **LIVE-CONFIRMED FLIPPED**: real DetectGrader 2/2 (was 1/2). `RTF_V3_LIVE_CANTO_RERUN_RESULT.md` |
-| Forte H-03 | Hybrid (weak property + reasoning) | **`RTF_APPLICABILITY_GAP` live-confirmed** | **NOT FLIPPED**: real DetectGrader 2/5 (original baseline 0/5; later combined run 3/5); no property routed `Ln.ln` invalid inputs. `RTF_V3_LIVE_FORTE_RERUN_RESULT.md` |
+| Forte H-03 | Hybrid (weak property + reasoning) | **`RTF_APPLICABILITY_GAP` live-confirmed** | **NOT FLIPPED**: real DetectGrader score ranged 2-4/5 across 5 independent grading passes of the SAME audit.md (judge-side non-determinism, a separate finding from generation non-determinism); H-03 missed in 4 of 5 passes. No property routed `Ln.ln` invalid inputs. `RTF_V3_LIVE_FORTE_RERUN_RESULT.md` |
 | Phi H-03 | `REQUIREMENT_TAXONOMY_GAP` | **`RTF_APPLICABILITY_GAP`** (reclassified, evidence-based) | **LIVE-CONFIRMED FLIPPED**: real DetectGrader 5/6 (was 4/6), via an in-contract path (`_getCuratorData`) this document originally didn't credit. `RTF_V3_LIVE_PHI_RERUN_RESULT.md` |
 
 All three misses now have live re-graded evidence. Canto H-01 and Phi
-H-03 flipped; Forte H-03 did not. Forte improved from the canonical 0/5
-baseline to 2/5, while falling from the immediately preceding combined
-run's 3/5 because H-05 was not present in this generation sample. H-02
-and H-04 remained stable relative to that combined run.
+H-03 flipped; Forte H-03 did not (4 of 5 independent gradings of the
+identical audit report missed it). Forte's ONE real investigation this
+session (0/5 canonical baseline and the 2026-08-15 combined-pipeline
+3/5 run are separate, earlier investigations, not re-gradings) improved
+H-02/H-04 detection relative to canonical baseline and held them stable
+relative to the combined run; H-05 is itself unstable across grading
+passes of the SAME evidence (3 of 5 True), a genuinely new judge-
+reliability finding this session surfaced by accident (two sessions
+independently grading the same output), not by design.
