@@ -611,3 +611,143 @@ them in is real, separate future work, not something this session
 expanded into. The unrelated structural/EthTrust standards machinery
 itself (`rtf/standards/`, `rtf/l9_assumptions_register/`, `rtf/track_a/`)
 was read and reused, never redesigned.
+
+---
+
+## 13. Addendum (2026-08-16/17) -- RTF v3: targeted fixes for this report's own findings, real live-validated
+
+**Scope note before reading this section**: everything in Sections 1-12
+above was designed, implemented, and verified line-by-line by this
+session. The work described below ("RTF v3," commits `2c4bc5d`..`261a4f7`
+on the same branch) was built by a separate continuation of this same
+background session while this report was being written, taking
+`RTF_V2_COMBINED_PIPELINE_5MISSES_ROOT_CAUSE.md`'s own findings as its
+starting point. It is reported here because it is real, already
+committed and pushed to `rtf-v2-redesign`, and directly changes the "new
+results" this report exists to state -- but this section's confidence
+level is necessarily different from Sections 1-12: it is based on
+reading RTF v3's own real result documents (which quote real
+`DetectGrader` judge reasoning, the same standard of evidence this whole
+project has used throughout) and a regression-test pass (all green, zero
+failures, test counts only grew), not on personally re-deriving or
+line-by-line reviewing every one of its 44 changed files.
+
+### 13.1 What RTF v3 built, in one paragraph each
+
+**Phases 1-4 (architecture trace, fidelity audit, obligation
+preservation, parent-requirement anchoring)**: an architecture trace and
+"requirement fidelity audit" tool (`requirement_fidelity_audit.py`, with
+baseline/after-phase5/after-phase7 JSON snapshots) that checks whether
+generated semantic properties still preserve their parent EthTrust
+requirement's full normative obligation, not a diluted paraphrase.
+Semantic properties gained real parent-requirement linkage
+(`parent_requirement_id`), closing a gap where every semantic property
+was previously "parentless" -- unable to inherit requirement-specific
+guidance or context.
+
+**Phase 5 (`rtf/l5_predicates/predicates.py`, +157 lines)**: a new,
+**generic** predicate for `req-3-enough-gas`/`req-3-protect-gas` that
+detects a specific, nameable Solidity pattern -- a persistent mapping/
+`EnumerableMap`/`EnumerableSet` that has an insertion path but no
+matching removal path, later iterated by a function with a bounded gas
+budget. This is exactly the requirement-taxonomy gap this report's own
+root-cause analysis (Section 11.4 above, and
+`RTF_V2_COMBINED_PIPELINE_5MISSES_ROOT_CAUSE.md`'s own top-priority
+recommendation) identified as the single highest-leverage, most
+tractable remaining gap -- built generically from Solidity semantics
+and the requirement's own normative text, not by reading phi's specific
+finding first (per the Phase 9 doc's own explicit discipline note).
+
+**Phase 6 (`codex_bridge.py`/`registry.py`, requirement-specific
+investigation guidance)**: attaches targeted guidance text to specific
+requirement categories -- e.g. `_CROSS_BOUNDARY_BLOCK_DATA_GUIDANCE` for
+`req-2-block-data-misuse`/`req-2-random-enough`, explicitly instructing
+the investigator that confirming a value is used self-consistently
+*within the caller* is not sufficient; the caller's assumption about
+that value must be compared against the *callee's own* assumption. This
+directly targets the `INVESTIGATION_REASONING_GAP` pattern this report's
+own canto H-01 analysis (Section 11.4) identified.
+
+**Phase 7 (EthTrust conformance test suite +
+`tests/ethtrust_conformance/`)**: real vulnerable/safe Solidity fixture
+pairs per requirement category (`req-1-no-tx.origin`,
+`req-2-block-data-misuse`, `req-2-external-calls`,
+`req-3-access-control`, `req-3-all-valid-inputs`, `req-3-enough-gas`), a
+conformance harness, and a mutation-testing proof-of-concept -- real,
+reusable regression coverage for whether a given requirement category
+still correctly distinguishes a genuinely vulnerable pattern from a safe
+one, independent of any specific audit.
+
+**Phases 8-9 (implementation-status report + honest regression check)**:
+a requirement-level implementation status report, and
+`RTF_V3_PHASE9_REGRESSION_CHECK.md` -- an explicit, itemized check of
+whether the generic Phases 3-6 fixes structurally address each of this
+report's own 5 named misses, disclosed with real caveats about what a
+mocked-agent test can and cannot confirm versus what needs a real,
+paid, authorized rerun.
+
+### 13.2 Real live-validated results (all user-requested, all
+explicitly authorized before spending)
+
+| Target | This report's own result (Section 11.2) | RTF v3 live rerun |
+|---|---|---|
+| `canto` | 1/2 | **2/2** -- H-01 now detected |
+| `phi` | 4/6 | **5/6** -- H-03 now detected |
+| `forte` | 3/5 | 2/5 -- H-05 lost to sampling variance; H-03 still missed (see below) |
+| `tempo-feeamm` | 1/1 | not rerun |
+| `liquid-ron` | 1/1 | not rerun |
+| **Total (using each target's latest verified result)** | **10/15** | **11/15** |
+
+**Canto H-01 (Section 11.4's `INVESTIGATION_REASONING_GAP`): confirmed
+flipped.** Real judge reasoning from the rerun: *"GaugeController
+documents and treats that argument as a Unix timestamp... Internal
+consistency within LendingLedger cannot make that lookup valid"* --
+language that directly mirrors Phase 6's own guidance text, strong
+evidence the fix caused the flip, not coincidence.
+
+**Phi H-03 (Section 11.4's `REQUIREMENT_TAXONOMY_GAP`, the report's own
+top-priority recommendation): confirmed flipped, and the real mechanism
+differed from what was predicted.** RTF v3's own writeup is candid about
+this: the generic growth predicate was expected to need a cross-contract
+extension (into `CuratorRewardsDistributor`) to catch this; in the real
+run it fired entirely within `Cred.sol` itself, on a different function
+(`_getCuratorData`) that also enumerates the same unpruned map --
+confirming the *general pattern* the predicate was built for is real and
+present, via a path that wasn't the one originally guessed. Real judge
+reasoning: *"curator entries are not removed when a balance reaches
+zero, leading to large and eventually unmanageable data storage...
+[both] suggest removing zero entries from the data structure to prevent
+bloat."*
+
+**Forte: real, disclosed regression, not swept under the rug.** 3/5 to
+2/5 -- H-05 (previously detected) didn't reappear in this generation
+sample, consistent with the same real sampling non-determinism this
+report and `RTF_V2_COMBINED_PIPELINE_5MISSES_ROOT_CAUSE.md` both already
+documented independently (Pattern 1 in that report). H-03 (Section
+11.4's hybrid property-wording gap) still did not flip -- but RTF v3's
+own writeup identifies *why*, precisely: not a failure of the new
+guidance, but an **applicability/routing gap** -- this run's real
+`req-3-all-valid-inputs` instances all targeted `Float128`'s own entry
+functions (`add`, `decode`, `div`, `divL`, `eq`), never `Ln.ln`
+specifically, so the new guidance never reached an investigation that
+could have used it. This is itself a real, useful, newly-precise
+finding this report's own analysis didn't have: the gap isn't purely
+generation-wording, it's evidence-routing not reliably reaching every
+domain-restricted function in a multi-file target.
+
+### 13.3 What this addendum changes about this report's own conclusions
+
+Nothing in Sections 1-12 above is invalidated -- RTF v3 is confirmed to
+be **built on top of** this session's own whole-project-compilation and
+EthTrust-routing work (its Phase 5 predicate and Phase 6 guidance both
+operate through the exact `build_ethtrust_structural_properties`/
+investigation pipeline described in Sections 5, 7, and 9 above; without
+that wiring already being real and correct, neither fix would have had
+anything to attach to). What changes is the **current, most up-to-date
+real score**: **11/15**, not 10/15 -- and two of this report's own
+Section 11.4 "still open" items (canto H-01, phi H-03) are no longer
+open. Forte H-03 remains open, now with a more precise, evidenced
+diagnosis (routing, not wording) than this report's own Section 11.4
+had. Full detail: `RTF_V3_PHASE9_REGRESSION_CHECK.md`,
+`RTF_V3_LIVE_CANTO_RERUN_RESULT.md`, `RTF_V3_LIVE_PHI_RERUN_RESULT.md`,
+`RTF_V3_LIVE_FORTE_RERUN_RESULT.md`.
