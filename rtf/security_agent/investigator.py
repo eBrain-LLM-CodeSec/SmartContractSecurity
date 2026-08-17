@@ -12,6 +12,7 @@ from typing import Callable
 from a4v.llm import ChatClient
 from rtf.security_agent.kernel import RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import DEFAULT_MAX_COMPLETION_TOKENS, ModelClient
+from rtf.security_agent.responses_client import ResponsesChatClient
 from rtf.security_agent.state import ClusterInvestigationState
 from rtf.security_agent.tools import SecurityAgentTools
 from rtf.security_agent.trajectory import TrajectoryWriter
@@ -99,11 +100,33 @@ def run_security_agent_bundle(
     chat_client_factory: Callable[..., ChatClient] | None = None,
     tools_factory: Callable[..., SecurityAgentTools] | None = None,
     max_completion_tokens: int = DEFAULT_MAX_COMPLETION_TOKENS,
+    reasoning_effort: str = "low",
 ) -> SecurityAgentResult:
     """Signature-compatible replacement for `run_arm_g_bundle`.
 
     Codex-specific arguments are intentionally accepted but unused. The
     adapter consumes the exact same context artifacts and project scope.
+
+    Defaults to `ResponsesChatClient` (the OpenAI Responses API wire
+    format, `POST {base_url}/responses`) rather than `a4v.llm.ChatClient`
+    (`POST {base_url}/chat/completions`) -- the SAME wire format the real
+    Codex investigator already uses successfully against this project's
+    models (`arm_c_codex.py`'s `DEFAULT_WIRE_API = "responses"`).
+
+    Real root cause this fixes (found live, 2026-08-17): z-ai/glm-5.2 is
+    a reasoning model that can exhaust its ENTIRE completion budget on
+    internal reasoning tokens without ever emitting a visible answer
+    (confirmed via `chat_client_factory=ChatClient`'s
+    `Chat Completions` path, multiple times, on real forte clusters) --
+    `max_tokens`/`max_output_tokens` caps reasoning+output COMBINED in
+    both wire formats (confirmed against OpenAI's own docs), so switching
+    wire format alone does not fix this. The actual fix is
+    `reasoning.effort`, a Responses-API-only control absent from Chat
+    Completions entirely -- explicitly bounding how much the model
+    reasons before answering, rather than gambling on token-count math.
+    `chat_client_factory` remains overridable (tests, or a future
+    `ChatClient`-based comparison) -- this default is what real live runs
+    should use.
     """
     del codex_bin, python_bin, mcp_server_script, candidate_location, prompt
     started = time.monotonic()
@@ -112,11 +135,17 @@ def run_security_agent_bundle(
 
     case_root = Path(scratch_root) / "security_agent" / case_id
     case_root.mkdir(parents=True, exist_ok=True)
-    chat_factory = chat_client_factory or ChatClient
-    chat = chat_factory(
-        os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
-        api_key, model, case_root / "cache", case_root / "tokens.jsonl", timeout=timeout_s,
-    )
+    if chat_client_factory is not None:
+        chat = chat_client_factory(
+            os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+            api_key, model, case_root / "cache", case_root / "tokens.jsonl", timeout=timeout_s,
+        )
+    else:
+        chat = ResponsesChatClient(
+            os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+            api_key, model, case_root / "cache", case_root / "tokens.jsonl", timeout=timeout_s,
+            reasoning_effort=reasoning_effort,
+        )
     build_tools = tools_factory or SecurityAgentTools.build
     compile_kwargs = None
     if not compile_via_foundry:
