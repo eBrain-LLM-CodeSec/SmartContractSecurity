@@ -32,6 +32,7 @@ from a4v.graph import (
 )
 from a4v.slice import _excerpt, numbered_source
 from rtf.l8_llm_judgment_layer.graph_navigation import node_file, resolve_seed_node
+from rtf.security_agent.evidence_store import EvidenceStore, UnknownEvidenceRefError
 
 ToolStatus = Literal["OK", "NOT_FOUND", "AMBIGUOUS", "ERROR"]
 
@@ -144,6 +145,13 @@ class SearchRepositoryResult(BaseModel):
     truncated: bool = False
 
 
+class ReadEvidenceResult(BaseModel):
+    status: ToolStatus
+    reason: str | None = None
+    evidence_id: str | None = None
+    content: str | None = None
+
+
 _SEARCH_MAX_HITS = 200
 _SEARCH_SKIP_EXTS = {".pyc", ".png", ".jpg", ".jpeg", ".gif", ".sif", ".zip", ".gz", ".so", ".o"}
 
@@ -154,11 +162,21 @@ class SecurityAgentTools:
     bounds `read_file`/`search_repository` -- the one real system-boundary
     validation this class does (an LLM-driven tool call is untrusted
     input in the sense that matters: a path that escapes the repo it's
-    supposed to be investigating), everything else trusts the graph."""
+    supposed to be investigating), everything else trusts the graph.
 
-    def __init__(self, program_graph: ProgramGraph, repo_root: Path):
+    `evidence_store`, when given, backs the `read_evidence` tool
+    (RTF_SECURITY_AGENT_CONTEXT_MANAGEMENT_DESIGN.md section 4) -- the
+    kernel is what actually STORES tool results there (it owns id
+    generation via state.record_tool_call); this class only needs a
+    reference to READ them back out on request. `None` (the default)
+    disables `read_evidence` entirely -- callers that don't wire an
+    EvidenceStore in get the exact same tool surface as before."""
+
+    def __init__(self, program_graph: ProgramGraph, repo_root: Path,
+                 evidence_store: "EvidenceStore | None" = None):
         self.pg = program_graph
         self.repo_root = repo_root.resolve()
+        self.evidence_store = evidence_store
 
     # -- construction --------------------------------------------------------
 
@@ -166,7 +184,8 @@ class SecurityAgentTools:
     def build(cls, repo_root: Path, entry_file: str | Path | None = None, *,
               compile_via_foundry: bool = False,
               solc_remaps: list[str] | None = None,
-              extra_compile_kwargs: dict | None = None) -> "SecurityAgentTools":
+              extra_compile_kwargs: dict | None = None,
+              evidence_store: "EvidenceStore | None" = None) -> "SecurityAgentTools":
         """Mirrors graph_mcp_server._build_graph_for_investigation exactly
         (same two branches, same reasoning) -- reused here as plain
         in-process calls instead of MCP env-var wiring. `compile_via_foundry`
@@ -184,7 +203,7 @@ class SecurityAgentTools:
             if entry_file is None:
                 raise ValueError("entry_file is required when compile_via_foundry=False")
             pg = ProgramGraph.build(entry_file, solc_remaps=solc_remaps, extra_kwargs=extra_compile_kwargs)
-        return cls(pg, repo_root)
+        return cls(pg, repo_root, evidence_store=evidence_store)
 
     # -- function/contract source --------------------------------------------
 
@@ -382,6 +401,22 @@ class SecurityAgentTools:
             return SearchRepositoryResult(status="NOT_FOUND", reason=f"no matches for {pattern!r}")
         return SearchRepositoryResult(status="OK", hits=hits, truncated=truncated)
 
+    def read_evidence(self, evidence_id: str) -> ReadEvidenceResult:
+        """Retrieves the FULL raw content behind a compact evidence
+        summary the kernel showed earlier (RTF_SECURITY_AGENT_CONTEXT_
+        MANAGEMENT_DESIGN.md section 4) -- e.g. the complete source of a
+        contract that was summarized/truncated in the conversation.
+        Returns an ERROR status (not a crash) if no EvidenceStore was
+        configured for this investigation, and NOT_FOUND for an unknown
+        evidence_id -- both are normal tool outcomes, not exceptions."""
+        if self.evidence_store is None:
+            return ReadEvidenceResult(status="ERROR", reason="no evidence store configured for this investigation")
+        try:
+            content = self.evidence_store.read(evidence_id)
+        except UnknownEvidenceRefError:
+            return ReadEvidenceResult(status="NOT_FOUND", reason=f"no stored evidence for id {evidence_id!r}")
+        return ReadEvidenceResult(status="OK", evidence_id=evidence_id, content=content)
+
     # -- node -> typed ref helpers --------------------------------------------
 
     def _function_ref(self, node_id: str) -> FunctionRef:
@@ -404,6 +439,7 @@ class SecurityAgentTools:
         "get_function_source", "get_contract_source", "get_callers", "get_callees",
         "get_external_calls", "get_related_functions", "get_state_reads",
         "get_state_writes", "get_modifiers", "get_inheritance", "read_file", "search_repository",
+        "read_evidence",
     })
     """Whitelist, not just a convenience list: `call()` dispatches by name
     ONLY through this set, so a model-supplied tool name can never reach

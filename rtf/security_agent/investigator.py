@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable
 
 from a4v.llm import ChatClient
+from rtf.security_agent.evidence_store import EvidenceStore
 from rtf.security_agent.kernel import RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import DEFAULT_MAX_COMPLETION_TOKENS, ModelClient
 from rtf.security_agent.responses_client import ResponsesChatClient
@@ -19,6 +20,14 @@ from rtf.security_agent.trajectory import TrajectoryWriter
 
 _PROPERTY_HEADING = re.compile(r"^### `([^`]+)`\s*$", re.MULTILINE)
 _PARENT_LINE = re.compile(r"\*\*Parent EthTrust obligation\*\*: `([^`]+)`")
+
+# RTF_SECURITY_AGENT_EFFICIENCY_INVESTIGATION_20260817.md section 2.2: "the
+# other 18 clusters mostly resolved (concluded or exhausted) in under 15
+# minutes each" -- a healthy cluster's own natural ceiling, well below the
+# 4 pathological clusters that separately consumed 536 cumulative minutes.
+# Circuit-breaker default for live runs, not a claim this is final --
+# Part 10's own instrumentation is the real basis for retuning it later.
+DEFAULT_MAX_CLUSTER_WALL_CLOCK_S = 900.0
 
 # rtf.security_agent.state.RequirementResolution (PASS/FAIL/NOT_APPLICABLE/
 # UNRESOLVED, taken literally from the kernel's own task brief) does not
@@ -146,6 +155,7 @@ def run_security_agent_bundle(
             api_key, model, case_root / "cache", case_root / "tokens.jsonl", timeout=timeout_s,
             reasoning_effort=reasoning_effort,
         )
+    evidence_store = EvidenceStore(case_root)
     build_tools = tools_factory or SecurityAgentTools.build
     compile_kwargs = None
     if not compile_via_foundry:
@@ -153,11 +163,14 @@ def run_security_agent_bundle(
     tools = build_tools(
         repo_root=Path(repo_root), entry_file=Path(entry_file),
         compile_via_foundry=compile_via_foundry, solc_remaps=solc_remaps,
-        extra_compile_kwargs=compile_kwargs,
+        extra_compile_kwargs=compile_kwargs, evidence_store=evidence_store,
     )
     trajectory_path = case_root / "trajectory.jsonl"
     model_client = ModelClient(chat, RESPONSE_MODELS, max_tokens=max_completion_tokens)
-    kernel = SecurityAgentKernel(tools, model_client, event_sink=TrajectoryWriter(trajectory_path))
+    kernel = SecurityAgentKernel(
+        tools, model_client, event_sink=TrajectoryWriter(trajectory_path),
+        evidence_store=evidence_store, max_wall_clock_s=DEFAULT_MAX_CLUSTER_WALL_CLOCK_S,
+    )
     state = kernel.run_cluster(
         case_id, property_ids, protocol, requirement_contexts, plan,
         parent_requirement_ids=parent_ids,

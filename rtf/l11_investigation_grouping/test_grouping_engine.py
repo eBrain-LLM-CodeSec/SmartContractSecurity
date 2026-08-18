@@ -151,6 +151,50 @@ def test_deterministic_across_repeated_calls():
           [c.property_ids for c in r1] == [c.property_ids for c in r2], (r1, r2))
 
 
+def test_tie_break_is_independent_of_input_list_order():
+    """Regression for a real cross-run non-determinism bug (found by a
+    dedicated investigation, RTF_SECURITY_AGENT_CONTEXT_MANAGEMENT_
+    DESIGN.md section 9): the merge tie-break used to key off
+    `clusters[i][0]` -- whichever property_id happened to sit at list
+    index 0, fixed by merge/concatenation history
+    (`new_cluster = clusters[i] + clusters[j]`), which is itself a
+    function of the INPUT list's order -- despite the code's own comment
+    claiming "ties broken by property_id".
+
+    Fixture, verified empirically against the pre-fix code (it produces
+    two DIFFERENT final clusterings for these two permutations -- this
+    is not a hypothetical): p1/p9 share a state variable and so merge
+    first, unambiguously (score 9, strictly above everything else).
+    That merge's internal member order is [p9, p1] when p9 precedes p1
+    in the input (list-index order), giving the merged cluster a WRONG
+    index-0 ("p9") whose true minimum is "p1". The next decision is a
+    genuine tie between "the merged cluster joins p2" and "p5 joins p2"
+    (both score 6) -- p9's category vetoes p5 from ever joining
+    afterward either way, so which side of the tie wins changes the
+    FINAL clustering, not just the merge order. The correct (canonical-
+    min) tie-break always prefers the true "p1" over "p5"; the buggy
+    positional one only does so when p1 happened to end up at index 0,
+    i.e. only for one of the two permutations below.
+    """
+    p1 = _prop("p1", requirement_id="req-hub", target_contract="Vault",
+               relevant_state_variables=("x",))
+    p9 = _prop("p9", requirement_id="req-hub", target_contract="Vault",
+               relevant_state_variables=("x",), reasoning_category=ReasoningCategory.AGGREGATION_META)
+    p2 = _prop("p2", requirement_id="req-hub", target_contract="Vault")
+    p5 = _prop("p5", requirement_id="req-hub", target_contract="Vault",
+               reasoning_category=ReasoningCategory.EXTERNAL_CALL_INTERACTION)
+
+    def cluster_id_sets(props):
+        return sorted(frozenset(c.property_ids) for c in cluster_properties(props))
+
+    perm1 = cluster_id_sets([p1, p2, p5, p9])  # p1 (true min) precedes p9
+    perm2 = cluster_id_sets([p9, p2, p5, p1])  # p9 precedes p1 (corrupts index-0)
+    check("clustering is independent of whether p1 or p9 comes first in the input list",
+          perm1 == perm2, (perm1, perm2))
+    check("the (order-independent) answer groups the true min's cluster with p2, not p5",
+          perm1 == [frozenset({"p1", "p2", "p9"}), frozenset({"p5"})], perm1)
+
+
 def test_shared_context_reflects_real_union_of_member_data():
     a = _prop("p1", requirement_id="req-x", target_contract="Vault", relevant_files=("Vault.sol",),
               relevant_state_variables=("totalShares",))

@@ -66,7 +66,11 @@ Interpretation / Verdict chain for each property:
 ]}}
 ```
 
-`verdict` must be exactly one of PASS, FAIL, or NOT_APPLICABLE.
+`verdict` must be exactly one of PASS, FAIL, NOT_APPLICABLE, or INCONCLUSIVE. \
+Use INCONCLUSIVE only after genuinely investigating -- when the evidence \
+you were able to gather is real but insufficient to decide PASS or FAIL \
+with confidence. It is not a way to skip investigation, and it does not \
+relax the evidence/hypothesis citation requirement below.
 
 Every property must cite at least one evidence id from the shared evidence
 pool and one hypothesis that was actually investigated. Reuse the same evidence id across properties when one inspected fact

@@ -589,6 +589,81 @@ def test_checkpoint_round_trip_and_resume_skips_completed_clusters():
               cost2 == cost1 + 0.05, (cost1, cost2))
 
 
+def test_checkpoint_resume_skip_is_keyed_on_property_ids_not_cluster_id():
+    """RTF_SECURITY_AGENT_CONTEXT_MANAGEMENT_DESIGN.md section 9: resume
+    must key on property_ids (or a stable cluster fingerprint), never a
+    transient cluster-name label -- because clustering itself can
+    legitimately (or, before the grouping_engine.py tie-break fix,
+    non-deterministically) assign a different cluster_id to the exact
+    same grouping of properties across two process launches (e.g.
+    "cluster_003" vs "cluster_005" for an identical {f1} singleton,
+    since cluster_id is only a post-hoc sorted-enumeration index --
+    grouping_engine.py's own `for idx, member_ids in enumerate(sorted(
+    clusters, key=...))`). Checkpoints f1 under cluster_id "c1", then
+    presents the SAME property (f1 alone, already fully resolved) under
+    an entirely different, never-before-seen cluster_id "c_renamed" on
+    the "resumed" call. It must still be skipped (never re-dispatched),
+    proving the skip check (`set(cluster.property_ids) <=
+    resolved_property_ids`, live_runner.py) is content-keyed on
+    property_ids, not on cluster_id matching a prior run's label.
+
+    A cluster that only PARTIALLY overlaps the checkpoint (mixes an
+    already-resolved property with a brand-new one) is a separate,
+    already-covered scenario (`test_run_live_incomplete_response_
+    triggers_split_and_both_halves_investigated`'s split-on-incomplete-
+    response path applies there since the whole cluster is dispatched
+    and must be answered in full) -- deliberately not re-tested here to
+    keep this test isolated to the specific property_ids-vs-cluster_id
+    identity question.
+    """
+    prop = _minimal_pool()
+    p1 = prop("f1")
+    from rtf.l11_investigation_grouping.grouping_engine import Cluster
+    c1 = Cluster(cluster_id="c1", property_ids=("f1",), grouping_reason=(), shared_context={}, estimated_context_size=1)
+    by_id = {"f1": p1}
+
+    def mock_run_arm_g_first(**kwargs):
+        return _FakeArmGResult(kwargs["case_id"], {"properties": [
+            {"property_id": "f1", "verdict": "FAIL", "evidence": "real evidence for f1",
+             "counterexample_attempt": "x" * 20, "counterexample_result": "y" * 20, "reasoning": "r"},
+        ]}, cost_usd=0.05)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        checkpoint_path = Path(tmp) / "checkpoint.jsonl"
+        run_cluster_investigations_live(
+            [c1], by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g_first, checkpoint_path=checkpoint_path,
+        )
+
+        # Same single property, same content, but a DIFFERENT, never-
+        # before-seen cluster_id -- as a re-clustering pass would produce.
+        c1_renamed = Cluster(cluster_id="c_renamed_by_reclustering", property_ids=("f1",),
+                             grouping_reason=(), shared_context={}, estimated_context_size=1)
+        calls = []
+
+        def mock_run_arm_g_second(**kwargs):
+            calls.append(kwargs["case_id"])
+            raise AssertionError("must not be dispatched: f1 was already fully resolved in the checkpoint")
+
+        verdicts2, _results2, cost2, raw2 = run_cluster_investigations_live(
+            [c1_renamed], by_id, "# protocol\n", {"req-x": "# req-x\n"},
+            audit_id="test-audit", entry_sol_file=Path(tmp) / "Vault.sol", project_root=Path(tmp),
+            codex_bin=Path("/nonexistent"), python_bin=Path("/nonexistent"), mcp_server_script=Path("/nonexistent"),
+            api_key="unused", codex_model="unused", solc_path_dir="/nonexistent", solc_remaps=None,
+            scratch_root=Path(tmp), run_arm_g_bundle_fn=mock_run_arm_g_second, checkpoint_path=checkpoint_path,
+        )
+        check("a fully-resolved property under a brand-new cluster_id is never re-dispatched",
+              calls == [], calls)
+        check("f1's checkpointed verdict is restored regardless of the new cluster_id",
+              verdicts2["f1"].conformance_state == ConformanceState.FAIL and
+              raw2.get("f1", {}).get("evidence") == "real evidence for f1", (verdicts2, raw2))
+        check("resumed total_cost still reflects only the first run's spend (nothing re-dispatched)",
+              cost2 == 0.05, cost2)
+
+
 def test_split_halves_processed_in_a_later_batch_under_concurrency():
     """A split cluster's halves must still be investigated (not dropped)
     when concurrency > 1 -- the pending-queue design (not immediate

@@ -27,6 +27,16 @@ class RequirementResolution(str, Enum):
     PASS = "PASS"
     FAIL = "FAIL"
     NOT_APPLICABLE = "NOT_APPLICABLE"
+    INCONCLUSIVE = "INCONCLUSIVE"
+    """A genuine 5th terminal status, added for the context-management
+    redesign (RTF_SECURITY_AGENT_CONTEXT_MANAGEMENT_DESIGN.md section 3).
+    Distinct from UNRESOLVED: UNRESOLVED means "never reached a decision
+    at all" (the original 4-state brief's own literal schema, retained for
+    that case); INCONCLUSIVE means "the kernel or model actively decided
+    it could not determine PASS/FAIL/NOT_APPLICABLE with the evidence
+    available" -- the outcome a forced-conclusion circuit breaker (see
+    kernel.py) explicitly produces, and a legitimate, honest result, not
+    a bookkeeping fallback."""
 
 
 class HypothesisStatus(str, Enum):
@@ -144,6 +154,12 @@ class ClusterInvestigationState(BaseModel):
     inspected_functions: set[str] = Field(default_factory=set)
     tool_history: list[ToolCallRecord] = Field(default_factory=list)
     unresolved_questions: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    """Short, model-authored notes on what to do next (e.g. "check
+    Ln.sol's rounding path for req-2-check-rounding::clause2") --
+    survives context compaction (context_manager.py) so a rebuilt
+    context doesn't lose the investigation's own stated plan just
+    because the raw turns that produced it were dropped."""
     token_usage: TokenUsage = Field(default_factory=TokenUsage)
     step_count: int = 0
 
@@ -305,6 +321,25 @@ class ClusterInvestigationState(BaseModel):
         req_state = self._require_requirement(property_id)
         if req_state.status == RequirementResolution.UNRESOLVED:
             req_state.resolution_reason = reason
+
+    def set_next_actions(self, next_actions: list[str]) -> None:
+        self.next_actions = list(next_actions)
+
+    def progress_fingerprint(self) -> tuple:
+        """A cheap, deterministic snapshot of "has anything about this
+        investigation actually changed" (RTF_SECURITY_AGENT_CONTEXT_
+        MANAGEMENT_DESIGN.md section 8). Two calls returning the same
+        tuple mean zero real progress happened in between -- used by the
+        kernel to detect stalled loops (repeating equivalent actions)
+        independent of raw turn/step count, which can grow even while
+        nothing meaningful changes (e.g. repeated malformed retries)."""
+        return (
+            len(self.evidence), len(self.hypotheses),
+            tuple(sorted((h.id, h.status.value) for h in self.hypotheses.values())),
+            tuple(sorted((pid, rs.status.value) for pid, rs in self.requirement_states.items())),
+            len(self.unresolved_questions), len(self.next_actions),
+            len(self.inspected_files), len(self.inspected_contracts), len(self.inspected_functions),
+        )
 
     def evidence_for(self, property_id: str) -> list[Evidence]:
         req_state = self._require_requirement(property_id)

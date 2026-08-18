@@ -261,9 +261,22 @@ def cluster_properties(
                     merged_members = [by_id[pid] for pid in clusters[i] + clusters[j]]
                     if _estimate_context_size(merged_members) > max_context_size:
                         continue
+                # Tie-break by each cluster's canonical (minimum)
+                # member id, not by whatever id happens to sit at index 0
+                # -- that index is fixed by merge/concatenation history
+                # (`clusters[i] + clusters[j]`, below), which is itself a
+                # function of the input `properties` list's order. Using
+                # `clusters[i][0]` directly silently made equal-scoring
+                # merge ties depend on upstream list order despite this
+                # loop's own claim to be "ties broken by property_id" --
+                # a real cross-run non-determinism source (RTF_SECURITY_
+                # AGENT_CONTEXT_MANAGEMENT_DESIGN.md section 9): the same
+                # property set could cluster differently across separate
+                # process launches whenever upstream ordering wasn't
+                # itself fully pinned down.
                 if score > best_score or (
                     score == best_score and best_pair is not None
-                    and (clusters[i][0], clusters[j][0]) < (clusters[best_pair[0]][0], clusters[best_pair[1]][0])
+                    and (min(clusters[i]), min(clusters[j])) < (min(clusters[best_pair[0]]), min(clusters[best_pair[1]]))
                 ):
                     best_score = score
                     best_pair = (i, j)
