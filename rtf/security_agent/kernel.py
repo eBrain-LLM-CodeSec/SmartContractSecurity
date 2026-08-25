@@ -234,9 +234,21 @@ class SecurityAgentKernel:
             try:
                 turn = self._decide_with_bounded_retries(messages, retries_counter)
             except MalformedModelResponse:
+                # Real gap found live (2026-08-25 canto run, cluster_002):
+                # a run of malformed JSON-shape mistakes (e.g. the model
+                # naming a tool directly as the top-level "action") used
+                # to go straight to bare UNRESOLVED with no salvage
+                # attempt, discarding whatever real investigation had
+                # already happened. A forced-conclusion prompt is a
+                # materially SIMPLER, more constrained ask than the
+                # general decide loop it just failed at, so it is often
+                # answerable even when the general loop wasn't -- same
+                # salvage discipline as every budget-exhaustion path.
                 malformed_total += retries_counter[0]
-                self._finalize_unresolved(state, property_ids, "kernel_malformed_response_exhausted")
-                _finish("kernel_malformed_response_exhausted")
+                state = self._attempt_forced_conclusion(
+                    state, messages, property_ids, reasoning_categories_by_property,
+                    "kernel_malformed_response_exhausted")
+                _finish("kernel_malformed_response_exhausted", forced_conclusion=True)
                 return state
             malformed_total += retries_counter[0]
 
@@ -297,9 +309,15 @@ class SecurityAgentKernel:
                 self._emit("action_application_error", {"error": f"{type(e).__name__}: {e}"})
                 action_error_retries += 1
                 if action_error_retries > self.max_malformed_retries:
+                    # Same salvage discipline as the malformed-response and
+                    # budget-exhaustion paths above: an internal error
+                    # applying a PREVIOUS action says nothing about whether
+                    # a forced-conclusion prompt (a fresh, unrelated
+                    # decide() call) can succeed -- most of the time it can.
                     reason = f"kernel_action_application_error:{type(e).__name__}"
-                    self._finalize_unresolved(state, property_ids, reason)
-                    _finish(reason)
+                    state = self._attempt_forced_conclusion(
+                        state, messages, property_ids, reasoning_categories_by_property, reason)
+                    _finish(reason, forced_conclusion=True)
                     return state
                 state.step_count += 1
                 _append_turn({"role": "user", "content":

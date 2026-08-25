@@ -370,19 +370,40 @@ def test_hallucinated_property_id_in_conclude_is_ignored_not_crashed():
 
 # --- malformed model response: retry then give up ---------------------------
 
-def test_malformed_response_retries_then_gives_up_with_reason():
+def test_malformed_response_exhaustion_attempts_forced_conclusion_salvage():
+    """Real gap found live (2026-08-25 canto run, cluster_002): a run of
+    JSON-shape mistakes used to go straight to bare UNRESOLVED with no
+    salvage attempt at all. A forced-conclusion prompt is a materially
+    simpler, more constrained ask than the general decide loop that just
+    failed, so it often succeeds even when that loop didn't."""
     garbage = ({"action": "something_unrecognized", "whatever": True}, None)
-    kernel, fake = _kernel([garbage, garbage, garbage], max_malformed_retries=2)
+    forced_conclude = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+        {"property_id": "p2", "verdict": "INCONCLUSIVE", "reasoning": "r2"},
+    ]}, None)
+    kernel, fake = _kernel([garbage, garbage, garbage, forced_conclude], max_malformed_retries=2)
     state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
 
-    check("gave up after max_malformed_retries+1 attempts", len(fake.calls) == 3, len(fake.calls))
-    check("both properties left UNRESOLVED", all(
-        state.requirement_states[pid].status == RequirementResolution.UNRESOLVED for pid in _PROPERTY_IDS))
-    check("reason records malformed-response exhaustion",
-          state.requirement_states["p1"].resolution_reason == "kernel_malformed_response_exhausted")
-    check("a corrective retry message was appended to the conversation",
-          any("did not match the required JSON shape" in str(m.get("content", "")) for m in fake.calls[-1]),
-          fake.calls[-1])
+    check("3 malformed attempts, plus one extra call for the forced-conclusion turn",
+          len(fake.calls) == 4, len(fake.calls))
+    check("p1 salvaged to a real verdict, not left bare UNRESOLVED",
+          state.requirement_states["p1"].status == RequirementResolution.FAIL)
+    check("p2 salvaged to INCONCLUSIVE", state.requirement_states["p2"].status == RequirementResolution.INCONCLUSIVE)
+    check("a corrective retry message was appended during the malformed retries",
+          any("did not match the required JSON shape" in str(m.get("content", "")) for m in fake.calls[2]),
+          fake.calls[2])
+
+
+def test_malformed_response_exhaustion_with_no_usable_forced_response_still_produces_inconclusive():
+    garbage = ({"action": "something_unrecognized", "whatever": True}, None)
+    kernel, fake = _kernel([garbage, garbage, garbage, garbage], max_malformed_retries=2)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("both properties end up INCONCLUSIVE, not UNRESOLVED", all(
+        state.requirement_states[pid].status == RequirementResolution.INCONCLUSIVE for pid in _PROPERTY_IDS))
+    check("reason records the forced-conclusion failure",
+          "forced_conclusion" in (state.requirement_states["p1"].resolution_reason or ""),
+          state.requirement_states["p1"].resolution_reason)
 
 
 def test_malformed_response_recovers_on_retry():
@@ -492,19 +513,29 @@ class _ExplodingTools:
         return {"status": "OK", "source": "ok"}
 
 
-def test_unexpected_exception_during_tool_call_retries_then_gives_up():
+def test_unexpected_exception_during_tool_call_exhaustion_attempts_forced_conclusion_salvage():
+    """Same salvage discipline as the malformed-response/budget-
+    exhaustion paths: an internal error applying a PREVIOUS action says
+    nothing about whether a forced-conclusion prompt (a fresh, unrelated
+    decide() call) can succeed."""
     script = [({"action": "call_tool", "tool": "read_file", "args": {"path": "x"},
-                "reasoning": "r"}, None)] * 3
+                "reasoning": "r"}, None)] * 3 + [
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "INCONCLUSIVE", "reasoning": "r2"},
+        ]}, None),
+    ]
     fake = ScriptedChatClient(script)
     mc = ModelClient(fake, RESPONSE_MODELS)
     exploding = _ExplodingTools([RuntimeError("boom"), RuntimeError("boom"), RuntimeError("boom")])
     kernel = SecurityAgentKernel(exploding, mc, enforce_completion=False, max_malformed_retries=2)
     state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
-    check("gave up after max_malformed_retries+1 attempts", exploding.calls == 3, exploding.calls)
+    check("gave up after max_malformed_retries+1 attempts, then one forced-conclusion call",
+          exploding.calls == 3 and len(fake.calls) == 4, (exploding.calls, len(fake.calls)))
     check("did not crash the whole process", True)
-    check("both properties left UNRESOLVED with a specific reason", all(
-        state.requirement_states[pid].resolution_reason == "kernel_action_application_error:RuntimeError"
-        for pid in _PROPERTY_IDS), {pid: state.requirement_states[pid].resolution_reason for pid in _PROPERTY_IDS})
+    check("p1 salvaged to a real verdict, not left bare UNRESOLVED",
+          state.requirement_states["p1"].status == RequirementResolution.FAIL)
+    check("p2 salvaged to INCONCLUSIVE", state.requirement_states["p2"].status == RequirementResolution.INCONCLUSIVE)
 
 
 def test_unexpected_exception_during_tool_call_recovers_on_retry():
