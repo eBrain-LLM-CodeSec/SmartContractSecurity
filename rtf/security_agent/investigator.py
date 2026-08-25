@@ -13,6 +13,7 @@ from a4v.llm import ChatClient
 from rtf.security_agent.evidence_store import EvidenceStore
 from rtf.security_agent.kernel import RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import DEFAULT_MAX_COMPLETION_TOKENS, ModelClient
+from rtf.security_agent.response_schema import build_strict_schema
 from rtf.security_agent.responses_client import ResponsesChatClient
 from rtf.security_agent.state import ClusterInvestigationState
 from rtf.security_agent.tools import SecurityAgentTools
@@ -154,6 +155,7 @@ def run_security_agent_bundle(
             os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
             api_key, model, case_root / "cache", case_root / "tokens.jsonl", timeout=timeout_s,
             reasoning_effort=reasoning_effort,
+            response_schema=build_strict_schema(RESPONSE_MODELS, "kernel_action"),
         )
     evidence_store = EvidenceStore(case_root)
     build_tools = tools_factory or SecurityAgentTools.build

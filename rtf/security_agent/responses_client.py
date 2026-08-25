@@ -26,6 +26,21 @@ does much of the "thinking out loud" work the schema demands (hypotheses,
 hypothesis status, hypothesis/evidence citations are all EXPLICIT
 structured fields the model fills in, not something it needs extensive
 freeform reasoning to arrive at first).
+
+Structured-output correction (found live, 2026-08-25, canto run):
+`rtf.security_agent.model_client`'s own docstring previously claimed
+"provider tool-calling/structured-output support is UNRELIABLE... some
+models ignore response_format" and concluded native structured output
+wasn't worth pursuing for this kernel. That finding was real but scoped
+to a DIFFERENT mechanism -- Codex CLI's own `--output-schema` flag
+(`pipeline_lite` validation, 2026-08-xx) -- not the raw Responses API
+`text.format: {type: "json_schema", strict: true}` parameter THIS
+client actually posts. A direct test against that parameter with
+z-ai/glm-5.2 returned clean, schema-conformant bare JSON (no markdown
+fencing) for both the simplest (call_tool) and most complex (conclude,
+with nested evidence/hypotheses/properties arrays) action shapes. See
+`response_schema.py` for the schema builder this client's optional
+`response_schema` constructor param expects.
 """
 from __future__ import annotations
 
@@ -69,7 +84,8 @@ class ResponsesChatClient:
 
     def __init__(self, base_url: str, api_key: str, model: str,
                  cache_dir: Path, token_log_path: Path | None = None,
-                 timeout: float = DEFAULT_TIMEOUT_SECONDS, reasoning_effort: str = "low"):
+                 timeout: float = DEFAULT_TIMEOUT_SECONDS, reasoning_effort: str = "low",
+                 response_schema: dict | None = None):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
@@ -78,6 +94,17 @@ class ResponsesChatClient:
         self.token_log_path = token_log_path
         self.timeout = timeout
         self.reasoning_effort = reasoning_effort
+        self.response_schema = response_schema
+        """Optional `text.format` payload (see `rtf.security_agent.
+        response_schema.build_strict_schema`) -- when set, the Responses
+        API constrains generation to the schema's shape directly, rather
+        than the kernel only discovering a malformed shape after the
+        fact via fenced-JSON parsing. Live-verified (2026-08-25 canto
+        run) that z-ai/glm-5.2 honors this correctly for the kernel's
+        full 3-action discriminated union, including the most complex
+        (conclude) branch. None preserves the prior prompt-only
+        behavior -- kept opt-in so existing tests/callers that construct
+        a client without one see no behavior change."""
         self._client = httpx.Client(timeout=timeout)
 
     def _cache_key(self, messages: list[dict], temperature: float, max_tokens: int | None) -> str:
@@ -85,6 +112,8 @@ class ResponsesChatClient:
                    "reasoning_effort": self.reasoning_effort}
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
+        if self.response_schema is not None:
+            payload["response_schema"] = self.response_schema
         return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
     def _cache_path(self, key: str) -> Path:
@@ -117,6 +146,8 @@ class ResponsesChatClient:
         }
         if max_tokens is not None:
             body["max_output_tokens"] = max_tokens
+        if self.response_schema is not None:
+            body["text"] = {"format": self.response_schema}
         resp = self._client.post(
             f"{self.base_url}/responses",
             headers={"Authorization": f"Bearer {self.api_key}"},

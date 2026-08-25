@@ -1,23 +1,24 @@
 """Thin wrapper around `a4v.llm.ChatClient` for the kernel's decide/
 execute/update loop.
 
-Deliberately does NOT use native OpenAI-style tool-calling.
-`a4v.llm.ChatClient`'s request body only ever sends `{model, messages,
-temperature, top_p, max_tokens}` (confirmed by reading `a4v/llm.py` in
-full) -- no `tools`/`tool_choice` field, and nothing parses a `tool_calls`
-response field. Extending it to speak native tool-calling would be a
-real, cross-cutting change to code every other part of this project also
-depends on -- and this project's own documented history is that
-provider tool-calling/structured-output support is UNRELIABLE across
-models routed through OpenRouter anyway (`a4v/llm.py`'s own docstring:
-some models ignore `response_format`; `evmbench` CLAUDE.md: codex CLI's
-`wire_api="chat"` fallback was removed outright in 0.104.0). So this
-kernel uses the SAME proven pattern every other LLM call in this
-codebase already uses: a strict "respond with exactly one fenced JSON
-object" prompt contract (rtf.security_agent.prompts), parsed via
-`ChatClient.complete_json`'s existing `extract_last_fenced_json`
-(first-fence-open/last-fence-close, survives a nested ```solidity block,
-same fix already applied everywhere else in this codebase).
+Deliberately does NOT use native OpenAI-style *tool-calling*
+(`tools`/`tool_choice`/`tool_calls`) -- `a4v.llm.ChatClient`'s request
+body never sends those fields, and extending it to would be a real,
+cross-cutting change to shared code every other part of this project
+also depends on. So this kernel's PROMPT contract is still "respond with
+exactly one JSON object" (rtf.security_agent.prompts).
+
+The PARSING side, however, uses `extract_last_fenced_json` for a reason
+independent of structured output: it already handles both a fenced
+```json block AND bare (unfenced) JSON with no fence markers at all
+(`a4v/llm.py`: `first_open == -1` falls back to parsing the whole text)
+-- exactly what `ResponsesChatClient` returns when its own optional
+`response_schema` is set (see `response_schema.py` and that client's
+own docstring for the live-verified correction to this project's
+earlier "structured output doesn't work for this model" finding, which
+was scoped to a different mechanism, Codex CLI's `--output-schema`).
+This module needed no changes to support that -- the same parsing path
+already worked for both cases.
 """
 from __future__ import annotations
 

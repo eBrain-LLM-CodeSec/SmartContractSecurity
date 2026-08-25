@@ -117,6 +117,42 @@ def test_reasoning_effort_is_configurable():
     check("configured effort forwarded", fake_post.last_call["json"]["reasoning"] == {"effort": "high"})
 
 
+# --- response_schema (structured output) wiring ------------------------------
+
+_SCHEMA_PAYLOAD = {"type": "json_schema", "name": "kernel_action", "strict": True,
+                   "schema": {"type": "object", "properties": {}, "additionalProperties": False}}
+
+
+def test_response_schema_is_sent_as_text_format_when_configured():
+    client, fake_post = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY), response_schema=_SCHEMA_PAYLOAD)
+    client.complete([{"role": "user", "content": "x"}])
+    body = fake_post.last_call["json"]
+    check("text.format carries the configured schema payload",
+          body.get("text") == {"format": _SCHEMA_PAYLOAD}, body.get("text"))
+
+
+def test_no_text_field_sent_when_response_schema_not_configured():
+    """Backward compatibility: a client built without response_schema
+    (the pre-fix construction pattern, still used by tests/other
+    callers) must send no `text` key at all -- unchanged prior wire
+    behavior."""
+    client, fake_post = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY))
+    client.complete([{"role": "user", "content": "x"}])
+    body = fake_post.last_call["json"]
+    check("no text key present", "text" not in body, body)
+
+
+def test_response_schema_changes_the_cache_key():
+    """Two otherwise-identical calls, one with a schema configured and
+    one without, must not collide in the cache -- a schema-conditioned
+    generation is a genuinely different request."""
+    client_a, _ = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY))
+    client_b, _ = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY), response_schema=_SCHEMA_PAYLOAD)
+    key_a = client_a._cache_key([{"role": "user", "content": "x"}], 0.0, None)
+    key_b = client_b._cache_key([{"role": "user", "content": "x"}], 0.0, None)
+    check("cache keys differ when response_schema differs", key_a != key_b, (key_a, key_b))
+
+
 # --- response parsing / ChatResult mapping -----------------------------------
 
 def test_complete_returns_chat_result_with_real_usage_mapped():
