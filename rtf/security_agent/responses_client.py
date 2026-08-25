@@ -41,6 +41,35 @@ fencing) for both the simplest (call_tool) and most complex (conclude,
 with nested evidence/hypotheses/properties arrays) action shapes. See
 `response_schema.py` for the schema builder this client's optional
 `response_schema` constructor param expects.
+
+Prompt-caching via `session_id` (found live, 2026-08-26, prompted by a
+user tip after the canto cost gap was traced to this client resending
+the ENTIRE conversation, uncached, on every single turn -- $3.045 vs.
+Codex's $1.84 for the same target): OpenRouter's `/responses` proxy
+REJECTS the OpenAI-native `previous_response_id` stateful-chaining
+mechanism outright (`"expected null, received string"` -- confirmed via
+a direct live test; that mechanism requires provider-side conversation
+storage OpenRouter's proxy does not offer). It DOES support a different,
+simpler mechanism: an opaque `session_id` string in the request body.
+Verified via 3 separate live tests against z-ai/glm-5.2: with NO
+`session_id`, `usage.input_tokens_details.cached_tokens` is always 0
+(full price every call, matching this client's pre-fix behavior
+exactly); WITH a `session_id` present, a repeated/overlapping prefix
+across calls gets `cached_tokens` covering nearly the entire shared
+prefix, at roughly 1/9th the cost for that portion. This is a "sticky
+routing" hint (keeps requests landing on the same backend so ITS OWN KV
+cache stays warm), NOT guaranteed provider-side storage like
+`previous_response_id` -- a 5-turn live test hit the cache on 4 of 5
+non-baseline calls, not all of them (one miss, likely routing/TTL
+variance) -- still a large net win (~2x cheaper across that sequence,
+up to ~9x on an actual hit), but never assume a specific call will hit.
+Unlike `previous_response_id`, this needs NO change to what `messages`/
+`input` this client sends -- the full conversation is still transmitted
+every call, exactly as before; `session_id` only affects routing/
+caching on the provider side. One `ResponsesChatClient` instance = one
+cluster investigation (confirmed in `investigator.py`), so the
+`session_id` is set once at construction and reused for every call the
+instance makes.
 """
 from __future__ import annotations
 
@@ -85,7 +114,7 @@ class ResponsesChatClient:
     def __init__(self, base_url: str, api_key: str, model: str,
                  cache_dir: Path, token_log_path: Path | None = None,
                  timeout: float = DEFAULT_TIMEOUT_SECONDS, reasoning_effort: str = "low",
-                 response_schema: dict | None = None):
+                 response_schema: dict | None = None, session_id: str | None = None):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
@@ -105,6 +134,13 @@ class ResponsesChatClient:
         (conclude) branch. None preserves the prior prompt-only
         behavior -- kept opt-in so existing tests/callers that construct
         a client without one see no behavior change."""
+        self.session_id = session_id
+        """Opaque OpenRouter prompt-caching hint (see module docstring for
+        the live-verified cost mechanics). None preserves the pre-fix
+        behavior (no session_id sent, no caching) -- kept opt-in so
+        existing tests/callers that construct a client without one see
+        no behavior change. A real live run should always set this, one
+        stable value per cluster investigation (e.g. the case_id)."""
         self._client = httpx.Client(timeout=timeout)
 
     def _cache_key(self, messages: list[dict], temperature: float, max_tokens: int | None) -> str:
@@ -120,7 +156,7 @@ class ResponsesChatClient:
         return self.cache_dir / f"{key}.json"
 
     def _log_tokens(self, prompt_tokens: int, completion_tokens: int, cached: bool,
-                     cost_usd: float | None = None) -> None:
+                     cost_usd: float | None = None, provider_cached_tokens: int | None = None) -> None:
         if not self.token_log_path:
             return
         self.token_log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -128,6 +164,14 @@ class ResponsesChatClient:
             f.write(json.dumps({
                 "model": self.model, "prompt_tokens": prompt_tokens,
                 "completion_tokens": completion_tokens, "cached": cached, "cost_usd": cost_usd,
+                # Distinct from `cached` above (a LOCAL disk-cache hit,
+                # meaning this call never touched the network at all):
+                # this is OpenRouter's own reported prompt-cache hit count
+                # for a real network call (usage.input_tokens_details.
+                # cached_tokens) -- see the module docstring's session_id
+                # finding. None on a local cache hit (no real usage data
+                # to report) or if the provider didn't include the field.
+                "provider_cached_tokens": provider_cached_tokens,
                 "ts": time.time(), "wire_api": "responses",
             }) + "\n")
 
@@ -148,6 +192,8 @@ class ResponsesChatClient:
             body["max_output_tokens"] = max_tokens
         if self.response_schema is not None:
             body["text"] = {"format": self.response_schema}
+        if self.session_id is not None:
+            body["session_id"] = self.session_id
         resp = self._client.post(
             f"{self.base_url}/responses",
             headers={"Authorization": f"Bearer {self.api_key}"},
@@ -180,10 +226,12 @@ class ResponsesChatClient:
         prompt_tokens = usage.get("input_tokens", 0)
         completion_tokens = usage.get("output_tokens", 0)
         cost_usd = usage.get("cost")  # OpenRouter-specific; None if absent, matching a4v.llm.ChatClient
+        provider_cached_tokens = (usage.get("input_tokens_details") or {}).get("cached_tokens")
 
         cache_path.write_text(json.dumps({
             "content": content, "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
         }))
-        self._log_tokens(prompt_tokens, completion_tokens, cached=False, cost_usd=cost_usd)
+        self._log_tokens(prompt_tokens, completion_tokens, cached=False, cost_usd=cost_usd,
+                         provider_cached_tokens=provider_cached_tokens)
         return ChatResult(content=content, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
                           cached=False, cost_usd=cost_usd)

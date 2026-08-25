@@ -156,6 +156,7 @@ def run_security_agent_bundle(
             api_key, model, case_root / "cache", case_root / "tokens.jsonl", timeout=timeout_s,
             reasoning_effort=reasoning_effort,
             response_schema=build_strict_schema(RESPONSE_MODELS, "kernel_action"),
+            session_id=case_id,
         )
     evidence_store = EvidenceStore(case_root)
     build_tools = tools_factory or SecurityAgentTools.build

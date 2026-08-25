@@ -117,6 +117,66 @@ def test_reasoning_effort_is_configurable():
     check("configured effort forwarded", fake_post.last_call["json"]["reasoning"] == {"effort": "high"})
 
 
+# --- session_id (OpenRouter prompt-caching hint) wiring ----------------------
+
+def test_session_id_is_sent_in_body_when_configured():
+    client, fake_post = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY), session_id="case-abc-123")
+    client.complete([{"role": "user", "content": "x"}])
+    body = fake_post.last_call["json"]
+    check("session_id carried in the request body", body.get("session_id") == "case-abc-123", body)
+
+
+def test_no_session_id_sent_when_not_configured():
+    """Backward compatibility: a client built without session_id (the
+    pre-fix construction pattern) sends no session_id key at all --
+    unchanged prior wire behavior, matching pre-fix (uncached) cost."""
+    client, fake_post = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY))
+    client.complete([{"role": "user", "content": "x"}])
+    body = fake_post.last_call["json"]
+    check("no session_id key present", "session_id" not in body, body)
+
+
+_CACHED_MESSAGE_RESPONSE_BODY = {
+    "output": [
+        {"type": "message", "role": "assistant", "content": [
+            {"type": "output_text", "text": '{"action": "call_tool"}'},
+        ]},
+    ],
+    "usage": {"input_tokens": 6164, "output_tokens": 3,
+              "input_tokens_details": {"cached_tokens": 6144}, "cost": 0.0009},
+}
+
+
+def test_provider_cached_tokens_logged_to_token_log():
+    """Real, live-verified finding (2026-08-26): session_id enables
+    OpenRouter prompt caching for z-ai/glm-5.2, reported via
+    usage.input_tokens_details.cached_tokens. Logged distinctly from the
+    (unrelated) local disk-cache `cached` flag so a real run's savings
+    can be verified after the fact from tokens.jsonl alone."""
+    tmp = Path(tempfile.mkdtemp(prefix="responses_client_test_"))
+    client = ResponsesChatClient(
+        base_url="https://openrouter.ai/api/v1", api_key="unused", model="z-ai/glm-5.2",
+        cache_dir=tmp / "cache", token_log_path=tmp / "tokens.jsonl", session_id="case-1",
+    )
+    client._client.post = FakePost(FakeResponse(200, _CACHED_MESSAGE_RESPONSE_BODY))
+    client.complete([{"role": "user", "content": "x"}])
+    lines = (tmp / "tokens.jsonl").read_text().strip().splitlines()
+    logged = json.loads(lines[-1])
+    check("provider_cached_tokens logged from usage.input_tokens_details.cached_tokens",
+          logged.get("provider_cached_tokens") == 6144, logged)
+    check("local disk-cache flag still False for a real network call",
+          logged.get("cached") is False, logged)
+
+
+def test_provider_cached_tokens_none_when_absent_from_usage():
+    client, _fake_post = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY), session_id="case-1")
+    client.complete([{"role": "user", "content": "x"}])
+    lines = client.token_log_path.read_text().strip().splitlines()
+    logged = json.loads(lines[-1])
+    check("provider_cached_tokens is None when usage has no input_tokens_details",
+          logged.get("provider_cached_tokens") is None, logged)
+
+
 # --- response_schema (structured output) wiring ------------------------------
 
 _SCHEMA_PAYLOAD = {"type": "json_schema", "name": "kernel_action", "strict": True,
