@@ -324,8 +324,20 @@ class SecurityAgentKernel:
                 self._emit("context_compacted", {"compaction_count": compaction_count,
                                                    "estimated_tokens": context_manager.estimate_messages_tokens(messages)})
 
-        self._finalize_unresolved(state, property_ids, "max_steps_exhausted")
-        _finish("max_steps_exhausted")
+        # Real gap found live (2026-08-25 canto run): plain max_steps
+        # exhaustion -- by far the most common way a cluster naturally
+        # runs out of budget, far more often than the wall-clock/cost
+        # breakers below trip on cheap fast calls -- used to go straight
+        # to bare _finalize_unresolved with no forced-conclusion attempt
+        # at all, discarding a full budget's worth of real investigation
+        # (evidence gathered, files read) as zero-coverage UNRESOLVED
+        # instead of salvaging an honest INCONCLUSIVE. Matches the same
+        # forced-conclusion salvage every other circuit breaker above
+        # already gets (design section 7's own stated intent -- "preserve
+        # partial coverage rather than zero-coverage failures").
+        state = self._attempt_forced_conclusion(
+            state, messages, property_ids, reasoning_categories_by_property, "max_steps_exhausted")
+        _finish("max_steps_exhausted", forced_conclusion=True)
         return state
 
     def _decide_with_bounded_retries(self, messages: list[dict], retries_counter: list[int]):

@@ -293,19 +293,48 @@ def test_one_cluster_multiple_properties_is_one_shared_loop():
 
 # --- termination: max_steps exhaustion --------------------------------------
 
-def test_max_steps_exhausted_marks_all_unresolved_with_reason():
-    # Always returns a tool_call, never concludes -- forces exhaustion.
+def test_max_steps_exhausted_attempts_forced_conclusion_instead_of_bare_unresolved():
+    """Real gap found live (2026-08-25 canto run): plain max_steps
+    exhaustion -- the most common way a cluster naturally runs out of
+    budget -- used to skip straight to bare UNRESOLVED with no
+    forced-conclusion salvage attempt at all, discarding real
+    investigation work. Now matches every other circuit breaker's own
+    forced-conclusion-then-INCONCLUSIVE-if-that-also-fails discipline."""
+    # Always returns a tool_call for the first 3 (real) turns, exhausting
+    # max_steps=3; the 4th scripted entry is the forced-conclusion turn.
     script = [({"action": "call_tool", "tool": "get_contract_source", "args": {"contract": "Vault"},
-                "reasoning": "r"}, None)] * 3
+                "reasoning": "r"}, None)] * 3 + [
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "INCONCLUSIVE", "reasoning": "r2"},
+        ]}, None),
+    ]
     kernel, fake = _kernel(script, max_steps=3)
     state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
 
     check("step_count reached max_steps", state.step_count == 3, state.step_count)
-    check("p1 still UNRESOLVED", state.requirement_states["p1"].status == RequirementResolution.UNRESOLVED)
-    check("p1 has an explicit reason (never silently dropped)",
-          state.requirement_states["p1"].resolution_reason == "max_steps_exhausted",
+    check("exactly one extra call made for the forced-conclusion turn", len(fake.calls) == 4, len(fake.calls))
+    check("p1 salvaged to a real verdict, not left bare UNRESOLVED",
+          state.requirement_states["p1"].status == RequirementResolution.FAIL)
+    check("p2 salvaged to INCONCLUSIVE", state.requirement_states["p2"].status == RequirementResolution.INCONCLUSIVE)
+
+
+def test_max_steps_exhausted_with_no_usable_forced_response_still_produces_inconclusive_not_unresolved():
+    """If the forced-conclusion turn itself also fails (e.g. the model
+    can't produce valid JSON even under a final-turn prompt), properties
+    still end up honestly INCONCLUSIVE -- never silently dropped back to
+    bare UNRESOLVED."""
+    garbage = ({"action": "nonsense"}, None)
+    script = [({"action": "call_tool", "tool": "get_contract_source", "args": {"contract": "Vault"},
+                "reasoning": "r"}, None)] * 3 + [garbage]
+    kernel, fake = _kernel(script, max_steps=3, max_malformed_retries=0)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("p1 ends up INCONCLUSIVE, not UNRESOLVED",
+          state.requirement_states["p1"].status == RequirementResolution.INCONCLUSIVE)
+    check("reason records the forced-conclusion failure",
+          "forced_conclusion" in (state.requirement_states["p1"].resolution_reason or ""),
           state.requirement_states["p1"].resolution_reason)
-    check("p2 also has the reason", state.requirement_states["p2"].resolution_reason == "max_steps_exhausted")
 
 
 # --- conclude response missing a property_id --------------------------------
