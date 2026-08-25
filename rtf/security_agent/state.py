@@ -16,6 +16,7 @@ other property in the cluster that hypothesis/evidence is relevant to.
 """
 from __future__ import annotations
 
+import json
 import time
 from enum import Enum
 
@@ -332,13 +333,35 @@ class ClusterInvestigationState(BaseModel):
         tuple mean zero real progress happened in between -- used by the
         kernel to detect stalled loops (repeating equivalent actions)
         independent of raw turn/step count, which can grow even while
-        nothing meaningful changes (e.g. repeated malformed retries)."""
+        nothing meaningful changes (e.g. repeated malformed retries).
+
+        Real bug found live (2026-08-25 canto run): `inspected_files`/
+        `inspected_contracts`/`inspected_functions` are populated by
+        `record_tool_call` only for tools whose result dict happens to
+        carry `file`/`contract`/`name` keys (`get_contract_source`,
+        `get_function_source`, etc.) -- `search_repository`'s result is a
+        `hits` list with no such top-level keys, so a cluster whose early
+        strategy was a sequence of genuinely different search queries
+        registered as ZERO progress on every single turn, hit the
+        no-progress circuit breaker after exactly 6 turns, and was forced
+        to a bare INCONCLUSIVE before ever reading the target contract --
+        confirmed in 2 of the first 2 clusters dispatched. Fixed by adding
+        a tool-agnostic novelty signal: the count of DISTINCT (tool,
+        args) signatures ever tried, which correctly counts any new,
+        differently-parameterized tool call as progress regardless of
+        what shape that tool's result happens to have, while a genuinely
+        repeated identical call (the real stall pattern) still doesn't
+        move it."""
+        distinct_tool_calls = len({
+            (tc.tool, json.dumps(tc.args, sort_keys=True)) for tc in self.tool_history
+        })
         return (
             len(self.evidence), len(self.hypotheses),
             tuple(sorted((h.id, h.status.value) for h in self.hypotheses.values())),
             tuple(sorted((pid, rs.status.value) for pid, rs in self.requirement_states.items())),
             len(self.unresolved_questions), len(self.next_actions),
             len(self.inspected_files), len(self.inspected_contracts), len(self.inspected_functions),
+            distinct_tool_calls,
         )
 
     def evidence_for(self, property_id: str) -> list[Evidence]:

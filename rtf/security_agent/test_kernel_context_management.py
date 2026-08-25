@@ -179,6 +179,54 @@ def test_no_progress_breaker_triggers_on_repeated_identical_tool_call():
     assert state.requirement_states["p1"].status == RequirementResolution.INCONCLUSIVE
 
 
+def test_no_progress_breaker_does_not_trigger_on_distinct_search_repository_calls():
+    """Real bug found live (2026-08-25 canto run, 2 of the first 2
+    clusters dispatched): `search_repository`'s result is a `hits` list
+    with no top-level `file`/`contract`/`name` key, so a sequence of
+    genuinely different search queries never touched
+    inspected_files/contracts/functions and registered as zero progress
+    on every turn -- the cluster was forced to a bare INCONCLUSIVE by the
+    no-progress breaker after exactly 6 turns, having never read any real
+    code. Fixed via a tool-agnostic distinct-(tool,args) novelty signal
+    in progress_fingerprint(); this is the regression guard for it."""
+    searches = [
+        ({"action": "call_tool", "tool": "search_repository",
+          "args": {"pattern": p, "file_glob": "*"}, "reasoning": "r"}, None)
+        for p in ["solc|viaIR", "foundry|hardhat", "onlyOwner", "block.timestamp", "SafeMath"]
+    ]
+    conclude = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "INCONCLUSIVE", "reasoning": "r1"},
+        {"property_id": "p2", "verdict": "INCONCLUSIVE", "reasoning": "r2"},
+    ]}, None)
+    kernel, fake = _kernel_with(searches + [conclude], max_consecutive_no_progress=4, max_steps=20)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    assert len(fake.calls) == len(searches) + 1  # reached the real conclude, not a forced one
+    assert all(rs.status == RequirementResolution.INCONCLUSIVE for rs in state.requirement_states.values())
+    assert not any((rs.resolution_reason or "").startswith("forced_conclusion")
+                  for rs in state.requirement_states.values())
+
+
+def test_no_progress_breaker_still_triggers_on_truly_repeated_identical_search():
+    """The fix above must not defeat genuine stall detection: the SAME
+    search repeated verbatim is still zero new signatures, still a real
+    stall."""
+    repeat_search = ({"action": "call_tool", "tool": "search_repository",
+                      "args": {"pattern": "onlyOwner", "file_glob": "*"}, "reasoning": "r"}, None)
+    forced_conclude = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "INCONCLUSIVE", "reasoning": "r1"},
+        {"property_id": "p2", "verdict": "INCONCLUSIVE", "reasoning": "r2"},
+    ]}, None)
+    kernel, fake = _kernel_with([repeat_search] * 3 + [forced_conclude], max_consecutive_no_progress=2)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    # 1st repeat is progress (new signature, streak resets to 0); the 2nd
+    # and 3rd are identical repeats (streak 1, then 2 >= max) -- the 3rd
+    # trips the breaker, which issues one MORE decide() call for the
+    # forced-conclusion turn itself: 3 real turns + 1 forced turn = 4.
+    assert len(fake.calls) == 4
+    assert all(rs.status == RequirementResolution.INCONCLUSIVE for rs in state.requirement_states.values())
+
+
 def test_no_progress_breaker_does_not_trigger_when_each_call_is_genuinely_new():
     calls = [
         ({"action": "call_tool", "tool": "get_contract_source",
