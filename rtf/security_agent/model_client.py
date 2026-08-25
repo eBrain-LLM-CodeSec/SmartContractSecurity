@@ -80,7 +80,7 @@ class ModelClient:
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-    def decide(self, messages: list[dict]) -> ModelTurn:
+    def decide(self, messages: list[dict], max_tokens: int | None = None) -> ModelTurn:
         # Calls ChatClient.complete() directly (not complete_json) so
         # content=None can be caught BEFORE it ever reaches
         # extract_last_fenced_json -- see incident #2 in
@@ -88,8 +88,21 @@ class ModelClient:
         # uncaught crash (extract_last_fenced_json(None) -> AttributeError,
         # 'NoneType' object has no attribute 'find') confirmed live in two
         # separate clusters' cached raw responses on 2026-08-17.
+        #
+        # `max_tokens` override (default None -> self.max_tokens): real
+        # incident #3 (2026-08-25, canto run, cluster_001's forced-
+        # conclusion turn): completion_tokens landed exactly at the
+        # steady-state 16000 cap mid-JSON-string ("...the loo" -- cut off
+        # inside "loop") on a genuinely correct, detailed 8-property
+        # conclude action, discarding real, correct analysis as generic
+        # INCONCLUSIVE purely because the response was truncated, not
+        # malformed in shape. A single rare, high-value final call (one
+        # per cluster at most) can afford a materially higher cap than
+        # every routine tool-call turn -- see kernel.py's
+        # DEFAULT_FORCED_CONCLUSION_MAX_TOKENS.
         chat_result = self.chat_client.complete(
-            messages, temperature=self.temperature, max_tokens=self.max_tokens)
+            messages, temperature=self.temperature,
+            max_tokens=max_tokens if max_tokens is not None else self.max_tokens)
         if not chat_result.content:
             raise MalformedModelResponse(
                 {}, "response had no content -- the model likely exhausted its reasoning "

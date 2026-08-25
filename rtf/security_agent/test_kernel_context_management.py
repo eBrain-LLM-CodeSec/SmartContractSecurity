@@ -130,6 +130,25 @@ def test_cost_breaker_forces_conclusion_after_budget_exceeded():
     assert state.requirement_states["p2"].status == RequirementResolution.NOT_APPLICABLE
 
 
+def test_forced_conclusion_uses_a_higher_max_tokens_than_routine_turns():
+    """Real incident #3 (2026-08-25 canto run): the steady-state
+    completion cap truncated a forced-conclusion turn's genuinely
+    correct, detailed conclude action mid-JSON-string ("...the loo"),
+    discarding real analysis as generic INCONCLUSIVE purely because the
+    response never finished. The forced-conclusion decide() call must
+    request a materially higher max_tokens than routine turns -- a
+    single rare, high-value call per cluster at most, so the cost
+    impact is bounded."""
+    forced_conclude = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+        {"property_id": "p2", "verdict": "INCONCLUSIVE", "reasoning": "r2"},
+    ]}, None)
+    kernel, fake = _kernel_with([forced_conclude], max_wall_clock_s=0.0)
+    kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    assert fake.max_tokens_calls == [kernel.forced_conclusion_max_tokens]
+    assert kernel.forced_conclusion_max_tokens > kernel.model_client.max_tokens
+
+
 def test_forced_conclusion_downgrades_ungrounded_pass_to_inconclusive_not_silently_accepted():
     """Constraint: do not weaken PASS evidence requirements merely to
     raise resolution, even under a budget-exhaustion forced conclusion.

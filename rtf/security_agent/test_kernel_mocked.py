@@ -88,9 +88,11 @@ class ScriptedChatClient:
     def __init__(self, script: list[tuple[dict, "ChatResult | None"]]):
         self._script = list(script)
         self.calls: list[list[dict]] = []
+        self.max_tokens_calls: list[int | None] = []
 
     def complete(self, messages, temperature: float = 0.0, top_p=None, max_tokens=None):
         self.calls.append([dict(m) for m in messages])
+        self.max_tokens_calls.append(max_tokens)
         if len(self.calls) > len(self._script):
             raise AssertionError(f"kernel made more model calls ({len(self.calls)}) than scripted ({len(self._script)})")
         raw, result = self._script[len(self.calls) - 1]

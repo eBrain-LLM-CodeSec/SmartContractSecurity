@@ -28,6 +28,16 @@ from rtf.security_agent.tools import SecurityAgentTools
 DEFAULT_MAX_STEPS = 15
 DEFAULT_MAX_MALFORMED_RETRIES = 2
 DEFAULT_MAX_CONSECUTIVE_NO_PROGRESS = 6
+DEFAULT_FORCED_CONCLUSION_MAX_TOKENS = 32000
+"""Real incident #3 (2026-08-25, canto run): the steady-state completion
+cap (model_client.DEFAULT_MAX_COMPLETION_TOKENS, 16000) truncated a
+forced-conclusion turn's genuinely correct, detailed 8-property conclude
+action mid-JSON-string, discarding real analysis as generic INCONCLUSIVE
+purely because the response never finished, not because it was wrong.
+Doubled specifically for this ONE rare, high-value call per cluster (at
+most) -- not for every routine tool-call turn, so the cost impact is
+bounded -- staying comfortably under the ~65,536-token pathological
+ceiling documented in model_client.py's own incident #1."""
 
 
 class ToolCallAction(BaseModel):
@@ -137,7 +147,8 @@ class SecurityAgentKernel:
                  evidence_store: EvidenceStore | None = None,
                  max_wall_clock_s: float | None = None,
                  max_cost_usd: float | None = None,
-                 max_consecutive_no_progress: int = DEFAULT_MAX_CONSECUTIVE_NO_PROGRESS):
+                 max_consecutive_no_progress: int = DEFAULT_MAX_CONSECUTIVE_NO_PROGRESS,
+                 forced_conclusion_max_tokens: int = DEFAULT_FORCED_CONCLUSION_MAX_TOKENS):
         self.tools = tools
         self.model_client = model_client
         self.max_steps = max_steps
@@ -159,6 +170,7 @@ class SecurityAgentKernel:
         don't pass these keep the prior unbounded-within-max_steps
         behavior; a live run wires real budgets explicitly."""
         self.max_consecutive_no_progress = max_consecutive_no_progress
+        self.forced_conclusion_max_tokens = forced_conclusion_max_tokens
 
     def run_cluster(
         self, cluster_id: str, property_ids: list[str],
@@ -433,7 +445,13 @@ class SecurityAgentKernel:
             "property you cannot support with real cited evidence, use INCONCLUSIVE "
             "rather than guessing PASS or FAIL."}]
         try:
-            turn = self.model_client.decide(forced_prompt)
+            # A materially higher cap than routine turns (real incident
+            # #3, 2026-08-25 canto run -- see DEFAULT_FORCED_CONCLUSION_
+            # MAX_TOKENS): this is the one turn asking the model to
+            # synthesize a full CEIV chain for every property in the
+            # cluster at once, and it is called at most once per cluster,
+            # so the extra headroom's cost impact is bounded.
+            turn = self.model_client.decide(forced_prompt, max_tokens=self.forced_conclusion_max_tokens)
         except MalformedModelResponse:
             self._finalize_inconclusive(state, property_ids, f"forced_conclusion_failed:{reason}")
             return state
