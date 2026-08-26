@@ -78,6 +78,12 @@ class SecurityAgentResult:
     several tool calls at once, so `tool_calls / decide_calls_total`
     directly measures the migration's efficiency claim ("same
     investigation depth, fewer round-trips") on a real run."""
+    deduplicated_calls_total: int
+    """Exact-duplicate tool calls the kernel caught and replayed from
+    cache instead of re-executing (see ClusterInvestigationState's own
+    field docstring). tool_calls (already on this dataclass) is real
+    unique executions; tool_calls + deduplicated_calls_total is the
+    total the model actually requested."""
 
 
 def _extract_context(extra_files: dict[str, str]) -> tuple[str, dict[str, str], str]:
@@ -249,4 +255,5 @@ def run_security_agent_bundle(
         hypotheses_generated=len(state.hypotheses),
         counterexamples_attempted=attempts,
         decide_calls_total=state.decide_calls_total,
+        deduplicated_calls_total=state.deduplicated_calls_total,
     )

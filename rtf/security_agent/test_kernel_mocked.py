@@ -21,6 +21,7 @@ from pathlib import Path
 from a4v.llm import ChatResult
 from pydantic import ValidationError
 
+from rtf.security_agent.evidence_store import EvidenceStore
 from rtf.security_agent.kernel import ConcludeAction, RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import ModelClient
 from rtf.security_agent.responses_client import NativeToolCall, ResponsesResult
@@ -175,6 +176,16 @@ def _kernel(script, **kwargs) -> tuple[SecurityAgentKernel, ScriptedChatClient]:
     return kernel, fake
 
 
+def _kernel_with_evidence_store(script, **kwargs) -> tuple[SecurityAgentKernel, ScriptedChatClient]:
+    """Same as `_kernel`, but with a REAL `EvidenceStore(tmp_path)`
+    explicitly configured -- needed for dedup-replay tests, which must
+    recover the original full result from durable storage, not from
+    anything that only ever lived in the trimmed `recent_turns` window.
+    None of `_kernel`'s existing callers pass an evidence_store today."""
+    kwargs.setdefault("evidence_store", EvidenceStore(Path(tempfile.mkdtemp(prefix="security_agent_test_evidence_"))))
+    return _kernel(script, **kwargs)
+
+
 # --- happy path: tool call then a conclude resolving all properties --------
 
 def test_tool_call_then_conclude_resolves_all_properties():
@@ -276,6 +287,285 @@ def test_native_turn_requesting_more_calls_than_remaining_max_steps_overshoots_t
     check("p2 resolved FAIL via salvage", state.requirement_states["p2"].status == RequirementResolution.FAIL)
 
 
+# --- kernel-controlled cached-result replay (dedup) -------------------------
+
+def test_native_same_turn_duplicate_executes_once_and_replays_the_cached_result():
+    """Real bug found live (2026-08-26, native-tool-calling canto rerun):
+    ~half a real cluster's step budget was spent re-investigating things
+    already found. The kernel must catch an exact-duplicate call WITHIN
+    the same native turn (not just across turns) and replay the ORIGINAL
+    full result automatically -- not a pointer telling the model to go
+    fetch it itself."""
+    script = [
+        (NativeCalls([
+            ("get_contract_source", {"contract": "Vault"}),
+            ("get_contract_source", {"contract": "Vault"}),
+        ]), None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel_with_evidence_store(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("only 1 real tool_history record for 2 identical requests in one turn",
+          len(state.tool_history) == 1, state.tool_history)
+    check("exactly 1 dedup hit recorded", state.deduplicated_calls_total == 1, state.deduplicated_calls_total)
+    check("step_count only advances once (the duplicate contributes zero new depth)",
+          state.step_count == 1, state.step_count)
+    # The 2nd native tool_calls entry's rendered content must contain the
+    # REPLAYED original result, not a bare pointer telling the model to
+    # go call read_evidence() itself.
+    native_turn_messages = fake.calls[0]
+    tool_call_group = fake.calls[1]  # messages passed to the model's 2nd decide() call
+    replay_entries = [m for m in tool_call_group if m.get("role") == "tool" and "CACHED" in m.get("content", "")]
+    check("the deduplicated call's response is a CACHED replay, present in the next turn's messages",
+          len(replay_entries) == 1, tool_call_group)
+    check("the replay contains the ORIGINAL evidence_id, not just a pointer telling the model to fetch it",
+          "evidence_id=tool-1" in replay_entries[0]["content"], replay_entries[0]["content"])
+    check("the replay contains real content (source), not just a summary label",
+          "Vault" in replay_entries[0]["content"], replay_entries[0]["content"])
+
+
+def test_later_turn_duplicate_is_replayed_without_a_second_real_execution():
+    script = [
+        (NativeCalls([("get_contract_source", {"contract": "Vault"})]), None),
+        (NativeCalls([("get_function_source", {"contract": "Vault", "function": "withdraw"})]), None),
+        (NativeCalls([("get_contract_source", {"contract": "Vault"})]), None),  # duplicate of turn 1
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel_with_evidence_store(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("only 2 real tool_history records (get_contract_source once, get_function_source once)",
+          len(state.tool_history) == 2, state.tool_history)
+    check("1 dedup hit recorded for the later, separate-turn duplicate",
+          state.deduplicated_calls_total == 1, state.deduplicated_calls_total)
+    # fake.calls[N] is the messages the model receives when deciding
+    # turn N -- so turn 2's dedup replay (the response to turn 2's own
+    # request) only appears in the messages for turn 3 (the conclude
+    # call), i.e. fake.calls[3], not fake.calls[2].
+    messages_after_turn_2 = fake.calls[3]
+    replay_entries = [m for m in messages_after_turn_2 if m.get("role") == "tool" and "CACHED" in m.get("content", "")]
+    check("turn 2's request was answered from cache, no read_evidence call needed by the model",
+          len(replay_entries) == 1, messages_after_turn_2)
+
+
+def test_legacy_single_tool_call_path_also_dedups_and_replays():
+    duplicate_call = {"action": "call_tool", "tool": "get_contract_source",
+                      "args": {"contract": "Vault"}, "reasoning": "r"}
+    script = [
+        (dict(duplicate_call), None),
+        (dict(duplicate_call), None),  # exact duplicate, legacy (non-native) path
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel_with_evidence_store(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("only 1 real tool_history record via the legacy path", len(state.tool_history) == 1, state.tool_history)
+    check("1 dedup hit recorded", state.deduplicated_calls_total == 1, state.deduplicated_calls_total)
+    check("step_count only advances once", state.step_count == 1, state.step_count)
+    # fake.calls[2] is the messages for the 3rd decide() call (the
+    # conclude), which is what reflects turn 1's (the duplicate's) own
+    # replayed result -- turn 0's real result shows up one call earlier.
+    messages_after_turn_1 = fake.calls[2]
+    check("legacy path's replay also carries CACHED content, role=user (matching this path's own convention)",
+          any(m.get("role") == "user" and "CACHED" in m.get("content", "") for m in messages_after_turn_1),
+          messages_after_turn_1)
+
+
+def test_different_args_are_not_deduped():
+    """Real regression guard: this is the exact case that must keep
+    working unchanged."""
+    script = [
+        (NativeCalls([
+            ("get_function_source", {"contract": "Vault", "function": "withdraw"}),
+            ("get_function_source", {"contract": "Vault", "function": "deposit"}),
+        ]), None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel_with_evidence_store(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("both distinct calls executed for real", len(state.tool_history) == 2, state.tool_history)
+    check("no dedup hits", state.deduplicated_calls_total == 0, state.deduplicated_calls_total)
+
+
+def test_read_evidence_itself_is_never_deduplicated():
+    """read_evidence is excluded from dedup detection entirely: it's
+    already a cheap disk read, and its own calls are never persisted to
+    EvidenceStore in the first place (nothing to replay it FROM)."""
+    script = [
+        (NativeCalls([("get_contract_source", {"contract": "Vault"})]), None),
+        (NativeCalls([("read_evidence", {"evidence_id": "tool-1"}),
+                      ("read_evidence", {"evidence_id": "tool-1"})]), None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel_with_evidence_store(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("both identical read_evidence calls executed for real (excluded from dedup)",
+          len(state.tool_history) == 3, state.tool_history)  # 1 get_contract_source + 2 read_evidence
+    check("no dedup hits (read_evidence is never deduplicated)",
+          state.deduplicated_calls_total == 0, state.deduplicated_calls_total)
+
+
+def test_dedup_falls_back_to_summary_only_replay_when_no_evidence_store_configured():
+    """The degraded-but-still-correct path: without an EvidenceStore,
+    there is nowhere to recover the full original result from -- the
+    kernel still avoids re-executing the real tool, but the replay is
+    limited to the terse summary already on the ToolCallRecord."""
+    script = [
+        (NativeCalls([
+            ("get_contract_source", {"contract": "Vault"}),
+            ("get_contract_source", {"contract": "Vault"}),
+        ]), None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script)  # NO evidence_store
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("still only 1 real execution even without an evidence store",
+          len(state.tool_history) == 1, state.tool_history)
+    check("still 1 dedup hit", state.deduplicated_calls_total == 1, state.deduplicated_calls_total)
+    turn_2 = fake.calls[1]
+    replay_entries = [m for m in turn_2 if m.get("role") == "tool" and "CACHED" in m.get("content", "")]
+    check("degraded replay still marked CACHED, notes no store configured",
+          len(replay_entries) == 1 and "no evidence store configured" in replay_entries[0]["content"],
+          replay_entries)
+
+
+def test_concludeaction_and_updateinvestigationaction_unaffected_by_dedup():
+    """Dedup only applies to tool-call dispatch -- no interaction with
+    the other two action branches."""
+    script = [
+        ({"action": "update_investigation", "hypotheses": [{
+            "id": "hyp-1", "claim": "x", "originating_property_ids": ["p1"], "status": "OPEN",
+        }], "counterexample_attempts": []}, None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel_with_evidence_store(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("no dedup activity for non-tool-call actions", state.deduplicated_calls_total == 0)
+    check("hypothesis still recorded normally", "hyp-1" in state.hypotheses)
+    check("conclude still resolved both properties",
+          state.requirement_states["p1"].status == RequirementResolution.FAIL and
+          state.requirement_states["p2"].status == RequirementResolution.FAIL)
+
+
+def test_compaction_regression_dedup_replay_survives_the_original_falling_out_of_recent_turns():
+    """The actual bug class, not just the cache helper in isolation:
+    force real compaction to run (context_manager.should_compact must be
+    monkeypatched as a FUNCTION -- SOFT_COMPACTION_TOKENS is already
+    bound into should_compact's own default argument at import time, so
+    patching that module constant afterward silently does nothing),
+    push the original result's turn out of the RECENT_TURNS_KEPT window,
+    then re-request it -- the kernel must still recover it from durable
+    state (EvidenceStore), not from anything that only lived in the
+    trimmed raw turns."""
+    from rtf.security_agent import context_manager
+    original_should_compact = context_manager.should_compact
+    context_manager.should_compact = lambda messages, threshold=None: True
+    try:
+        num_fillers = context_manager.RECENT_TURNS_KEPT + 2
+        script = (
+            [(NativeCalls([("get_contract_source", {"contract": "Vault"})]), None)]
+            # Distinct filler calls (different function per turn) -- must
+            # NOT collide with each other via dedup, only the deliberate
+            # final re-request of get_contract_source should ever hit.
+            + [(NativeCalls([("get_callers", {"contract": "Vault", "function": f"filler{i}"})]), None)
+               for i in range(num_fillers)]
+            + [(NativeCalls([("get_contract_source", {"contract": "Vault"})]), None)]  # re-request, now compacted away
+            + [({"action": "conclude", "properties": [
+                {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+                {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+            ]}, None)]
+        )
+        kernel, fake = _kernel_with_evidence_store(script)
+        state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+        check(f"{1 + num_fillers} distinct real executions total (1 get_contract_source + {num_fillers} fillers)",
+              len(state.tool_history) == 1 + num_fillers, state.tool_history)
+        check("the re-request after compaction was a dedup hit, not a real re-execution",
+              state.deduplicated_calls_total == 1, state.deduplicated_calls_total)
+        # By the LAST decide() call (the conclude), should_compact having
+        # been forced True on every turn means turn 0's own "assistant"
+        # tool_calls entry (naming get_contract_source) is genuinely gone
+        # from what the model sees -- proving the dedup hit a few turns
+        # earlier was resolved from EvidenceStore, not from a raw turn
+        # that just happened to still be present in a short window.
+        final_messages = fake.calls[-1]
+        # The re-request turn's OWN echo entry is always present
+        # (kernel.py always echoes what the model asked, dedup or not) --
+        # what must be GONE is turn 0's separate, original echo entry.
+        # If both survived, this count would be 2, not 1.
+        get_contract_source_echo_count = sum(
+            1 for m in final_messages
+            if m.get("role") == "assistant" and m.get("tool_calls")
+            and any(c.get("tool") == "get_contract_source" for c in m["tool_calls"])
+        )
+        check("only the re-request's OWN echo entry remains -- turn 0's original echo entry is "
+              "genuinely gone by the final turn (compacted away for real, not just theoretically)",
+              get_contract_source_echo_count == 1, final_messages)
+        check("a CACHED replay entry is present somewhere across the whole run",
+              any("CACHED" in m.get("content", "") for call_messages in fake.calls for m in call_messages),
+              "no CACHED entry found anywhere")
+        check("the model reached a real conclusion afterward despite the compaction + dedup replay",
+              state.requirement_states["p1"].status == RequirementResolution.FAIL)
+    finally:
+        context_manager.should_compact = original_should_compact
+
+
+def test_stagnation_safety_repeated_dedup_hits_still_trigger_no_progress_breaker():
+    """A model stuck requesting only already-cached calls must not loop
+    forever: step_count freezes (dedup hits don't advance it), but
+    progress_fingerprint()'s distinct_tool_calls signal already doesn't
+    grow for a repeated call (confirmed unchanged, pre-existing
+    behavior) -- so the existing no_progress circuit breaker must still
+    fire within max_consecutive_no_progress turns, exactly as it does
+    for a model stuck on real repeated NOT_FOUNDs today."""
+    same_call = NativeCalls([("get_contract_source", {"contract": "Vault"})])
+    forced_conclude = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "INCONCLUSIVE", "reasoning": "r1"},
+        {"property_id": "p2", "verdict": "INCONCLUSIVE", "reasoning": "r2"},
+    ]}, None)
+    # 1st is real (new signature); 2nd+ are dedup hits (identical
+    # signature each time) -- with max_consecutive_no_progress=2, the
+    # breaker must fire well before the script runs out.
+    script = [(same_call, None)] * 5 + [forced_conclude]
+    kernel, fake = _kernel_with_evidence_store(script, max_consecutive_no_progress=2)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("only 1 real execution ever, no matter how many times it was requested",
+          len(state.tool_history) == 1, state.tool_history)
+    check("step_count stayed frozen at 1 (dedup hits never advance it)", state.step_count == 1, state.step_count)
+    check("the no-progress breaker fired well before all 5 repeats were scripted "
+          "(fewer real model calls than the full script length)",
+          len(fake.calls) < 6, len(fake.calls))
+    check("both properties salvaged via the no-progress forced-conclusion path",
+          state.requirement_states["p1"].status == RequirementResolution.INCONCLUSIVE and
+          state.requirement_states["p2"].status == RequirementResolution.INCONCLUSIVE)
+
+
 def test_structured_conclusion_records_shared_ceiv_chain():
     script = [({"action": "conclude", "evidence": [{
         "id": "ev-ordering", "claim": "external call precedes share decrement",
@@ -354,6 +644,82 @@ def test_hypothesis_update_and_counterexample_are_state_transitions():
           "receiver re-enters" in state.requirement_states["p1"].counterexample_attempts[0])
 
 
+# --- unresolved_questions/next_actions (closing a dead-field gap) -----------
+
+def test_update_investigation_with_only_unresolved_questions_is_valid():
+    """Real gap found live (2026-08-26): unresolved_questions/
+    next_actions already existed on state but nothing could ever write
+    to them -- the schema validator used to reject an update containing
+    ONLY these fields (no hypotheses/counterexample_attempts)."""
+    script = [
+        ({"action": "update_investigation", "unresolved_questions": ["does the oracle ever return 0?"]}, None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("update_investigation with only unresolved_questions was accepted, not rejected as malformed",
+          len(fake.calls) == 2, len(fake.calls))
+    check("unresolved_questions actually recorded on state",
+          state.unresolved_questions == ["does the oracle ever return 0?"], state.unresolved_questions)
+
+
+def test_update_investigation_with_only_next_actions_is_valid():
+    script = [
+        ({"action": "update_investigation", "next_actions": ["check Ln.sol's rounding path"]}, None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("next_actions actually recorded on state",
+          state.next_actions == ["check Ln.sol's rounding path"], state.next_actions)
+
+
+def test_later_update_omitting_the_fields_does_not_clear_previously_recorded_ones():
+    """Replacement semantics only apply when THIS update actually
+    provides a new list -- an update that only touches hypotheses must
+    not silently wipe out unresolved_questions/next_actions recorded in
+    an earlier turn."""
+    script = [
+        ({"action": "update_investigation", "unresolved_questions": ["q1"], "next_actions": ["a1"]}, None),
+        ({"action": "update_investigation", "hypotheses": [{
+            "id": "hyp-1", "claim": "x", "originating_property_ids": ["p1"], "status": "OPEN",
+        }], "counterexample_attempts": []}, None),  # omits both fields entirely
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("unresolved_questions from turn 1 survives a turn 2 update that didn't mention it",
+          state.unresolved_questions == ["q1"], state.unresolved_questions)
+    check("next_actions from turn 1 survives a turn 2 update that didn't mention it",
+          state.next_actions == ["a1"], state.next_actions)
+
+
+def test_render_state_summary_reflects_unresolved_questions_and_next_actions():
+    from rtf.security_agent import context_manager as cm
+    script = [
+        ({"action": "update_investigation", "unresolved_questions": ["does X happen?"],
+          "next_actions": ["check Y"]}, None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    summary = cm.render_state_summary(state)
+    check("unresolved question appears in the rendered state summary", "does X happen?" in summary, summary)
+    check("next action appears in the rendered state summary", "check Y" in summary, summary)
+
+
 def test_completion_gate_rejects_premature_pass_then_accepts_grounded_pass():
     premature = ({"action": "conclude", "properties": [
         {"property_id": "p1", "verdict": "PASS", "reasoning": "looks safe"},
@@ -413,8 +779,11 @@ def test_max_steps_exhausted_attempts_forced_conclusion_instead_of_bare_unresolv
     forced-conclusion-then-INCONCLUSIVE-if-that-also-fails discipline."""
     # Always returns a tool_call for the first 3 (real) turns, exhausting
     # max_steps=3; the 4th scripted entry is the forced-conclusion turn.
-    script = [({"action": "call_tool", "tool": "get_contract_source", "args": {"contract": "Vault"},
-                "reasoning": "r"}, None)] * 3 + [
+    # 3 DISTINCT calls (not the same one 3x): the kernel now replays an
+    # exact-duplicate call from cache instead of re-executing it, so 3
+    # identical calls would only advance step_count once.
+    script = [({"action": "call_tool", "tool": "get_contract_source", "args": {"contract": f"Vault{i}"},
+                "reasoning": "r"}, None) for i in range(3)] + [
         ({"action": "conclude", "properties": [
             {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
             {"property_id": "p2", "verdict": "INCONCLUSIVE", "reasoning": "r2"},
@@ -436,8 +805,12 @@ def test_max_steps_exhausted_with_no_usable_forced_response_still_produces_incon
     still end up honestly INCONCLUSIVE -- never silently dropped back to
     bare UNRESOLVED."""
     garbage = ({"action": "nonsense"}, None)
-    script = [({"action": "call_tool", "tool": "get_contract_source", "args": {"contract": "Vault"},
-                "reasoning": "r"}, None)] * 3 + [garbage]
+    # 3 DISTINCT tool calls (not the same one 3x): the kernel now
+    # replays an exact-duplicate call from cache instead of re-executing
+    # it, so 3 identical calls would only advance step_count once,
+    # never exhausting max_steps=3 the way this test needs.
+    script = [({"action": "call_tool", "tool": "get_contract_source", "args": {"contract": f"Vault{i}"},
+                "reasoning": "r"}, None) for i in range(3)] + [garbage]
     kernel, fake = _kernel(script, max_steps=3, max_malformed_retries=0)
     state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
 

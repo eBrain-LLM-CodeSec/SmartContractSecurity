@@ -183,6 +183,34 @@ def test_max_cost_usd_override_reaches_the_kernel():
           len(result.investigation_state.tool_history) == 0, len(result.investigation_state.tool_history))
 
 
+def test_deduplicated_calls_total_surfaces_on_security_agent_result():
+    """AlwaysToolCallClient requests the exact same (tool, args) every
+    single turn -- turn 1 executes for real, every turn after that is an
+    exact duplicate. End-to-end proof that ClusterInvestigationState's
+    dedup counter reaches SecurityAgentResult through the real
+    run_security_agent_bundle construction path (not just the kernel
+    directly, which the other new dedup tests already cover)."""
+    scratch = Path(tempfile.mkdtemp(prefix="security_agent_adapter_test_"))
+    result = run_security_agent_bundle(
+        codex_bin=Path("unused"), python_bin=Path("unused"), mcp_server_script=Path("unused"),
+        api_key="unused", model="fake", case_id="case-4", entry_file=Path("Vault.sol"),
+        repo_root=Path("."), candidate_location="Vault.withdraw",
+        solc_path_dir="/opt/solc-bin", solc_remaps=None, prompt="unused",
+        scratch_root=scratch, timeout_s=5,
+        extra_files={".rtf/context/protocol_context.md": "protocol",
+                     ".rtf/context/requirements/req-parent.md": "requirement",
+                     ".rtf/plans/c1.md": PLAN},
+        compile_via_foundry=False, chat_client_factory=AlwaysToolCallClient,
+        tools_factory=lambda **kw: FakeTools(),
+    )
+    check("only 1 real tool call recorded despite many turns (the rest were dedup hits)",
+          len(result.investigation_state.tool_history) == 1, len(result.investigation_state.tool_history))
+    check("deduplicated_calls_total is non-zero and matches the kernel-side state field",
+          result.deduplicated_calls_total > 0
+          and result.deduplicated_calls_total == result.investigation_state.deduplicated_calls_total,
+          (result.deduplicated_calls_total, result.investigation_state.deduplicated_calls_total))
+
+
 # --- root cause 4: verdict-vocabulary mismatch with the legacy harness -----
 
 def test_not_applicable_and_unresolved_verdicts_translated_for_legacy_harness():

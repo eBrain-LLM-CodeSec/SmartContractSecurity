@@ -16,12 +16,12 @@ from pydantic import BaseModel, Field, model_validator
 
 from rtf.security_agent import context_manager
 from rtf.security_agent.completion import check_property_completion, cluster_can_conclude
-from rtf.security_agent.evidence_store import EvidenceStore
+from rtf.security_agent.evidence_store import EvidenceStore, UnknownEvidenceRefError
 from rtf.security_agent.model_client import MalformedModelResponse, ModelClient
 from rtf.security_agent.prompts import build_initial_user_message, build_system_prompt
 from rtf.security_agent.state import (
     ClusterInvestigationState, Evidence, Hypothesis, HypothesisStatus,
-    RequirementResolution,
+    RequirementResolution, ToolCallRecord,
 )
 from rtf.security_agent.tools import SecurityAgentTools
 
@@ -88,11 +88,23 @@ class UpdateInvestigationAction(BaseModel):
     action: Literal["update_investigation"]
     hypotheses: list[HypothesisInput] = Field(default_factory=list)
     counterexample_attempts: list[CounterexampleAttemptInput] = Field(default_factory=list)
+    unresolved_questions: list[str] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
+    """Real gap found live (2026-08-26): `state.unresolved_questions`/
+    `state.next_actions` (and `state.set_next_actions`) already existed
+    and were already rendered in the compacted state summary, but
+    NOTHING in this action schema let the model ever write to them --
+    both were always empty in every real run. Both are optional
+    (replacement, not append, matching `set_next_actions`'s existing
+    semantics) -- an update that omits them leaves whatever was recorded
+    in an earlier turn untouched; see `_apply_investigation_update`."""
 
     @model_validator(mode="after")
     def contains_an_update(self) -> "UpdateInvestigationAction":
-        if not self.hypotheses and not self.counterexample_attempts:
-            raise ValueError("update_investigation must include a hypothesis or counterexample attempt")
+        if not (self.hypotheses or self.counterexample_attempts
+                or self.unresolved_questions or self.next_actions):
+            raise ValueError("update_investigation must include a hypothesis, counterexample "
+                             "attempt, unresolved question, or next action")
         return self
 
 
@@ -156,6 +168,33 @@ def _summarize_tool_result(result: dict) -> str:
         return f"{status}: {result.get('reason', '')}"
     payload_keys = [k for k in result if k not in ("status", "reason")]
     return f"OK ({', '.join(payload_keys)})"
+
+
+def _render_dedup_replay(tool: str, duplicate: ToolCallRecord, evidence_store: EvidenceStore | None) -> str:
+    """Kernel-controlled cached-result replay (found live, 2026-08-26):
+    an exact-duplicate call gets the ORIGINAL full result back
+    automatically -- not a pointer telling the model to fetch it itself.
+    The model asking again is direct evidence it no longer has the
+    information; a pointer would just reintroduce a dependency on the
+    model noticing and acting on a hint, the same failure mode this fix
+    exists to remove. Reuses the same "full detail, nothing held back"
+    shape `_render_tool_result` already uses for a real `read_evidence`
+    call -- this kernel already has exactly one no-compaction rendering
+    convention, reused here rather than inventing a second one."""
+    if evidence_store is not None:
+        try:
+            raw_result = json.loads(evidence_store.read(duplicate.id))
+            return (f"Tool result for {tool} (CACHED -- deduplicated, no new tool "
+                    f"execution, replaying original evidence_id={duplicate.id}):\n"
+                    f"{json.dumps(raw_result)}")
+        except UnknownEvidenceRefError:
+            pass  # original was never persisted (shouldn't happen for a
+                  # non-read_evidence duplicate when evidence_store is
+                  # configured -- store() is unconditional -- kept as a
+                  # defensive fallback, not expected to trigger in practice)
+    return (f"Tool result for {tool} (CACHED -- deduplicated, no new tool execution; "
+            f"only a short summary is available, no evidence store configured for "
+            f"this investigation):\n{duplicate.result_summary}")
 
 
 class SecurityAgentKernel:
@@ -267,6 +306,7 @@ class SecurityAgentKernel:
                 "compaction_count": compaction_count,
                 "tool_calls_total": len(state.tool_history),
                 "decide_calls_total": state.decide_calls_total,
+                "deduplicated_calls_total": state.deduplicated_calls_total,
             })
 
         while state.step_count < self.max_steps:
@@ -359,6 +399,24 @@ class SecurityAgentKernel:
                         for call in turn.tool_calls
                     ]}]
                     for call in turn.tool_calls:
+                        # Kernel-controlled cached-result replay (found
+                        # live, 2026-08-26): an exact-duplicate call (same
+                        # tool, same args, already in tool_history) is
+                        # replayed from EvidenceStore instead of executed
+                        # again -- automatically, with no dependency on
+                        # the model noticing a hint. read_evidence itself
+                        # is excluded: it's already a cheap disk read, and
+                        # its own calls are never persisted to
+                        # EvidenceStore in the first place.
+                        duplicate = (None if call.tool == "read_evidence"
+                                     else state.find_duplicate_tool_call(call.tool, call.args))
+                        if duplicate is not None:
+                            state.deduplicated_calls_total += 1
+                            self._emit("tool_call_deduplicated", {"tool": call.tool, "args": call.args,
+                                                                   "original_id": duplicate.id})
+                            entries.append({"role": "tool", "call_id": call.call_id, "tool": call.tool,
+                                            "content": _render_dedup_replay(call.tool, duplicate, self.evidence_store)})
+                            continue
                         result = self.tools.call(call.tool, call.args)
                         tool_record = state.record_tool_call(call.tool, call.args,
                                                               _summarize_tool_result(result), result)
@@ -397,13 +455,22 @@ class SecurityAgentKernel:
 
                 else:
                     action: ToolCallAction = turn.parsed
-                    result = self.tools.call(action.tool, action.args)
-                    tool_record = state.record_tool_call(action.tool, action.args,
-                                                          _summarize_tool_result(result), result)
-                    self._emit("tool_result", {"tool": action.tool, "args": action.args,
-                                                "summary": _summarize_tool_result(result)})
-                    _append_turn({"role": "user", "content":
-                        self._render_tool_result(tool_record.id, action.tool, result)})
+                    duplicate = (None if action.tool == "read_evidence"
+                                 else state.find_duplicate_tool_call(action.tool, action.args))
+                    if duplicate is not None:
+                        state.deduplicated_calls_total += 1
+                        self._emit("tool_call_deduplicated", {"tool": action.tool, "args": action.args,
+                                                               "original_id": duplicate.id})
+                        _append_turn({"role": "user", "content":
+                            _render_dedup_replay(action.tool, duplicate, self.evidence_store)})
+                    else:
+                        result = self.tools.call(action.tool, action.args)
+                        tool_record = state.record_tool_call(action.tool, action.args,
+                                                              _summarize_tool_result(result), result)
+                        self._emit("tool_result", {"tool": action.tool, "args": action.args,
+                                                    "summary": _summarize_tool_result(result)})
+                        _append_turn({"role": "user", "content":
+                            self._render_tool_result(tool_record.id, action.tool, result)})
             except Exception as e:  # noqa: BLE001 -- see comment above: an unknown bug must not crash the cluster
                 self._emit("action_application_error", {"error": f"{type(e).__name__}: {e}"})
                 action_error_retries += 1
@@ -667,6 +734,18 @@ class SecurityAgentKernel:
         for attempt in update.counterexample_attempts:
             state.record_counterexample_attempt(
                 attempt.property_id, attempt.hypothesis_id, attempt.attempt, attempt.result)
+        # Closes a real gap found live (2026-08-26): these two state
+        # fields (and set_next_actions) already existed and were already
+        # rendered in the compacted state summary, but nothing wrote to
+        # them from any model action -- always empty in every real run.
+        # Replacement, not append (matches set_next_actions's existing
+        # semantics), and only when THIS update actually provides a new
+        # list -- an update that only touches hypotheses must not wipe
+        # out what an earlier turn recorded.
+        if update.unresolved_questions:
+            state.unresolved_questions = list(update.unresolved_questions)
+        if update.next_actions:
+            state.set_next_actions(update.next_actions)
         return None
 
     @staticmethod

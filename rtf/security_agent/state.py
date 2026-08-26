@@ -173,6 +173,17 @@ class ClusterInvestigationState(BaseModel):
     round-trips") directly measurable rather than only inferred from
     `step_count` alone, which no longer implies a 1:1 turn count once a
     single decide() call can resolve several tool calls at once."""
+    deduplicated_calls_total: int = 0
+    """Exact-duplicate tool calls the kernel caught and replayed from
+    cache instead of re-executing (same tool, same args, already in
+    tool_history). Found live, 2026-08-26: roughly half a real cluster's
+    step budget was spent re-investigating things already found, once
+    the raw turn holding the original result fell out of the
+    compaction-kept window. Does NOT count toward step_count -- a cache
+    hit contributes zero new investigation depth by definition.
+    len(tool_history) is therefore already exactly "unique tool calls
+    made" once this field exists -- no separate counter needed for
+    that."""
 
     @classmethod
     def initial(cls, cluster_id: str, property_ids: list[str],
@@ -401,6 +412,19 @@ class ClusterInvestigationState(BaseModel):
             if name and tool == "get_function_source":
                 self.inspected_functions.add(f"{contract}.{name}" if contract else name)
         return record
+
+    def find_duplicate_tool_call(self, tool: str, args: dict) -> ToolCallRecord | None:
+        """Exact-match lookup over tool_history: same tool name, same
+        args dict (dict `==` ignores key order). Linear scan --
+        tool_history is bounded by max_steps (tens of entries), no index
+        needed. Called BEFORE a tool is dispatched, so a duplicate
+        requested twice within the SAME turn is still caught: the first
+        is recorded via record_tool_call (appending to tool_history)
+        before the second is checked."""
+        for record in self.tool_history:
+            if record.tool == tool and record.args == args:
+                return record
+        return None
 
     # -- result mapping --------------------------------------------------
 

@@ -42,6 +42,10 @@ To record or update hypotheses and counterexample attempts:
   {{"id": "hyp-1", "claim": "<plausible concrete failure mode>", "originating_property_ids": ["<property id>"], "status": "OPEN", "supporting_evidence_ids": [], "contradicting_evidence_ids": [], "next_evidence_needed": "<specific code fact or test needed>"}}
 ], "counterexample_attempts": [
   {{"property_id": "<property id>", "hypothesis_id": "hyp-1", "attempt": "<specific adversarial scenario tried>", "result": "<what inspection established>"}}
+], "unresolved_questions": [
+  "<a specific open question you haven't resolved yet, e.g. 'does the oracle ever return 0?'>"
+], "next_actions": [
+  "<a specific thing you plan to check next, e.g. 'check Ln.sol's rounding path for req-2-check-rounding'>"
 ]}}
 ```
 
@@ -50,7 +54,10 @@ plausible failure hypothesis per property (one hypothesis may span several
 properties). After inspecting code, record the concrete adversarial or
 boundary scenario you tried and its result. Seek evidence that could REFUTE
 your current belief, especially before PASS; do not merely collect facts
-that agree with your first impression.
+that agree with your first impression. `unresolved_questions`/`next_actions`
+are optional but persist even if this conversation gets compacted, unlike
+anything only mentioned in your own reasoning text -- use them for open
+questions or a specific plan so you don't lose track of your own direction.
 
 To conclude the investigation for ALL properties in this cluster at once,
 provide one shared evidence pool followed by a separate Claim / Evidence /

@@ -167,6 +167,48 @@ def test_successful_source_tool_result_tracks_inspection():
     check("tool result tracks inspected function", state.inspected_functions == {"Vault.withdraw"})
 
 
+# --- find_duplicate_tool_call (kernel-controlled cached-result replay) -------
+
+def test_find_duplicate_tool_call_exact_match():
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    record = state.record_tool_call("get_contract_source", {"contract": "Vault"}, "OK (source)",
+                                    {"status": "OK", "contract": "Vault"})
+    found = state.find_duplicate_tool_call("get_contract_source", {"contract": "Vault"})
+    check("exact match found", found is not None and found.id == record.id, found)
+
+
+def test_find_duplicate_tool_call_different_args_no_match():
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.record_tool_call("get_contract_source", {"contract": "Vault"}, "OK (source)", {"status": "OK"})
+    found = state.find_duplicate_tool_call("get_contract_source", {"contract": "Other"})
+    check("different args -- no match", found is None, found)
+
+
+def test_find_duplicate_tool_call_different_tool_no_match():
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.record_tool_call("get_contract_source", {"contract": "Vault"}, "OK (source)", {"status": "OK"})
+    found = state.find_duplicate_tool_call("get_function_source", {"contract": "Vault"})
+    check("different tool, same args -- no match", found is None, found)
+
+
+def test_find_duplicate_tool_call_ignores_args_key_order():
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.record_tool_call("get_function_source", {"contract": "Vault", "function": "withdraw"},
+                           "OK (source)", {"status": "OK"})
+    found = state.find_duplicate_tool_call("get_function_source", {"function": "withdraw", "contract": "Vault"})
+    check("dict key ordering does not defeat the match", found is not None, found)
+
+
+def test_find_duplicate_tool_call_third_request_maps_back_to_the_original():
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    original = state.record_tool_call("get_contract_source", {"contract": "Vault"}, "OK (source)", {"status": "OK"})
+    found_1 = state.find_duplicate_tool_call("get_contract_source", {"contract": "Vault"})
+    found_2 = state.find_duplicate_tool_call("get_contract_source", {"contract": "Vault"})
+    check("first duplicate lookup maps to the original record", found_1 is not None and found_1.id == original.id)
+    check("a later, third identical request still maps to the SAME original record, not a new one",
+          found_2 is not None and found_2.id == original.id, found_2)
+
+
 def test_record_verdict_persists_ceiv_and_links_shared_evidence():
     state = ClusterInvestigationState.initial("c1", ["p1"])
     state.add_evidence(_evidence("ev1", claim="call precedes state update"))
