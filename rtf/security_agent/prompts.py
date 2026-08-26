@@ -22,20 +22,19 @@ relevant to one is often relevant to the others too. Investigate them \
 together; reuse what you learn across properties rather than treating \
 each in total isolation.
 
-You have the following tools available. Call at most ONE tool per turn.
+You have tools available for inspecting the code -- see their declared \
+schemas for exact names and parameters. Call a tool whenever you need \
+information; if you already know you need several independent facts, \
+request them together in the same turn rather than one at a time.
 
 {tool_descriptions}
 
 ## How to respond
 
-Respond with EXACTLY ONE fenced JSON code block (```json ... ```), \
-containing EXACTLY ONE of the three shapes below. Nothing else in your \
-response is read -- only this JSON block is parsed.
-
-To call a tool:
-```json
-{{"action": "call_tool", "tool": "<tool name>", "args": {{"...": "..."}}, "reasoning": "<why you need this>"}}
-```
+When you are NOT calling a tool, respond with EXACTLY ONE fenced JSON \
+code block (```json ... ```), containing EXACTLY ONE of the two shapes \
+below. Nothing else in your response is read -- only this JSON block is \
+parsed.
 
 To record or update hypotheses and counterexample attempts:
 ```json

@@ -128,6 +128,26 @@ class ConcludeAction(BaseModel):
 RESPONSE_MODELS: tuple[type[BaseModel], ...] = (
     ToolCallAction, UpdateInvestigationAction, ConcludeAction,
 )
+"""Kept fully intact, unmodified, for the legacy (non-native) JSON-text
+path -- confirmed required as-is by `test_model_client.py` (exercises
+`ModelClient` directly against a plain `a4v.llm.ChatResult` via a
+`FakeChatClient`, asserting `ToolCallAction` still parses) and by
+`test_response_schema.py`/`test_kernel_mocked.py`/`test_fixture_matrix.py`.
+Do not narrow or delete this."""
+
+NATIVE_RESPONSE_MODELS: tuple[type[BaseModel], ...] = (
+    UpdateInvestigationAction, ConcludeAction,
+)
+"""The 2 JSON-text action shapes still expected once native tool-calling
+is active -- `ToolCallAction` is deliberately excluded: a tool call is
+now a native `tools=[...]` request (`ModelTurn.tool_calls`), not a
+JSON-text shape. Used (instead of `RESPONSE_MODELS`) for both the
+`response_schema.py` schema build and the `ModelClient` construction at
+`investigator.py`'s live-run call site -- this makes a stray
+`call_tool`-shaped text reply correctly surface as malformed once
+native tools are the intended path, the right diagnostic (the model
+didn't honor native tool-calling), rather than being silently accepted
+via the old text path."""
 
 
 def _summarize_tool_result(result: dict) -> str:
@@ -202,11 +222,25 @@ class SecurityAgentKernel:
         # `context_manager.build_context` compacts its "recent turns"
         # tail from. Bounded in practice by max_steps (small), so kept
         # in full rather than trimmed for its own sake.
-        recent_turns: list[dict] = []
+        #
+        # A list of GROUPS, one per logical turn (native-tool-calling
+        # migration, 2026-08-26), not a flat list of message dicts: a
+        # plain turn is a 1-entry group; a native multi-tool-call turn is
+        # ONE group holding its assistant tool_calls request entry plus
+        # every one of that turn's tool-result entries together. This
+        # keeps a turn atomic under `context_manager.build_context`'s
+        # trimming -- splitting a multi-call turn's request from its own
+        # results across a trim boundary would produce a
+        # `function_call_output` with no matching `function_call`, an
+        # invalid next request (Part 0, live-verified).
+        recent_turns: list[list[dict]] = []
+
+        def _append_group(entries: list[dict]) -> None:
+            messages.extend(entries)
+            recent_turns.append(entries)
 
         def _append_turn(entry: dict) -> None:
-            messages.append(entry)
-            recent_turns.append(entry)
+            _append_group([entry])
 
         started_at = time.monotonic()
         action_error_retries = 0
@@ -232,6 +266,7 @@ class SecurityAgentKernel:
                 "no_progress_events_total": no_progress_events,
                 "compaction_count": compaction_count,
                 "tool_calls_total": len(state.tool_history),
+                "decide_calls_total": state.decide_calls_total,
             })
 
         while state.step_count < self.max_steps:
@@ -245,6 +280,16 @@ class SecurityAgentKernel:
             retries_counter = [0]
             try:
                 turn = self._decide_with_bounded_retries(messages, retries_counter)
+                # One real model round-trip (Part 8 instrumentation,
+                # native-tool-calling migration): counted once per
+                # SUCCESSFUL decide() call here, regardless of how many
+                # tool calls that turn resolved -- distinct from
+                # `state.step_count`, which no longer implies a 1:1 turn
+                # count once a single decide() call can resolve several
+                # tool calls at once. This is what makes the actual
+                # efficiency claim ("same investigation depth, fewer
+                # round-trips") directly measurable.
+                state.decide_calls_total += 1
             except MalformedModelResponse:
                 # Real gap found live (2026-08-25 canto run, cluster_002):
                 # a run of malformed JSON-shape mistakes (e.g. the model
@@ -267,7 +312,14 @@ class SecurityAgentKernel:
             self._record_token_usage(state, turn.chat_result)
             self._emit("model_action", {"action": turn.raw,
                                          "token_usage": state.token_usage.model_dump()})
-            _append_turn({"role": "assistant", "content": json.dumps(turn.raw)})
+            # A native tool-calling turn's own assistant request entry is
+            # constructed (with real call_ids) inside the `turn.tool_calls`
+            # dispatch branch below, grouped atomically with its results --
+            # nothing to append here for that case. Every other turn shape
+            # still gets its raw JSON echoed as a single-entry group,
+            # unchanged from before this migration.
+            if turn.parsed is not None:
+                _append_turn({"role": "assistant", "content": json.dumps(turn.raw)})
 
             # Defense in depth (2026-08-17 live run): everything below
             # applies an already-schema-validated action to state, but
@@ -282,7 +334,42 @@ class SecurityAgentKernel:
             # discipline as a malformed response instead, so an unknown
             # bug degrades to one wasted turn, not a lost cluster.
             try:
-                if isinstance(turn.parsed, ConcludeAction):
+                if turn.tool_calls:
+                    # Native multi-tool-call turn (Part 0, live-verified):
+                    # the model can request several independent tool calls
+                    # in one response instead of exactly one. All are
+                    # executed; the assistant's own request entry plus
+                    # every result entry are appended as ONE atomic group
+                    # (see `_append_group`'s docstring above) so a later
+                    # compaction trim can never split a `function_call`
+                    # from its own `function_call_output`.
+                    #
+                    # `record_tool_call` increments `state.step_count`
+                    # once per call, same as the legacy single-call path
+                    # below -- N calls this turn advances the same
+                    # investigation-depth counter N times, preserving
+                    # `max_steps`'s existing meaning. A turn can therefore
+                    # overshoot `max_steps` by up to one turn's worth of
+                    # calls; deliberately not truncated mid-turn -- a
+                    # truncated turn would leave some of the model's own
+                    # `function_call` items without a matching
+                    # `function_call_output`, an invalid next request.
+                    entries = [{"role": "assistant", "tool_calls": [
+                        {"call_id": call.call_id, "tool": call.tool, "args": call.args}
+                        for call in turn.tool_calls
+                    ]}]
+                    for call in turn.tool_calls:
+                        result = self.tools.call(call.tool, call.args)
+                        tool_record = state.record_tool_call(call.tool, call.args,
+                                                              _summarize_tool_result(result), result)
+                        self._emit("tool_result", {"tool": call.tool, "args": call.args,
+                                                    "summary": _summarize_tool_result(result),
+                                                    "native_call_id": call.call_id})
+                        entries.append({"role": "tool", "call_id": call.call_id, "tool": call.tool,
+                                        "content": self._render_tool_result(tool_record.id, call.tool, result)})
+                    _append_group(entries)
+
+                elif isinstance(turn.parsed, ConcludeAction):
                     proposed = state.model_copy(deep=True)
                     self._apply_conclusion(proposed, property_ids, turn.parsed)
                     completion = cluster_can_conclude(proposed, reasoning_categories_by_property)
@@ -392,9 +479,10 @@ class SecurityAgentKernel:
                 if retries_counter[0] > self.max_malformed_retries:
                     raise
                 attempt = messages + [{"role": "user", "content":
-                    f"Your last response did not match the required JSON shape ({e.errors}). "
-                    "Respond again with exactly one fenced JSON block matching call_tool, "
-                    "update_investigation, or conclude."}]
+                    f"Your last response did not match a required shape ({e.errors}). "
+                    "Respond again: either call a tool natively, or if you are not calling a "
+                    "tool, respond with exactly one fenced JSON block matching update_investigation "
+                    "or conclude."}]
 
     def _render_tool_result(self, tool_call_id: str, tool: str, result: dict) -> str:
         """`read_evidence` is itself an on-demand full-detail fetch --
@@ -444,6 +532,10 @@ class SecurityAgentKernel:
             "property in this cluster, using everything already established. For any "
             "property you cannot support with real cited evidence, use INCONCLUSIVE "
             "rather than guessing PASS or FAIL."}]
+        # Counted unconditionally (Part 8 instrumentation): this is one
+        # real model round-trip regardless of whether it succeeds or
+        # raises MalformedModelResponse below.
+        state.decide_calls_total += 1
         try:
             # A materially higher cap than routine turns (real incident
             # #3, 2026-08-25 canto run -- see DEFAULT_FORCED_CONCLUSION_

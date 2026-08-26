@@ -163,6 +163,16 @@ class ClusterInvestigationState(BaseModel):
     because the raw turns that produced it were dropped."""
     token_usage: TokenUsage = Field(default_factory=TokenUsage)
     step_count: int = 0
+    decide_calls_total: int = 0
+    """Real model round-trips (one per successful `decide()` call,
+    including the forced-conclusion salvage's own call), as distinct
+    from `step_count` (investigation-depth: one per tool call/update/
+    error, and now potentially several per round-trip under native
+    tool-calling). Added specifically to make the native-tool-calling
+    migration's efficiency claim ("same investigation depth, fewer
+    round-trips") directly measurable rather than only inferred from
+    `step_count` alone, which no longer implies a 1:1 turn count once a
+    single decide() call can resolve several tool calls at once."""
 
     @classmethod
     def initial(cls, cluster_id: str, property_ids: list[str],

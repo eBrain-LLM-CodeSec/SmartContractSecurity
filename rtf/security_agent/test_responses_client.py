@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from rtf.security_agent.responses_client import ResponsesChatClient, _extract_output_text
+from rtf.security_agent.responses_client import NativeToolCall, ResponsesChatClient, _build_input, _extract_output
 
 PASSES: list[str] = []
 FAILURES: list[str] = []
@@ -76,26 +76,93 @@ _REASONING_ONLY_BODY = {
 }
 
 
-# --- _extract_output_text ---------------------------------------------------
+# --- _extract_output ---------------------------------------------------
 
-def test_extract_output_text_finds_message_item_after_reasoning_items():
-    text = _extract_output_text(_MESSAGE_RESPONSE_BODY["output"])
+def test_extract_output_finds_message_item_after_reasoning_items():
+    text, tool_calls = _extract_output(_MESSAGE_RESPONSE_BODY["output"])
     check("extracts the message's output_text", text == '```json\n{"action": "call_tool"}\n```', text)
+    check("no tool_calls for a plain message response", tool_calls == [], tool_calls)
 
 
-def test_extract_output_text_returns_none_for_reasoning_only_output():
+def test_extract_output_returns_none_for_reasoning_only_output():
     """The actual root-cause scenario this client exists to handle
     correctly: an output array with ONLY reasoning items (the model spent
     its whole budget reasoning, never reached an answer) -- must return
     None cleanly, not raise, so the SAME MalformedModelResponse path
     model_client.py already has for content=None handles it."""
-    text = _extract_output_text(_REASONING_ONLY_BODY["output"])
-    check("returns None for reasoning-only output", text is None, text)
+    text, tool_calls = _extract_output(_REASONING_ONLY_BODY["output"])
+    check("returns None text for reasoning-only output", text is None, text)
+    check("returns no tool_calls for reasoning-only output", tool_calls == [], tool_calls)
 
 
-def test_extract_output_text_handles_empty_output():
-    check("empty list returns None", _extract_output_text([]) is None)
-    check("None output returns None", _extract_output_text(None) is None)
+def test_extract_output_handles_empty_output():
+    check("empty list returns (None, [])", _extract_output([]) == (None, []))
+    check("None output returns (None, [])", _extract_output(None) == (None, []))
+
+
+_PARALLEL_FUNCTION_CALL_BODY_OUTPUT = [
+    {"type": "reasoning", "encrypted_content": "...", "summary": []},
+    {"type": "function_call", "call_id": "call_1", "name": "get_function_source",
+     "arguments": '{"contract": "Vault", "function": "mint"}'},
+    {"type": "function_call", "call_id": "call_2", "name": "get_callers",
+     "arguments": '{"contract": "Vault", "function": "mint"}'},
+]
+
+
+def test_extract_output_collects_multiple_sibling_function_calls():
+    """Live-verified (Part 0, native tool-calling migration): a single
+    response can contain several sibling `function_call` items -- the
+    whole point of the migration is exploiting this."""
+    text, tool_calls = _extract_output(_PARALLEL_FUNCTION_CALL_BODY_OUTPUT)
+    check("no message text on a tool-calling-only response", text is None, text)
+    check("both function_call items collected", len(tool_calls) == 2, tool_calls)
+    check("first call decoded correctly",
+          tool_calls[0] == NativeToolCall(call_id="call_1", tool="get_function_source",
+                                           args={"contract": "Vault", "function": "mint"}),
+          tool_calls[0])
+    check("second call decoded correctly",
+          tool_calls[1] == NativeToolCall(call_id="call_2", tool="get_callers",
+                                           args={"contract": "Vault", "function": "mint"}),
+          tool_calls[1])
+
+
+def test_extract_output_drops_a_function_call_with_unparseable_arguments():
+    """Degrades cleanly (drops the one bad call) rather than raising --
+    this module has no dependency on model_client.py's error types, and
+    an empty tool_calls list already degrades correctly through
+    ModelClient.decide()'s existing no-content guard."""
+    bad_output = [{"type": "function_call", "call_id": "call_1", "name": "get_callers",
+                   "arguments": "{not valid json"}]
+    text, tool_calls = _extract_output(bad_output)
+    check("no crash; call silently dropped", tool_calls == [], tool_calls)
+    check("no text either", text is None, text)
+
+
+# --- _build_input (message -> Responses API `input` projection) --------------
+
+def test_build_input_passes_plain_entries_through_unchanged():
+    messages = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
+    check("plain entries pass through unchanged", _build_input(messages) == messages, _build_input(messages))
+
+
+def test_build_input_expands_a_tool_call_request_entry():
+    messages = [{"role": "assistant", "tool_calls": [
+        {"call_id": "call_1", "tool": "get_callers", "args": {"contract": "Vault", "function": "mint"}},
+        {"call_id": "call_2", "tool": "get_callees", "args": {"contract": "Vault", "function": "mint"}},
+    ]}]
+    result = _build_input(messages)
+    check("one function_call item per tool_calls entry", len(result) == 2, result)
+    check("call_id/name/arguments correctly projected",
+          result[0] == {"type": "function_call", "call_id": "call_1", "name": "get_callers",
+                        "arguments": json.dumps({"contract": "Vault", "function": "mint"})},
+          result[0])
+
+
+def test_build_input_projects_a_tool_result_entry():
+    messages = [{"role": "tool", "call_id": "call_1", "tool": "get_callers", "content": "Tool result: ..."}]
+    result = _build_input(messages)
+    check("becomes a function_call_output item",
+          result == [{"type": "function_call_output", "call_id": "call_1", "output": "Tool result: ..."}], result)
 
 
 # --- request shape -----------------------------------------------------------
@@ -211,6 +278,81 @@ def test_response_schema_changes_the_cache_key():
     key_a = client_a._cache_key([{"role": "user", "content": "x"}], 0.0, None)
     key_b = client_b._cache_key([{"role": "user", "content": "x"}], 0.0, None)
     check("cache keys differ when response_schema differs", key_a != key_b, (key_a, key_b))
+
+
+# --- native tool-calling (tools/tool_choice/parallel_tool_calls) wiring ------
+
+_TOOLS_PAYLOAD = [{"type": "function", "name": "get_callers", "description": "...",
+                   "parameters": {"type": "object", "properties": {}, "required": [],
+                                  "additionalProperties": False}, "strict": True}]
+
+
+def test_tools_tool_choice_parallel_tool_calls_sent_when_configured():
+    client, fake_post = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY), tools=_TOOLS_PAYLOAD,
+                                 tool_choice="auto", parallel_tool_calls=True)
+    client.complete([{"role": "user", "content": "x"}])
+    body = fake_post.last_call["json"]
+    check("tools carried in the request body", body.get("tools") == _TOOLS_PAYLOAD, body.get("tools"))
+    check("tool_choice carried", body.get("tool_choice") == "auto", body.get("tool_choice"))
+    check("parallel_tool_calls carried", body.get("parallel_tool_calls") is True, body.get("parallel_tool_calls"))
+
+
+def test_no_native_tool_keys_sent_when_not_configured():
+    """Backward compatibility: a client built without tools/tool_choice/
+    parallel_tool_calls (every pre-migration construction site) sends
+    none of these keys at all -- unchanged prior wire behavior."""
+    client, fake_post = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY))
+    client.complete([{"role": "user", "content": "x"}])
+    body = fake_post.last_call["json"]
+    check("no tools key present", "tools" not in body, body)
+    check("no tool_choice key present", "tool_choice" not in body, body)
+    check("no parallel_tool_calls key present", "parallel_tool_calls" not in body, body)
+
+
+def test_tools_changes_the_cache_key():
+    client_a, _ = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY))
+    client_b, _ = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY), tools=_TOOLS_PAYLOAD)
+    key_a = client_a._cache_key([{"role": "user", "content": "x"}], 0.0, None)
+    key_b = client_b._cache_key([{"role": "user", "content": "x"}], 0.0, None)
+    check("cache keys differ when tools differs", key_a != key_b, (key_a, key_b))
+
+
+_FUNCTION_CALL_RESPONSE_BODY = {
+    "output": _PARALLEL_FUNCTION_CALL_BODY_OUTPUT,
+    "usage": {"input_tokens": 400, "output_tokens": 60, "cost": 0.0015},
+}
+
+
+def test_complete_returns_tool_calls_for_a_native_tool_calling_response():
+    client, _ = _client(FakeResponse(200, _FUNCTION_CALL_RESPONSE_BODY))
+    result = client.complete([{"role": "user", "content": "x"}])
+    check("content is None (tool calls, no text)", result.content is None, result.content)
+    check("tool_calls populated", result.tool_calls is not None and len(result.tool_calls) == 2, result.tool_calls)
+
+
+def test_complete_returns_none_tool_calls_for_a_plain_text_response():
+    client, _ = _client(FakeResponse(200, _MESSAGE_RESPONSE_BODY))
+    result = client.complete([{"role": "user", "content": "x"}])
+    check("tool_calls is None for a plain-text response", result.tool_calls is None, result.tool_calls)
+
+
+def test_second_identical_call_with_tool_calls_hits_cache_with_tool_calls_intact():
+    """The local disk cache must round-trip tool_calls too, not just
+    content/tokens -- easy to miss since the cache never needed to store
+    more than that before this migration."""
+    client, fake_post = _client(FakeResponse(200, _FUNCTION_CALL_RESPONSE_BODY))
+    client.complete([{"role": "user", "content": "x"}])
+    fake_post.last_call = None
+    result2 = client.complete([{"role": "user", "content": "x"}])
+    check("second call did not hit the network", fake_post.last_call is None)
+    check("cached result still has tool_calls",
+          result2.tool_calls == [
+              NativeToolCall(call_id="call_1", tool="get_function_source",
+                              args={"contract": "Vault", "function": "mint"}),
+              NativeToolCall(call_id="call_2", tool="get_callers",
+                              args={"contract": "Vault", "function": "mint"}),
+          ], result2.tool_calls)
+    check("cached result marked cached=True", result2.cached is True)
 
 
 # --- response parsing / ChatResult mapping -----------------------------------

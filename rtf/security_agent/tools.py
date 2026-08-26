@@ -464,6 +464,55 @@ class SecurityAgentTools:
         return result.model_dump()
 
 
+_JSON_SCHEMA_TYPE_BY_ANNOTATION = {"str": "string", "bool": "boolean", "int": "integer", "float": "number"}
+"""Keyed by the annotation's STRING form, not the real type object: this
+module has `from __future__ import annotations` (PEP 563) at the top, so
+`inspect.signature(...).parameters[...].annotation` is always the raw
+string `"bool"`/`"str"`/etc., never the actual `bool`/`str` type --
+found live while adding `build_tool_schemas()` (a `str`-typed param
+happened to still resolve correctly by accident, via the "string"
+fallback below; `bool` did not, since its wrong fallback is also
+"string")."""
+
+
+def build_tool_schemas() -> list[dict]:
+    """One native `tools=[...]` entry (OpenAI Responses-API function-
+    calling shape, live-verified against z-ai/glm-5.2 in Part 0 of the
+    native-tool-calling migration) per whitelisted tool, derived from the
+    real method signature -- same "never a hand-maintained parallel
+    copy" discipline as `describe_tools()`. Every whitelisted tool's
+    params are required-positional `str` EXCEPT two keyword-only-with-
+    default cases (`get_state_writes.include_transitive: bool = True`,
+    `search_repository.file_glob: str = "*.sol"`), both correctly
+    excluded from `required` here via `param.default is inspect.
+    Parameter.empty`."""
+    schemas = []
+    for name in sorted(SecurityAgentTools.TOOL_NAMES):
+        method = getattr(SecurityAgentTools, name)
+        sig = inspect.signature(method)
+        properties: dict[str, dict] = {}
+        required: list[str] = []
+        for pname, param in sig.parameters.items():
+            if pname == "self":
+                continue
+            json_type = _JSON_SCHEMA_TYPE_BY_ANNOTATION.get(str(param.annotation), "string")
+            properties[pname] = {"type": json_type}
+            if param.default is inspect.Parameter.empty:
+                required.append(pname)
+        doc = (method.__doc__ or "").strip().splitlines()[0] if method.__doc__ else ""
+        schemas.append({
+            "type": "function",
+            "name": name,
+            "description": doc,
+            "parameters": {
+                "type": "object", "properties": properties, "required": required,
+                "additionalProperties": False,
+            },
+            "strict": True,
+        })
+    return schemas
+
+
 def describe_tools() -> str:
     """One line per whitelisted tool: `name(params) -- first docstring
     line`. Generated from the real method signatures/docstrings (not a

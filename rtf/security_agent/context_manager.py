@@ -17,6 +17,7 @@ rebuilt from state alone if raw turns were lost.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from rtf.security_agent.prompts import build_initial_user_message, build_system_prompt
@@ -47,7 +48,16 @@ def estimate_tokens(text: str) -> int:
 
 
 def estimate_messages_tokens(messages: list[dict]) -> int:
-    return sum(estimate_tokens(str(m.get("content", ""))) for m in messages)
+    """Whole-entry estimation (found live, native-tool-calling migration,
+    2026-08-26): the prior `m.get("content", "")`-only estimate silently
+    counted a tool-call-REQUEST entry (`{"role": "assistant",
+    "tool_calls": [...]}`, no `content` key at all) as ~1 token
+    regardless of its real payload size (tool names + JSON args can be
+    substantial), delaying compaction past the point it's actually
+    needed -- exactly the pathology this module exists to prevent.
+    `json.dumps` over the whole entry is strictly more accurate for
+    every existing entry shape too, not just the new one."""
+    return sum(estimate_tokens(json.dumps(m)) for m in messages)
 
 
 def should_compact(messages: list[dict], threshold: int = SOFT_COMPACTION_TOKENS) -> bool:
@@ -128,13 +138,26 @@ def render_state_summary(state: ClusterInvestigationState) -> str:
 def build_context(
     state: ClusterInvestigationState,
     cluster_context: ClusterContext,
-    recent_turns: list[dict],
+    recent_turns: list[list[dict]],
 ) -> list[dict]:
     """Deterministically rebuilds the full model-facing `messages` list:
     system prompt + cluster context (unchanged -- protocol/requirement/
     plan) + a structured state summary + only the last RECENT_TURNS_KEPT
     raw turns verbatim. Called once at cluster start (recent_turns=[])
     and again whenever the soft token threshold is crossed.
+
+    `recent_turns` is a list of GROUPS, one per logical turn (see
+    `kernel.py`'s `_append_group`) -- a plain turn is a 1-entry group; a
+    native multi-tool-call turn is one group holding its request entry
+    plus all of that turn's result entries together. Group-aware (found
+    live, native-tool-calling migration, 2026-08-26): trimming a flat
+    list of individual message dicts could split a multi-call turn's
+    request entry from its own result entries across the trim boundary,
+    producing a `function_call_output` with no matching earlier
+    `function_call` -- an invalid next request (Part 0, live-verified).
+    Selecting whole GROUPS keeps every turn atomic; `RECENT_TURNS_KEPT`
+    now means what its own name already claims -- the last N raw turns,
+    not N raw message dicts.
 
     Falls back to fewer recent turns (down to zero) if even the
     compacted result is still over HARD_COMPACTION_TOKENS -- the state
@@ -150,7 +173,7 @@ def build_context(
     ]
     kept = RECENT_TURNS_KEPT
     while True:
-        tail = recent_turns[-kept:] if kept > 0 else []
+        tail = [entry for group in recent_turns[-kept:] for entry in group] if kept > 0 else []
         messages = header + tail
         if kept == 0 or estimate_messages_tokens(messages) <= HARD_COMPACTION_TOKENS:
             return messages

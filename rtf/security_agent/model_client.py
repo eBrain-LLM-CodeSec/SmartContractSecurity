@@ -1,12 +1,22 @@
 """Thin wrapper around `a4v.llm.ChatClient` for the kernel's decide/
 execute/update loop.
 
-Deliberately does NOT use native OpenAI-style *tool-calling*
-(`tools`/`tool_choice`/`tool_calls`) -- `a4v.llm.ChatClient`'s request
-body never sends those fields, and extending it to would be a real,
-cross-cutting change to shared code every other part of this project
-also depends on. So this kernel's PROMPT contract is still "respond with
-exactly one JSON object" (rtf.security_agent.prompts).
+Native tool-calling correction (found live, 2026-08-26): this module
+previously claimed native OpenAI-style tool-calling (`tools`/
+`tool_choice`/`tool_calls`) was deliberately unused because
+`a4v.llm.ChatClient`'s request body never sends those fields and
+extending shared infra was too risky. That was true for `ChatClient`,
+but this kernel talks to `ResponsesChatClient` (`responses_client.py`),
+its own dedicated, non-shared client -- the constraint never actually
+applied here. `decide()` now checks for a `tool_calls` attribute on the
+chat result (via `getattr`, not `isinstance`, so a plain `ChatResult`
+with no such attribute falls through unchanged) and returns a
+`ModelTurn` carrying `tool_calls` instead of `parsed` for a native
+tool-calling turn. `RESPONSE_MODELS`/`ToolCallAction` remain fully
+supported and unmodified -- `test_model_client.py` exercises this class
+directly against a plain `a4v.llm.ChatResult`, with no `tool_calls`
+attribute, so the legacy "respond with one JSON action" path (including
+the `ToolCallAction` shape) must keep working exactly as before.
 
 The PARSING side, however, uses `extract_last_fenced_json` for a reason
 independent of structured output: it already handles both a fenced
@@ -28,6 +38,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, ValidationError
 
 from a4v.llm import ChatClient, ChatResult, extract_last_fenced_json
+from rtf.security_agent.responses_client import NativeToolCall
 
 DEFAULT_MAX_COMPLETION_TOKENS = 16000
 """Real incident #1 (2026-08-17, first forte run): no cap set anywhere
@@ -62,8 +73,16 @@ class MalformedModelResponse(Exception):
 
 @dataclass
 class ModelTurn:
-    parsed: BaseModel
-    """Whichever of `response_models` successfully validated, in order."""
+    parsed: BaseModel | None
+    """Whichever of `response_models` successfully validated, in order.
+    None for a native tool-calling turn (`tool_calls` set instead) --
+    exactly one of `parsed`/`tool_calls` is non-None on a successful
+    `ModelTurn`."""
+    tool_calls: list[NativeToolCall] | None
+    """Non-empty for a native tool-calling turn (the model requested one
+    or more tool calls directly, via `ResponsesChatClient`'s `tools`
+    param); None for a legacy JSON-action turn, where `parsed` is set
+    instead. See module docstring's 2026-08-26 correction."""
     chat_result: ChatResult | None
     """None only under a test double that doesn't model real token/cost
     accounting (matches this codebase's existing FakeChatClient
@@ -103,6 +122,21 @@ class ModelClient:
         chat_result = self.chat_client.complete(
             messages, temperature=self.temperature,
             max_tokens=max_tokens if max_tokens is not None else self.max_tokens)
+        # Checked BEFORE the content guard below: a native tool-calling
+        # turn's `content` is typically None (the model called tools
+        # instead of answering in text) -- that is a valid, expected
+        # outcome, not "exhausted its reasoning budget". `getattr` (not
+        # `isinstance`) is the key choice here: a plain `a4v.llm.ChatResult`
+        # (no `tool_calls` attribute at all) falls through to the existing
+        # text-parsing path unchanged, zero effect on any non-native
+        # caller (see module docstring's 2026-08-26 correction).
+        native_tool_calls = getattr(chat_result, "tool_calls", None)
+        if native_tool_calls:
+            return ModelTurn(parsed=None, tool_calls=list(native_tool_calls), chat_result=chat_result,
+                              raw={"native_tool_calls": [
+                                  {"call_id": tc.call_id, "tool": tc.tool, "args": tc.args}
+                                  for tc in native_tool_calls
+                              ]})
         if not chat_result.content:
             raise MalformedModelResponse(
                 {}, "response had no content -- the model likely exhausted its reasoning "
@@ -127,5 +161,5 @@ class ModelClient:
             except ValidationError as e:
                 errors.append(f"{model_cls.__name__}: {e}")
                 continue
-            return ModelTurn(parsed=parsed, chat_result=chat_result, raw=raw)
+            return ModelTurn(parsed=parsed, tool_calls=None, chat_result=chat_result, raw=raw)
         raise MalformedModelResponse(raw, "; ".join(errors))

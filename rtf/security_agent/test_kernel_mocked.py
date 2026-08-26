@@ -23,6 +23,7 @@ from pydantic import ValidationError
 
 from rtf.security_agent.kernel import ConcludeAction, RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import ModelClient
+from rtf.security_agent.responses_client import NativeToolCall, ResponsesResult
 from rtf.security_agent.state import RequirementResolution
 from rtf.security_agent.tools import SecurityAgentTools
 
@@ -75,6 +76,18 @@ def _tools() -> SecurityAgentTools:
 
 # --- scripted model responses -----------------------------------------------
 
+class NativeCalls:
+    """Script marker for a native multi-tool-call turn (native-tool-
+    calling migration, 2026-08-26): `calls` is `[(tool, args), ...]`, all
+    requested in ONE turn, mirroring what a real `ResponsesChatClient`
+    returns when the model emits several sibling `function_call` items
+    (Part 0, live-verified). Used as the first element of a script tuple
+    in place of a plain action dict."""
+
+    def __init__(self, calls: list[tuple[str, dict]]):
+        self.calls = calls
+
+
 class ScriptedChatClient:
     """Stands in for a4v.llm.ChatClient. ModelClient.decide() calls
     .complete() directly (not .complete_json()) so it can inspect
@@ -83,7 +96,14 @@ class ScriptedChatClient:
     real ChatResult.content string, so the real extract_last_fenced_json
     parsing path is genuinely exercised, not bypassed. Records every
     `messages` list it was called with, so tests can assert on
-    conversation growth (e.g. a corrective retry message got appended)."""
+    conversation growth (e.g. a corrective retry message got appended).
+
+    A script entry's first element may also be a `NativeCalls` marker
+    instead of a plain action dict -- returns a `ResponsesResult` with
+    `tool_calls` populated (mirroring `ResponsesChatClient`) instead of a
+    fenced-JSON `ChatResult`, exercising the SAME native-tool-calling
+    branch `ModelClient.decide()` takes for a real client (via
+    `getattr(chat_result, "tool_calls", None)`, not `isinstance`)."""
 
     def __init__(self, script: list[tuple[dict, "ChatResult | None"]]):
         self._script = list(script)
@@ -96,6 +116,15 @@ class ScriptedChatClient:
         if len(self.calls) > len(self._script):
             raise AssertionError(f"kernel made more model calls ({len(self.calls)}) than scripted ({len(self._script)})")
         raw, result = self._script[len(self.calls) - 1]
+        if isinstance(raw, NativeCalls):
+            tool_calls = [NativeToolCall(call_id=f"call_{i}", tool=tool, args=args)
+                          for i, (tool, args) in enumerate(raw.calls)]
+            if result is None:
+                return ResponsesResult(content=None, prompt_tokens=0, completion_tokens=0,
+                                       cached=False, cost_usd=None, tool_calls=tool_calls)
+            return ResponsesResult(content=None, prompt_tokens=result.prompt_tokens,
+                                   completion_tokens=result.completion_tokens, cached=result.cached,
+                                   cost_usd=result.cost_usd, tool_calls=tool_calls)
         # Keep Increment-2 scenario fixtures concise while exercising the
         # stricter Increment-3 production schema. Tests specifically about
         # CEIV behavior below provide the full shape themselves.
@@ -165,6 +194,86 @@ def test_tool_call_then_conclude_resolves_all_properties():
     check("exactly 2 model calls made", len(fake.calls) == 2, len(fake.calls))
     check("one tool call recorded in shared tool_history", len(state.tool_history) == 1, state.tool_history)
     check("tool_history entry is get_contract_source", state.tool_history[0].tool == "get_contract_source")
+
+
+# --- native tool-calling: multiple tool calls resolved in ONE turn ---------
+
+def test_native_multi_tool_call_turn_resolves_all_calls_in_one_decide_call():
+    """The actual regression-proof of the efficiency claim behind this
+    migration: one decide() call requesting several independent tool
+    calls resolves ALL of them, not just one -- fewer expensive round-
+    trips for the same investigation depth."""
+    script = [
+        (NativeCalls([
+            ("get_contract_source", {"contract": "Vault"}),
+            ("read_file", {"path": "x"}),
+        ]), None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "PASS", "reasoning": "r2"},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("only 2 model calls made (1 native multi-call turn + 1 conclude)",
+          len(fake.calls) == 2, len(fake.calls))
+    check("decide_calls_total tracks real round-trips, matching len(fake.calls)",
+          state.decide_calls_total == 2, state.decide_calls_total)
+    check("both tool calls recorded in shared tool_history",
+          len(state.tool_history) == 2, state.tool_history)
+    # step_count advances once per tool call (record_tool_call, x2 here) --
+    # a SUCCESSFUL conclude does not itself increment step_count (existing
+    # behavior, unrelated to this migration: only a rejected conclude,
+    # an investigation update, or an action error does).
+    check("step_count advanced by 2 for the native turn (once per call)",
+          state.step_count == 2, state.step_count)
+    check("p1 resolved FAIL", state.requirement_states["p1"].status == RequirementResolution.FAIL)
+    check("p2 resolved PASS", state.requirement_states["p2"].status == RequirementResolution.PASS)
+
+
+def test_native_turn_requesting_more_calls_than_remaining_max_steps_overshoots_then_stops():
+    """Edge case decided in Part 3: a native turn can request more tool
+    calls than remaining step budget. All requested calls execute anyway
+    (truncating mid-turn would leave some function_call items without a
+    matching function_call_output, an invalid next request) -- step_count
+    overshoots within that one turn; the loop-top check only catches this
+    on the NEXT iteration (which is the max_steps_exhausted salvage's own
+    forced-conclusion decide() call, not a routine turn)."""
+    script = [
+        (NativeCalls([
+            ("get_contract_source", {"contract": "Vault"}),
+            ("read_file", {"path": "a"}),
+            ("read_file", {"path": "b"}),
+            ("read_file", {"path": "c"}),
+            ("read_file", {"path": "d"}),
+        ]), None),
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "FAIL", "reasoning": "r1"},
+            {"property_id": "p2", "verdict": "FAIL", "reasoning": "r2"},
+        ]}, None),
+        # FAIL for both (not PASS): `_apply_forced_conclusion` applies an
+        # extra falsification-completeness check ONLY to PASS verdicts,
+        # which this minimal scripted fixture (no update_investigation
+        # step establishing hypotheses/counterexample attempts first)
+        # would not satisfy -- orthogonal to what THIS test verifies
+        # (the overshoot mechanic itself), so FAIL sidesteps it cleanly.
+    ]
+    kernel, fake = _kernel(script, max_steps=2)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+
+    check("2 model calls made: the overshooting native turn, then the "
+          "max_steps_exhausted forced-conclusion salvage",
+          len(fake.calls) == 2, len(fake.calls))
+    check("decide_calls_total counts the forced-conclusion salvage's own "
+          "round-trip too, not just routine turns",
+          state.decide_calls_total == 2, state.decide_calls_total)
+    check("all 5 requested calls executed despite max_steps=2",
+          len(state.tool_history) == 5, state.tool_history)
+    check("step_count overshoots to 5 within the one turn", state.step_count == 5, state.step_count)
+    check("forced-conclusion salvage still resolved both properties from the overshot state",
+          state.requirement_states["p1"].status == RequirementResolution.FAIL)
+    check("p2 resolved FAIL via salvage", state.requirement_states["p2"].status == RequirementResolution.FAIL)
 
 
 def test_structured_conclusion_records_shared_ceiv_chain():
@@ -392,7 +501,7 @@ def test_malformed_response_exhaustion_attempts_forced_conclusion_salvage():
           state.requirement_states["p1"].status == RequirementResolution.FAIL)
     check("p2 salvaged to INCONCLUSIVE", state.requirement_states["p2"].status == RequirementResolution.INCONCLUSIVE)
     check("a corrective retry message was appended during the malformed retries",
-          any("did not match the required JSON shape" in str(m.get("content", "")) for m in fake.calls[2]),
+          any("did not match a required shape" in str(m.get("content", "")) for m in fake.calls[2]),
           fake.calls[2])
 
 

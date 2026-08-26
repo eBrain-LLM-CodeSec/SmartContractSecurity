@@ -11,12 +11,11 @@ from typing import Callable
 
 from a4v.llm import ChatClient
 from rtf.security_agent.evidence_store import EvidenceStore
-from rtf.security_agent.kernel import RESPONSE_MODELS, SecurityAgentKernel
+from rtf.security_agent.kernel import NATIVE_RESPONSE_MODELS, RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import DEFAULT_MAX_COMPLETION_TOKENS, ModelClient
-from rtf.security_agent.response_schema import build_strict_schema
 from rtf.security_agent.responses_client import ResponsesChatClient
 from rtf.security_agent.state import ClusterInvestigationState
-from rtf.security_agent.tools import SecurityAgentTools
+from rtf.security_agent.tools import SecurityAgentTools, build_tool_schemas
 from rtf.security_agent.trajectory import TrajectoryWriter
 
 _PROPERTY_HEADING = re.compile(r"^### `([^`]+)`\s*$", re.MULTILINE)
@@ -73,6 +72,12 @@ class SecurityAgentResult:
     files_inspected: int
     hypotheses_generated: int
     counterexamples_attempted: int
+    decide_calls_total: int
+    """Real model round-trips, distinct from `tool_calls` (native-tool-
+    calling migration, Part 8): a single decide() call can now resolve
+    several tool calls at once, so `tool_calls / decide_calls_total`
+    directly measures the migration's efficiency claim ("same
+    investigation depth, fewer round-trips") on a real run."""
 
 
 def _extract_context(extra_files: dict[str, str]) -> tuple[str, dict[str, str], str]:
@@ -155,8 +160,26 @@ def run_security_agent_bundle(
             os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
             api_key, model, case_root / "cache", case_root / "tokens.jsonl", timeout=timeout_s,
             reasoning_effort=reasoning_effort,
-            response_schema=build_strict_schema(RESPONSE_MODELS, "kernel_action"),
+            # NO response_schema/text.format here -- real bug found live
+            # (2026-08-26, native-tool-calling smoke test): with `tools`
+            # AND `text.format` BOTH set, z-ai/glm-5.2 ALWAYS answers in
+            # the schema-conformant JSON text shape and never emits a
+            # native tool call, even for a prompt that unambiguously
+            # needs one -- confirmed via a direct side-by-side live test
+            # (identical prompt/tools, only `text` present/absent
+            # differs: absent -> correct function_call; present ->
+            # schema-conformant text every time). This is exactly the
+            # contingency Part 0/Part 5 anticipated ("if tools+text.format
+            # don't coexist cleanly, drop text.format") -- Part 0's own
+            # Test 4 didn't catch it because it only checked the
+            # "model told NOT to call a tool" case, not the steady-state
+            # "model should call a tool" case this run's 8-turn,
+            # zero-tool-call trajectory exposed. `ModelClient`'s existing
+            # post-hoc Pydantic validation against NATIVE_RESPONSE_MODELS
+            # (2 remaining text shapes) is relied on instead, same as
+            # before structured output was ever added.
             session_id=case_id,
+            tools=build_tool_schemas(), tool_choice="auto", parallel_tool_calls=True,
         )
     evidence_store = EvidenceStore(case_root)
     build_tools = tools_factory or SecurityAgentTools.build
@@ -169,7 +192,13 @@ def run_security_agent_bundle(
         extra_compile_kwargs=compile_kwargs, evidence_store=evidence_store,
     )
     trajectory_path = case_root / "trajectory.jsonl"
-    model_client = ModelClient(chat, RESPONSE_MODELS, max_tokens=max_completion_tokens)
+    # RESPONSE_MODELS (all 3 shapes, including ToolCallAction) only makes
+    # sense for a non-native `chat_client_factory` override -- the live
+    # default path above always wires native tool-calling, where a tool
+    # call is `ModelTurn.tool_calls`, not a JSON-text shape, so only the
+    # 2 remaining action shapes are ever valid text responses.
+    response_models = RESPONSE_MODELS if chat_client_factory is not None else NATIVE_RESPONSE_MODELS
+    model_client = ModelClient(chat, response_models, max_tokens=max_completion_tokens)
     kernel = SecurityAgentKernel(
         tools, model_client, event_sink=TrajectoryWriter(trajectory_path),
         evidence_store=evidence_store, max_wall_clock_s=DEFAULT_MAX_CLUSTER_WALL_CLOCK_S,
@@ -195,4 +224,5 @@ def run_security_agent_bundle(
         files_inspected=len(state.inspected_files),
         hypotheses_generated=len(state.hypotheses),
         counterexamples_attempted=attempts,
+        decide_calls_total=state.decide_calls_total,
     )

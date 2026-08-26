@@ -70,51 +70,156 @@ caching on the provider side. One `ResponsesChatClient` instance = one
 cluster investigation (confirmed in `investigator.py`), so the
 `session_id` is set once at construction and reused for every call the
 instance makes.
+
+Native tool-calling (found live, 2026-08-26, Part 0 of the native-tool-
+calling migration): `model_client.py`'s docstring previously claimed
+native OpenAI-style tool-calling (`tools`/`tool_choice`/`tool_calls`)
+was deliberately unused because `a4v.llm.ChatClient` has no support for
+it and extending shared infra was too risky. That constraint never
+applied to THIS client -- it already posts directly to `/responses`
+with its own request body, independent of `a4v.llm.ChatClient`. A live
+test against z-ai/glm-5.2 (3 real tools, real JSON-schema `parameters`)
+confirmed: (1) `tools=[...]`/`tool_choice: "auto"` is accepted and
+produces a correct `function_call` output item; (2) with
+`parallel_tool_calls: true` and a prompt asking for several independent
+facts at once, the model returned 3 sibling `function_call` items in
+ONE response, each with correctly-typed args (including a boolean
+default field); (3) feeding the `function_call` items back verbatim
+plus one `function_call_output` per `call_id` is accepted and produces
+a coherent next response; (4) `tools` and `text.format` (structured
+output) coexist cleanly -- the model correctly picks the schema-
+conformant JSON path when told not to call a tool; (5) `session_id`
+caching survives a mixed tool-call history (a second call built on a
+`function_call`/`function_call_output` history from the first still hit
+`cached_tokens` on ~99% of its input). No blockers found; see
+`kernel.py`'s dispatch loop and `context_manager.py` for how the kernel
+side of this is wired.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from a4v.llm import (
-    ChatResult, LLMError, RETRY_MAX_ATTEMPTS, RETRY_WAIT_MAX, RETRY_WAIT_MIN,
+    LLMError, RETRY_MAX_ATTEMPTS, RETRY_WAIT_MAX, RETRY_WAIT_MIN,
     RETRY_WAIT_MULTIPLIER,
 )
 
 DEFAULT_TIMEOUT_SECONDS = 120.0
 
 
-def _extract_output_text(output: list[dict]) -> str | None:
-    """Finds the first `type: "message"` item in the Responses API's
-    `output` array and returns its `output_text` content, or None if no
-    message item is present (a real, expected outcome -- a response that
-    is ENTIRELY `type: "reasoning"` items means the model spent its whole
-    budget on reasoning and never got to the answer; treated as no-content
-    the same way a4v.llm-based content=None is, not a crash)."""
+@dataclass(frozen=True)
+class NativeToolCall:
+    """One `type: "function_call"` item from the Responses API's `output`
+    array, decoded. `call_id` MUST be echoed back verbatim on the
+    matching `function_call_output` entry -- the API correlates request
+    and result by this id, not by position (live-verified, Part 0)."""
+    call_id: str
+    tool: str
+    args: dict
+
+
+@dataclass
+class ResponsesResult:
+    """Same fields as `a4v.llm.ChatResult` (drop-in for every existing
+    reader: `kernel.py`'s `_record_token_usage`, `model_client.py`'s
+    `decide()`) plus `tool_calls` -- non-empty only for a native
+    tool-calling turn, in which case `content` is typically None (the
+    model called tools instead of answering in text)."""
+    content: str | None
+    prompt_tokens: int
+    completion_tokens: int
+    cached: bool
+    cost_usd: float | None = None
+    tool_calls: list[NativeToolCall] | None = None
+
+
+def _extract_output(output: list[dict]) -> tuple[str | None, list[NativeToolCall]]:
+    """Walks the Responses API's `output` array once, collecting both a
+    `type: "message"` item's `output_text` (as before) AND any
+    `type: "function_call"` items (new). Returns `(text, tool_calls)` --
+    exactly one of these is typically populated for a real turn, but
+    both are extracted independently so a mixed response degrades
+    gracefully rather than silently dropping one side. A
+    `type: "reasoning"` item (or anything else) is skipped, same as
+    before. An unparseable `arguments` string drops that one call
+    silently (contributes nothing) rather than raising here -- this
+    module has no dependency on `model_client.py`'s error types, and an
+    empty `tool_calls` list already degrades correctly through
+    `ModelClient.decide()`'s existing no-content guard."""
+    text: str | None = None
+    tool_calls: list[NativeToolCall] = []
     for item in output or []:
-        if item.get("type") != "message":
-            continue
-        for part in item.get("content", []):
-            if part.get("type") == "output_text":
-                return part.get("text")
-    return None
+        item_type = item.get("type")
+        if item_type == "message":
+            for part in item.get("content", []):
+                if part.get("type") == "output_text":
+                    text = part.get("text")
+        elif item_type == "function_call":
+            try:
+                args = json.loads(item.get("arguments") or "{}")
+            except json.JSONDecodeError:
+                continue
+            tool_calls.append(NativeToolCall(call_id=item["call_id"], tool=item["name"], args=args))
+    return text, tool_calls
+
+
+def _build_input(messages: list[dict]) -> list[dict]:
+    """Projects this kernel's `messages` entries into the Responses API's
+    `input` array. Three entry shapes (see `context_manager.py`/
+    `kernel.py`'s grouped-append helper for how these are produced):
+
+    - plain (`{"role", "content"}`, any role): passes through unchanged,
+      exactly as before this migration.
+    - a tool-call REQUEST (`{"role": "assistant", "tool_calls": [...]}`,
+      no `content` key): expands to one `type: "function_call"` item per
+      entry in `tool_calls`, `arguments` re-serialized to a JSON string
+      (the wire format the API returned it as originally).
+    - a tool-call RESULT (`{"role": "tool", "call_id", "tool", "content"}`):
+      becomes one `type: "function_call_output"` item, `call_id` echoed
+      verbatim -- this is what correlates a result back to its request;
+      getting it wrong produces an invalid next request (Part 0, live-
+      verified)."""
+    input_items: list[dict] = []
+    for m in messages:
+        if m.get("role") == "assistant" and "tool_calls" in m:
+            for call in m["tool_calls"]:
+                input_items.append({
+                    "type": "function_call", "call_id": call["call_id"],
+                    "name": call["tool"], "arguments": json.dumps(call["args"]),
+                })
+        elif m.get("role") == "tool":
+            input_items.append({
+                "type": "function_call_output", "call_id": m["call_id"], "output": m["content"],
+            })
+        else:
+            input_items.append({"role": m["role"], "content": m["content"]})
+    return input_items
 
 
 class ResponsesChatClient:
-    """Same public interface as `a4v.llm.ChatClient` (`.complete(messages,
-    temperature, top_p, max_tokens) -> ChatResult`) -- a drop-in
-    replacement wherever a chat_client is duck-typed against that method,
-    e.g. `rtf.security_agent.model_client.ModelClient`."""
+    """Same public interface as `a4v.llm.ChatClient`
+    (`.complete(messages, temperature, top_p, max_tokens) -> <result>`)
+    -- a drop-in replacement wherever a chat_client is duck-typed against
+    that method, e.g. `rtf.security_agent.model_client.ModelClient`.
+    Returns `ResponsesResult`, not `a4v.llm.ChatResult` itself -- every
+    reader duck-types on the shared fields (`content`/`prompt_tokens`/
+    `completion_tokens`/`cached`/`cost_usd`), plus the new `tool_calls`
+    field a plain `ChatResult` never has (`ModelClient.decide()` checks
+    for it via `getattr(..., "tool_calls", None)`, not `isinstance`)."""
 
     def __init__(self, base_url: str, api_key: str, model: str,
                  cache_dir: Path, token_log_path: Path | None = None,
                  timeout: float = DEFAULT_TIMEOUT_SECONDS, reasoning_effort: str = "low",
-                 response_schema: dict | None = None, session_id: str | None = None):
+                 response_schema: dict | None = None, session_id: str | None = None,
+                 tools: list[dict] | None = None, tool_choice: str | dict | None = None,
+                 parallel_tool_calls: bool | None = None):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
@@ -141,6 +246,14 @@ class ResponsesChatClient:
         existing tests/callers that construct a client without one see
         no behavior change. A real live run should always set this, one
         stable value per cluster investigation (e.g. the case_id)."""
+        self.tools = tools
+        self.tool_choice = tool_choice
+        self.parallel_tool_calls = parallel_tool_calls
+        """Native tool-calling controls (see module docstring's Part 0
+        finding). All three None preserves the pre-native behavior
+        exactly (no `tools` key sent at all) -- kept opt-in so existing
+        tests/callers that construct a client without them see no
+        behavior change."""
         self._client = httpx.Client(timeout=timeout)
 
     def _cache_key(self, messages: list[dict], temperature: float, max_tokens: int | None) -> str:
@@ -150,6 +263,12 @@ class ResponsesChatClient:
             payload["max_tokens"] = max_tokens
         if self.response_schema is not None:
             payload["response_schema"] = self.response_schema
+        if self.tools is not None:
+            payload["tools"] = self.tools
+        if self.tool_choice is not None:
+            payload["tool_choice"] = self.tool_choice
+        if self.parallel_tool_calls is not None:
+            payload["parallel_tool_calls"] = self.parallel_tool_calls
         return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
     def _cache_path(self, key: str) -> Path:
@@ -184,7 +303,7 @@ class ResponsesChatClient:
     def _post(self, messages: list[dict], temperature: float, max_tokens: int | None) -> dict:
         body = {
             "model": self.model,
-            "input": [{"role": m["role"], "content": m["content"]} for m in messages],
+            "input": _build_input(messages),
             "temperature": temperature,
             "reasoning": {"effort": self.reasoning_effort},
         }
@@ -194,6 +313,12 @@ class ResponsesChatClient:
             body["text"] = {"format": self.response_schema}
         if self.session_id is not None:
             body["session_id"] = self.session_id
+        if self.tools is not None:
+            body["tools"] = self.tools
+        if self.tool_choice is not None:
+            body["tool_choice"] = self.tool_choice
+        if self.parallel_tool_calls is not None:
+            body["parallel_tool_calls"] = self.parallel_tool_calls
         resp = self._client.post(
             f"{self.base_url}/responses",
             headers={"Authorization": f"Bearer {self.api_key}"},
@@ -206,7 +331,7 @@ class ResponsesChatClient:
         return resp.json()
 
     def complete(self, messages: list[dict], temperature: float = 0.0,
-                 top_p: float | None = None, max_tokens: int | None = None) -> ChatResult:
+                 top_p: float | None = None, max_tokens: int | None = None) -> ResponsesResult:
         # top_p accepted for interface compatibility with a4v.llm.ChatClient
         # (ModelClient.decide never actually passes it), not forwarded --
         # the Responses API's reasoning-effort control is the lever this
@@ -217,11 +342,13 @@ class ResponsesChatClient:
         if cache_path.exists():
             data = json.loads(cache_path.read_text())
             self._log_tokens(data["prompt_tokens"], data["completion_tokens"], cached=True)
-            return ChatResult(content=data["content"], prompt_tokens=data["prompt_tokens"],
-                              completion_tokens=data["completion_tokens"], cached=True)
+            cached_tool_calls = [NativeToolCall(**tc) for tc in data.get("tool_calls") or []] or None
+            return ResponsesResult(content=data["content"], prompt_tokens=data["prompt_tokens"],
+                                    completion_tokens=data["completion_tokens"], cached=True,
+                                    tool_calls=cached_tool_calls)
 
         data = self._post(messages, temperature, max_tokens)
-        content = _extract_output_text(data.get("output", []))
+        content, tool_calls = _extract_output(data.get("output", []))
         usage = data.get("usage", {}) or {}
         prompt_tokens = usage.get("input_tokens", 0)
         completion_tokens = usage.get("output_tokens", 0)
@@ -230,8 +357,9 @@ class ResponsesChatClient:
 
         cache_path.write_text(json.dumps({
             "content": content, "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
+            "tool_calls": [{"call_id": tc.call_id, "tool": tc.tool, "args": tc.args} for tc in tool_calls],
         }))
         self._log_tokens(prompt_tokens, completion_tokens, cached=False, cost_usd=cost_usd,
                          provider_cached_tokens=provider_cached_tokens)
-        return ChatResult(content=content, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
-                          cached=False, cost_usd=cost_usd)
+        return ResponsesResult(content=content, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
+                                cached=False, cost_usd=cost_usd, tool_calls=tool_calls or None)

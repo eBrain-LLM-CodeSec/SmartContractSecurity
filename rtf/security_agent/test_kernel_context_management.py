@@ -63,12 +63,12 @@ def test_malformed_retry_corrective_message_does_not_persist_into_later_calls():
     assert len(fake.calls) == 3
     # call[1] is the retry attempt for the malformed call[0] -- it SHOULD
     # carry the corrective message (that's the whole point of the retry).
-    assert any("did not match the required JSON shape" in str(m.get("content", ""))
+    assert any("did not match a required shape" in str(m.get("content", ""))
                for m in fake.calls[1])
     # call[2] is a genuinely later turn, built from `messages` (never from
     # the retry-only `attempt` list) -- the corrective must NOT still be
     # sitting in the permanent conversation by this point.
-    assert not any("did not match the required JSON shape" in str(m.get("content", ""))
+    assert not any("did not match a required shape" in str(m.get("content", ""))
                   for m in fake.calls[2])
 
 

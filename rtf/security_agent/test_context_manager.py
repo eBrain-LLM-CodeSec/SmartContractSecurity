@@ -22,6 +22,21 @@ def test_estimate_tokens_is_positive_and_monotonic_in_length():
     assert cm.estimate_tokens("x" * 400) > cm.estimate_tokens("x" * 40)
 
 
+def test_estimate_messages_tokens_counts_a_no_content_tool_call_entry_accurately():
+    """Found live (native-tool-calling migration, 2026-08-26): the old
+    `m.get("content", "")`-only estimate silently counted a tool-call-
+    REQUEST entry (no `content` key at all) as ~1 token regardless of
+    its real payload size, delaying compaction past the point it's
+    actually needed. The whole-entry `json.dumps` estimate must scale
+    with the real payload."""
+    tiny = [{"role": "user", "content": "hi"}]
+    big_tool_call_entry = [{"role": "assistant", "tool_calls": [
+        {"call_id": "c1", "tool": "get_function_source",
+         "args": {"contract": "Vault", "function": "x" * 2000}},
+    ]}]
+    assert cm.estimate_messages_tokens(big_tool_call_entry) > cm.estimate_messages_tokens(tiny) * 50
+
+
 def test_should_compact_true_only_once_threshold_crossed():
     small = [{"role": "user", "content": "short"}]
     assert not cm.should_compact(small, threshold=1000)
@@ -76,18 +91,47 @@ def test_build_context_includes_hypotheses_and_next_actions_and_questions():
 
 
 def test_build_context_keeps_only_last_recent_turns_kept():
+    """`recent_turns` is a list of GROUPS (one per logical turn), not a
+    flat list of message dicts -- native-tool-calling migration,
+    2026-08-26. Each group here is a 1-entry group (the legacy shape)."""
     state = ClusterInvestigationState.initial("c1", ["p1"])
-    turns = [{"role": "user", "content": f"turn-{i}"} for i in range(10)]
-    messages = cm.build_context(state, _CONTEXT, recent_turns=turns)
+    groups = [[{"role": "user", "content": f"turn-{i}"}] for i in range(10)]
+    messages = cm.build_context(state, _CONTEXT, recent_turns=groups)
     tail = messages[3:]
     assert len(tail) == cm.RECENT_TURNS_KEPT
     assert [m["content"] for m in tail] == [f"turn-{i}" for i in range(10 - cm.RECENT_TURNS_KEPT, 10)]
 
 
+def test_build_context_never_splits_a_multi_entry_group_across_the_trim_boundary():
+    """The concrete risk this atomicity fix prevents (Part 0, live-
+    verified): a native multi-tool-call turn's group holds its assistant
+    request entry PLUS every one of that turn's result entries. Trimming
+    must keep or drop the whole group, never leave a result entry
+    without its own request entry (an invalid next request)."""
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    multi_entry_group = [
+        {"role": "assistant", "tool_calls": [{"call_id": "c1", "tool": "get_callers", "args": {}}]},
+        {"role": "tool", "call_id": "c1", "tool": "get_callers", "content": "result"},
+    ]
+    plain_group = [{"role": "user", "content": "plain-turn"}]
+    groups = [multi_entry_group, plain_group]
+    for kept in range(0, cm.RECENT_TURNS_KEPT + 1):
+        original_kept = cm.RECENT_TURNS_KEPT
+        cm.RECENT_TURNS_KEPT = kept
+        try:
+            messages = cm.build_context(state, _CONTEXT, recent_turns=groups)
+        finally:
+            cm.RECENT_TURNS_KEPT = original_kept
+        tail = messages[3:]
+        has_request = any(m.get("role") == "assistant" and "tool_calls" in m for m in tail)
+        has_result = any(m.get("role") == "tool" for m in tail)
+        assert has_request == has_result, (kept, tail)
+
+
 def test_build_context_shrinks_tail_further_if_still_over_hard_threshold():
     state = ClusterInvestigationState.initial("c1", ["p1"])
-    huge_turns = [{"role": "user", "content": "x" * 300_000} for _ in range(cm.RECENT_TURNS_KEPT)]
-    messages = cm.build_context(state, _CONTEXT, recent_turns=huge_turns)
+    huge_groups = [[{"role": "user", "content": "x" * 300_000}] for _ in range(cm.RECENT_TURNS_KEPT)]
+    messages = cm.build_context(state, _CONTEXT, recent_turns=huge_groups)
     assert cm.estimate_messages_tokens(messages) <= cm.HARD_COMPACTION_TOKENS
     assert len(messages) < 3 + cm.RECENT_TURNS_KEPT
 

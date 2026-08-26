@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from rtf.security_agent.tools import SecurityAgentTools, describe_tools
+from rtf.security_agent.tools import SecurityAgentTools, build_tool_schemas, describe_tools
 
 PASSES: list[str] = []
 FAILURES: list[str] = []
@@ -257,6 +257,56 @@ def test_describe_tools_lists_every_whitelisted_tool_once():
     for name in SecurityAgentTools.TOOL_NAMES:
         check(f"describe_tools mentions {name}", text.count(name) >= 1, text)
     check("describe_tools never mentions build() (not a callable tool)", "- build(" not in text, text)
+
+
+# --- build_tool_schemas() (native Responses-API tools=[...] entries) --------
+
+def test_build_tool_schemas_covers_every_whitelisted_tool_exactly_once():
+    schemas = build_tool_schemas()
+    names = [s["name"] for s in schemas]
+    check("one schema per whitelisted tool, no duplicates",
+          set(names) == SecurityAgentTools.TOOL_NAMES and len(names) == len(set(names)), names)
+    for schema in schemas:
+        check(f"{schema['name']} declared as a strict function schema",
+              schema["type"] == "function" and schema["strict"] is True, schema)
+        check(f"{schema['name']} forbids additional properties",
+              schema["parameters"]["additionalProperties"] is False, schema)
+
+
+def test_build_tool_schemas_marks_required_positional_str_params_required():
+    schemas = {s["name"]: s for s in build_tool_schemas()}
+    params = schemas["get_callers"]["parameters"]
+    check("contract is required", "contract" in params["required"], params)
+    check("function is required", "function" in params["required"], params)
+    check("both typed as string", params["properties"]["contract"] == {"type": "string"}
+          and params["properties"]["function"] == {"type": "string"}, params)
+
+
+def test_build_tool_schemas_excludes_keyword_only_defaulted_params_from_required():
+    """The two non-trivial cases in the whitelist: `get_state_writes`'s
+    `include_transitive: bool = True` and `search_repository`'s
+    `file_glob: str = "*.sol"` -- both keyword-only WITH a default, so
+    neither belongs in `required` (live-verified, Part 5: OpenRouter's
+    proxy accepts `strict: true` with a genuinely optional property, no
+    need to force every property required)."""
+    schemas = {s["name"]: s for s in build_tool_schemas()}
+
+    gsw_params = schemas["get_state_writes"]["parameters"]
+    check("include_transitive is declared but NOT required",
+          "include_transitive" in gsw_params["properties"]
+          and "include_transitive" not in gsw_params["required"], gsw_params)
+    check("include_transitive typed as boolean",
+          gsw_params["properties"]["include_transitive"] == {"type": "boolean"}, gsw_params)
+    check("contract/function still required for get_state_writes",
+          {"contract", "function"} <= set(gsw_params["required"]), gsw_params)
+
+    sr_params = schemas["search_repository"]["parameters"]
+    check("file_glob is declared but NOT required",
+          "file_glob" in sr_params["properties"] and "file_glob" not in sr_params["required"], sr_params)
+    check("file_glob typed as string",
+          sr_params["properties"]["file_glob"] == {"type": "string"}, sr_params)
+    check("pattern still required for search_repository",
+          "pattern" in sr_params["required"], sr_params)
 
 
 def main() -> int:
