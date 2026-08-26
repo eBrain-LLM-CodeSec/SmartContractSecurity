@@ -402,16 +402,55 @@ class ClusterInvestigationState(BaseModel):
         self.tool_history.append(record)
         self.step_count += 1
         if result and result.get("status") == "OK":
-            file = result.get("file") or result.get("path")
-            contract = result.get("contract")
-            name = result.get("name")
-            if file:
-                self.inspected_files.add(file)
-            if contract:
-                self.inspected_contracts.add(contract)
-            if name and tool == "get_function_source":
-                self.inspected_functions.add(f"{contract}.{name}" if contract else name)
+            self._register_inspection(tool, result)
         return record
+
+    def _register_inspection(self, tool: str, result: dict) -> None:
+        """Generalizes inspected_* tracking across every real tool result
+        shape (tools.py), not just get_function_source's own top-level
+        file/contract/name fields. Real gap this closes (documented in
+        progress_fingerprint's own docstring below): get_callers/
+        get_callees/get_related_functions/get_external_calls/
+        get_state_reads/get_state_writes/get_modifiers/search_repository
+        all carry their file/contract/function info nested inside a
+        list (`functions`/`external_calls`/`state_vars`/`modifiers`/
+        `hits`), which this method never looked at before -- a cluster
+        whose strategy leaned on these tools registered no inspection
+        progress at all, no matter how much real investigation happened.
+
+        The top-level file/contract/name case stays scoped to
+        `get_function_source` specifically (unchanged from before): both
+        get_function_source and get_contract_source share that exact
+        result shape, but get_contract_source's own `name` field is the
+        CONTRACT's name, not a function's -- registering it as a function
+        would be a mislabeled entry, not a new capability."""
+        file = result.get("file") or result.get("path")
+        contract = result.get("contract")
+        name = result.get("name")
+        if file:
+            self.inspected_files.add(file)
+        if contract:
+            self.inspected_contracts.add(contract)
+        if name and tool == "get_function_source":
+            self.inspected_functions.add(f"{contract}.{name}" if contract else name)
+
+        for ref in result.get("functions") or []:
+            self._register_ref(ref, as_function=True)
+        for ref in result.get("external_calls") or []:
+            self._register_ref(ref, as_function=True)
+        for ref in (result.get("state_vars") or []) + (result.get("modifiers") or []):
+            self._register_ref(ref, as_function=False)
+        for hit in result.get("hits") or []:
+            if hit.get("file"):
+                self.inspected_files.add(hit["file"])
+
+    def _register_ref(self, ref: dict, *, as_function: bool) -> None:
+        if ref.get("file"):
+            self.inspected_files.add(ref["file"])
+        if ref.get("contract"):
+            self.inspected_contracts.add(ref["contract"])
+        if as_function and ref.get("name"):
+            self.inspected_functions.add(f"{ref['contract']}.{ref['name']}" if ref.get("contract") else ref["name"])
 
     def find_duplicate_tool_call(self, tool: str, args: dict) -> ToolCallRecord | None:
         """Exact-match lookup over tool_history: same tool name, same

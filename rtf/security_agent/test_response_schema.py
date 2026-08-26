@@ -11,7 +11,7 @@ import jsonschema
 from rtf.security_agent.kernel import (
     ConcludeAction, RESPONSE_MODELS, ToolCallAction, UpdateInvestigationAction,
 )
-from rtf.security_agent.response_schema import build_strict_schema
+from rtf.security_agent.response_schema import build_action_tool_schemas, build_strict_schema
 
 
 def _payload():
@@ -127,3 +127,66 @@ def test_the_action_field_naming_a_tool_directly_is_rejected():
     bad_instance = {"action": "read_evidence", "evidence_id": "tool-1"}
     errors = list(jsonschema.Draft7Validator(payload["schema"]).iter_errors(bad_instance))
     assert errors
+
+
+# --- build_action_tool_schemas: native tool-calling promotion (root cause #1) --
+
+def _action_schemas():
+    return build_action_tool_schemas((UpdateInvestigationAction, ConcludeAction))
+
+
+def test_action_tool_schemas_have_native_tool_shape():
+    schemas = _action_schemas()
+    assert len(schemas) == 2
+    for schema in schemas:
+        assert schema["type"] == "function"
+        assert schema["strict"] is True
+        assert "name" in schema and "description" in schema and "parameters" in schema
+
+
+def test_action_tool_names_derived_from_the_action_literal_not_hand_maintained():
+    names = {schema["name"] for schema in _action_schemas()}
+    assert names == {"update_investigation", "conclude"}
+
+
+def test_action_tool_schemas_omit_the_redundant_action_field():
+    """The tool NAME already carries what `action` used to disambiguate
+    -- the field would be redundant (and the model would have to supply
+    a fixed, useless value for it every single call)."""
+    for schema in _action_schemas():
+        assert "action" not in schema["parameters"]["properties"]
+        assert "action" not in schema["parameters"]["required"]
+
+
+def test_action_tool_schemas_are_strict_objects():
+    for schema in _action_schemas():
+        for obj in _walk_object_schemas(schema["parameters"]):
+            assert obj["additionalProperties"] is False, obj
+            assert set(obj["required"]) == set(obj["properties"].keys()), obj
+
+
+def test_action_tool_schemas_strip_value_level_constraints():
+    import json
+    dumped = json.dumps(_action_schemas())
+    for keyword in ("minLength", "maxLength", "minItems", "maxItems", "pattern"):
+        assert f'"{keyword}"' not in dumped, keyword
+
+
+def test_real_conclude_action_instance_minus_action_field_validates_against_its_tool_schema():
+    """The tool schema's `parameters` describes the call ARGS a native
+    tool call would carry -- i.e. a real ConcludeAction instance with its
+    `action` discriminator field removed (the model never supplies it as
+    an argument; the tool name itself already says which action this
+    is)."""
+    schemas = {schema["name"]: schema for schema in _action_schemas()}
+    instance = ConcludeAction(
+        action="conclude",
+        evidence=[{"id": "ev-1", "claim": "c", "source_file": "Vault.sol"}],
+        hypotheses=[{"id": "hyp-1", "claim": "c", "originating_property_ids": ["p1"]}],
+        properties=[{
+            "property_id": "p1", "claim": "c", "evidence_ids": ["ev-1"],
+            "hypothesis_ids": ["hyp-1"], "interpretation": "i", "verdict": "PASS",
+        }],
+    ).model_dump(mode="json")
+    del instance["action"]
+    jsonschema.validate(instance, schemas["conclude"]["parameters"])

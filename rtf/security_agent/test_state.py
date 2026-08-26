@@ -167,6 +167,62 @@ def test_successful_source_tool_result_tracks_inspection():
     check("tool result tracks inspected function", state.inspected_functions == {"Vault.withdraw"})
 
 
+def test_get_callers_result_tracks_inspection_via_nested_functions_list():
+    """Real gap fixed: get_callers/get_callees/get_related_functions all
+    return a `functions` list (FunctionRef dumps), not top-level
+    file/contract/name -- record_tool_call used to look ONLY at
+    top-level keys, so this shape registered zero inspection progress
+    no matter how many callers were actually returned."""
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.record_tool_call(
+        "get_callers", {"contract": "Vault", "function": "withdraw"}, "OK (functions)",
+        {"status": "OK", "functions": [
+            {"node_id": "fn::Vault.withdraw", "contract": "Vault", "name": "withdraw",
+             "file": "Vault.sol", "lines": [10, 20]},
+            {"node_id": "fn::Router.callWithdraw", "contract": "Router", "name": "callWithdraw",
+             "file": "Router.sol", "lines": [5, 8]},
+        ]},
+    )
+    check("both callers' files tracked", state.inspected_files == {"Vault.sol", "Router.sol"})
+    check("both callers' contracts tracked", state.inspected_contracts == {"Vault", "Router"})
+    check("both callers' functions tracked",
+          state.inspected_functions == {"Vault.withdraw", "Router.callWithdraw"})
+
+
+def test_search_repository_result_tracks_inspected_files_via_hits_list():
+    """Real gap documented in progress_fingerprint's own docstring:
+    search_repository's result is a `hits` list with no top-level
+    file/contract/name keys at all, so a cluster relying on searches
+    registered no inspected_files progress regardless of how many
+    distinct files it actually found matches in."""
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.record_tool_call(
+        "search_repository", {"pattern": "onlyOwner"}, "OK (hits)",
+        {"status": "OK", "hits": [
+            {"file": "Vault.sol", "line": 12, "text": "modifier onlyOwner() {"},
+            {"file": "Router.sol", "line": 40, "text": "onlyOwner"},
+        ], "truncated": False},
+    )
+    check("hit files tracked as inspected", state.inspected_files == {"Vault.sol", "Router.sol"})
+    check("search_repository result carries no contract/function info -- none registered",
+          not state.inspected_contracts and not state.inspected_functions)
+
+
+def test_get_contract_source_result_does_not_mislabel_contract_name_as_a_function():
+    """Guards the deliberate get_function_source-only scoping: get_contract_
+    source shares the same top-level file/contract/name result shape, but
+    its `name` is the CONTRACT's own name -- it must never be registered
+    as a function."""
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.record_tool_call(
+        "get_contract_source", {"contract": "Vault"}, "OK (source)",
+        {"status": "OK", "file": "Vault.sol", "contract": "Vault", "name": "Vault"},
+    )
+    check("contract source tracks file", state.inspected_files == {"Vault.sol"})
+    check("contract source tracks contract", state.inspected_contracts == {"Vault"})
+    check("contract source does NOT register a function", state.inspected_functions == set())
+
+
 # --- find_duplicate_tool_call (kernel-controlled cached-result replay) -------
 
 def test_find_duplicate_tool_call_exact_match():

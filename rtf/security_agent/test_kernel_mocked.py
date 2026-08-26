@@ -751,6 +751,111 @@ def test_completion_gate_rejects_premature_pass_then_accepts_grounded_pass():
         state.requirement_states[pid].status == RequirementResolution.PASS for pid in _PROPERTY_IDS))
 
 
+# --- root cause #1 fix: PASS gate reachability (native tools + inline fallback) --
+
+def test_native_conclude_with_inline_counterexample_attempts_passes_without_update_investigation_first():
+    """The structural fix: `conclude` is now a native tool AND carries an
+    optional inline `counterexample_attempts` field, so a single native
+    conclude call can satisfy completion.py's PASS gate even though
+    update_investigation was never called at all. Fails today (pre-fix):
+    "conclude" isn't in SecurityAgentTools.TOOL_NAMES, so the native
+    dispatch would return an ERROR tool result instead of ever applying/
+    checking a conclusion, and even the legacy ConcludeAction model has
+    no counterexample_attempts field to carry this in the first place."""
+    conclude_args = {
+        "evidence": [{"id": "ev-1", "claim": "onlyOwner modifier guards withdraw",
+                      "source_file": "Vault.sol", "source_contract": "Vault",
+                      "source_function": "withdraw", "source_lines": "10-20",
+                      "tool_call_id": "tool-1", "raw_excerpt": None}],
+        "hypotheses": [{"id": "hyp-1", "claim": "non-owner might bypass the guard",
+                        "originating_property_ids": ["p1"], "status": "REFUTED",
+                        "supporting_evidence_ids": [], "contradicting_evidence_ids": ["ev-1"],
+                        "next_evidence_needed": None}],
+        "properties": [{"property_id": "p1", "claim": "withdraw is owner-only",
+                        "evidence_ids": ["ev-1"], "hypothesis_ids": ["hyp-1"],
+                        "interpretation": "guard blocks non-owner", "verdict": "PASS"}],
+        "counterexample_attempts": [{"property_id": "p1", "hypothesis_id": "hyp-1",
+                                     "attempt": "called withdraw as a non-owner",
+                                     "result": "reverted, confirming the guard holds"}],
+    }
+    script = [(NativeCalls([("get_contract_source", {"contract": "Vault"}), ("conclude", conclude_args)]), None)]
+    kernel, fake = _kernel(script, enforce_completion=True)
+    state = kernel.run_cluster("c1", ["p1"], *_CONTEXT)
+    check("resolved in a single decide() call, no rejection loop needed",
+          len(fake.calls) == 1, len(fake.calls))
+    check("p1 PASSED without ever calling update_investigation",
+          state.requirement_states["p1"].status == RequirementResolution.PASS,
+          state.requirement_states["p1"])
+
+
+def test_legacy_text_conclude_with_inline_counterexample_attempts_passes_on_first_attempt():
+    """Isolates the ConcludeAction field fix from the native-dispatch-merge
+    fix: exercised entirely via the LEGACY text/fenced-JSON path. Pre-fix,
+    Pydantic silently ignores the unrecognized extra
+    `counterexample_attempts` key (default `extra="ignore"`), so
+    `req.counterexample_attempts` stays empty and PASS would be rejected
+    and looped; post-fix it's recognized and accepted on the first
+    attempt."""
+    inspect = ({"action": "call_tool", "tool": "get_contract_source",
+                "args": {"contract": "Vault"}, "reasoning": "inspect before PASS"}, None)
+    conclude = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "guard blocks non-owner"},
+    ], "counterexample_attempts": [
+        {"property_id": "p1", "hypothesis_id": "hyp-shared",
+         "attempt": "called withdraw as a non-owner", "result": "reverted, confirming the guard holds"},
+    ]}, None)
+    kernel, fake = _kernel([inspect, conclude], enforce_completion=True)
+    state = kernel.run_cluster("c1", ["p1"], *_CONTEXT)
+    check("reached PASS without a separate update_investigation turn",
+          state.requirement_states["p1"].status == RequirementResolution.PASS,
+          state.requirement_states["p1"])
+    check("resolved in exactly 2 decide() calls (inspect + conclude, no rejection loop)",
+          len(fake.calls) == 2, len(fake.calls))
+
+
+def test_native_update_investigation_then_native_conclude_still_reaches_pass():
+    """Proves the OLD two-step pattern (record via update_investigation,
+    then conclude) still works end-to-end, now dispatched as NATIVE tool
+    calls through the merged dispatch loop instead of the legacy
+    fenced-JSON convention."""
+    update_args = {
+        "hypotheses": [{"id": "hyp-1", "claim": "non-owner might bypass the guard",
+                        "originating_property_ids": ["p1"], "status": "REFUTED",
+                        "supporting_evidence_ids": [], "contradicting_evidence_ids": [],
+                        "next_evidence_needed": None}],
+        "counterexample_attempts": [{"property_id": "p1", "hypothesis_id": "hyp-1",
+                                     "attempt": "called withdraw as a non-owner",
+                                     "result": "reverted, confirming the guard holds"}],
+        "unresolved_questions": [], "next_actions": [],
+    }
+    conclude_args = {
+        "evidence": [{"id": "ev-1", "claim": "onlyOwner modifier guards withdraw",
+                      "source_file": "Vault.sol", "source_contract": "Vault",
+                      "source_function": "withdraw", "source_lines": "10-20",
+                      "tool_call_id": "tool-1", "raw_excerpt": None}],
+        "hypotheses": [{"id": "hyp-1", "claim": "non-owner might bypass the guard",
+                        "originating_property_ids": ["p1"], "status": "REFUTED",
+                        "supporting_evidence_ids": [], "contradicting_evidence_ids": ["ev-1"],
+                        "next_evidence_needed": None}],
+        "properties": [{"property_id": "p1", "claim": "withdraw is owner-only",
+                        "evidence_ids": ["ev-1"], "hypothesis_ids": ["hyp-1"],
+                        "interpretation": "guard blocks non-owner", "verdict": "PASS"}],
+    }
+    script = [
+        (NativeCalls([("get_contract_source", {"contract": "Vault"}), ("update_investigation", update_args)]), None),
+        (NativeCalls([("conclude", conclude_args)]), None),
+    ]
+    kernel, fake = _kernel(script, enforce_completion=True)
+    state = kernel.run_cluster("c1", ["p1"], *_CONTEXT)
+    check("update_investigation actually recorded the counterexample attempt via a native tool call",
+          len(state.requirement_states["p1"].counterexample_attempts) == 1,
+          state.requirement_states["p1"].counterexample_attempts)
+    check("p1 PASSED after the native update_investigation -> native conclude sequence",
+          state.requirement_states["p1"].status == RequirementResolution.PASS,
+          state.requirement_states["p1"])
+    check("resolved in exactly 2 decide() calls", len(fake.calls) == 2, len(fake.calls))
+
+
 def test_one_cluster_multiple_properties_is_one_shared_loop():
     """Kernel-level version of the state-layer invariant: a cluster with
     multiple properties runs through ONE model_client.decide/tool_call
@@ -888,6 +993,46 @@ def test_malformed_response_exhaustion_with_no_usable_forced_response_still_prod
     check("reason records the forced-conclusion failure",
           "forced_conclusion" in (state.requirement_states["p1"].resolution_reason or ""),
           state.requirement_states["p1"].resolution_reason)
+
+
+def test_reasoning_exhaustion_malformed_response_gets_bumped_max_tokens_on_retry():
+    """NativeCalls([]) with result=None reproduces the exact "reasoning
+    budget exhausted" MalformedModelResponse deterministically (tool_calls=[]
+    is falsy, content=None -> ModelClient.decide's own None-content guard)
+    -- the same failure model_client.py's own incident #2 documents.
+    Real gap fixed: the retry used to resend with the SAME max_tokens
+    regardless of why it failed; now this specific cause gets a bumped
+    cap on retry."""
+    reasoning_exhausted = (NativeCalls([]), None)
+    good = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "r1"},
+        {"property_id": "p2", "verdict": "PASS", "reasoning": "r2"},
+    ]}, None)
+    kernel, fake = _kernel([reasoning_exhausted, good], max_malformed_retries=2)
+    kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("2 decide() calls made", len(fake.max_tokens_calls) == 2, fake.max_tokens_calls)
+    check("first attempt used the steady-state default, not yet bumped",
+          fake.max_tokens_calls[0] == kernel.model_client.max_tokens, fake.max_tokens_calls)
+    check("retry after reasoning-exhaustion got a bumped max_tokens, distinct from the default",
+          fake.max_tokens_calls[1] == kernel.reasoning_budget_retry_max_tokens
+          and fake.max_tokens_calls[1] != fake.max_tokens_calls[0], fake.max_tokens_calls)
+
+
+def test_generic_malformed_response_does_not_get_bumped_max_tokens():
+    """A wrong-shape mistake (not a reasoning-exhaustion failure) must
+    NOT get the bumped cap -- proves the two failure modes are not
+    conflated."""
+    garbage = ({"action": "something_unrecognized", "whatever": True}, None)
+    good = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "r1"},
+        {"property_id": "p2", "verdict": "PASS", "reasoning": "r2"},
+    ]}, None)
+    kernel, fake = _kernel([garbage, good], max_malformed_retries=2)
+    kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("2 decide() calls made", len(fake.max_tokens_calls) == 2, fake.max_tokens_calls)
+    check("retry after a generic malformed response keeps the default (no bump)",
+          fake.max_tokens_calls[1] == fake.max_tokens_calls[0] == kernel.model_client.max_tokens,
+          fake.max_tokens_calls)
 
 
 def test_malformed_response_recovers_on_retry():

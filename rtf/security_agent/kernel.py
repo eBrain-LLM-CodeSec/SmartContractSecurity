@@ -12,7 +12,7 @@ import json
 import time
 from typing import Callable, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from rtf.security_agent import context_manager
 from rtf.security_agent.completion import check_property_completion, cluster_can_conclude
@@ -38,6 +38,21 @@ Doubled specifically for this ONE rare, high-value call per cluster (at
 most) -- not for every routine tool-call turn, so the cost impact is
 bounded -- staying comfortably under the ~65,536-token pathological
 ceiling documented in model_client.py's own incident #1."""
+
+DEFAULT_REASONING_BUDGET_RETRY_MAX_TOKENS = 32000
+"""Real gap found via trajectory analysis (RTF_SECURITY_AGENT_NATURAL_
+CONCLUSION_INVESTIGATION_20260826.md): `_decide_with_bounded_retries`
+retried a malformed response with the exact SAME max_tokens regardless of
+WHY it failed -- a generic wrong-JSON-shape mistake and GLM-5.2 genuinely
+exhausting its whole reasoning budget without emitting content
+(model_client.py's own incident #2) got identical treatment, even though
+the latter's actual fix is more headroom, not a corrective nudge. Live
+evidence: clusters 002/003/007 each hit exactly this failure 3 times in a
+row at unremarkable (~17K token) context sizes -- not a context-bloat
+trigger, a budget one. A distinct constant from
+DEFAULT_FORCED_CONCLUSION_MAX_TOKENS (same value today, but a different
+knob semantically -- a mid-loop retry, not the one-per-cluster final
+salvage turn) so the two can be tuned independently later."""
 
 
 class ToolCallAction(BaseModel):
@@ -85,6 +100,8 @@ class CounterexampleAttemptInput(BaseModel):
 
 
 class UpdateInvestigationAction(BaseModel):
+    """Record hypotheses and/or a resolved counterexample attempt before concluding. A PASS verdict is mechanically REJECTED unless the property has a resolved counterexample attempt on file -- via this tool, or inline on conclude's own counterexample_attempts field. This is enforced automatically, not a suggestion."""
+
     action: Literal["update_investigation"]
     hypotheses: list[HypothesisInput] = Field(default_factory=list)
     counterexample_attempts: list[CounterexampleAttemptInput] = Field(default_factory=list)
@@ -109,10 +126,25 @@ class UpdateInvestigationAction(BaseModel):
 
 
 class ConcludeAction(BaseModel):
+    """Conclude the investigation for every property in this cluster at once. PASS requires an actual falsification attempt on file for that property -- either a prior update_investigation call, or an inline counterexample_attempts entry on this same call. A PASS without one is mechanically rejected, not just discouraged."""
+
     action: Literal["conclude"]
     evidence: list[EvidenceInput] = Field(min_length=1)
     hypotheses: list[HypothesisInput] = Field(min_length=1)
     properties: list[PropertyVerdictInput]
+    counterexample_attempts: list[CounterexampleAttemptInput] = Field(default_factory=list)
+    """Inline fallback for the same falsification-attempt record
+    `update_investigation` normally carries (root cause #1 fix,
+    natural-conclusion investigation 20260826): real trajectories showed
+    the model almost never called `update_investigation` before its
+    first `conclude`, so a PASS could never satisfy completion.py's
+    counterexample gate in one shot even when the model DID do the
+    adversarial check in its own reasoning. Lets a single `conclude`
+    call record it directly instead of requiring a separate prior turn.
+    Applied via the same `state.record_counterexample_attempt` state
+    method `_apply_investigation_update` already uses -- completion.py
+    needs no changes, since its gate already reads
+    `req.counterexample_attempts` mechanism-agnostically."""
 
     @model_validator(mode="after")
     def evidence_references_are_complete(self) -> "ConcludeAction":
@@ -134,6 +166,15 @@ class ConcludeAction(BaseModel):
                                            *hypothesis.contradicting_evidence_ids)}
         if not hypothesis_evidence <= known:
             raise ValueError("hypotheses reference unknown evidence ids")
+        property_ids = {prop.property_id for prop in self.properties}
+        unknown_ce_properties = sorted({a.property_id for a in self.counterexample_attempts
+                                        if a.property_id not in property_ids})
+        if unknown_ce_properties:
+            raise ValueError(f"counterexample_attempts reference unknown property ids: {unknown_ce_properties}")
+        unknown_ce_hypotheses = sorted({a.hypothesis_id for a in self.counterexample_attempts
+                                        if a.hypothesis_id not in hypothesis_ids})
+        if unknown_ce_hypotheses:
+            raise ValueError(f"counterexample_attempts reference unknown hypothesis ids: {unknown_ce_hypotheses}")
         return self
 
 
@@ -207,7 +248,8 @@ class SecurityAgentKernel:
                  max_wall_clock_s: float | None = None,
                  max_cost_usd: float | None = None,
                  max_consecutive_no_progress: int = DEFAULT_MAX_CONSECUTIVE_NO_PROGRESS,
-                 forced_conclusion_max_tokens: int = DEFAULT_FORCED_CONCLUSION_MAX_TOKENS):
+                 forced_conclusion_max_tokens: int = DEFAULT_FORCED_CONCLUSION_MAX_TOKENS,
+                 reasoning_budget_retry_max_tokens: int = DEFAULT_REASONING_BUDGET_RETRY_MAX_TOKENS):
         self.tools = tools
         self.model_client = model_client
         self.max_steps = max_steps
@@ -230,6 +272,7 @@ class SecurityAgentKernel:
         behavior; a live run wires real budgets explicitly."""
         self.max_consecutive_no_progress = max_consecutive_no_progress
         self.forced_conclusion_max_tokens = forced_conclusion_max_tokens
+        self.reasoning_budget_retry_max_tokens = reasoning_budget_retry_max_tokens
 
     def run_cluster(
         self, cluster_id: str, property_ids: list[str],
@@ -399,16 +442,94 @@ class SecurityAgentKernel:
                         for call in turn.tool_calls
                     ]}]
                     for call in turn.tool_calls:
+                        # `update_investigation`/`conclude` as native
+                        # tools (root cause #1 fix, natural-conclusion
+                        # investigation 20260826): promoted from
+                        # free-text fenced-JSON conventions to real
+                        # native tools alongside the 13 read-only ones
+                        # (build_action_tool_schemas) -- live-verified
+                        # the model reaches for them with the same
+                        # tool-calling affordance as any other tool, and
+                        # does NOT conclude prematurely just because the
+                        # tool is now equally reachable. Dispatched here,
+                        # before the generic self.tools.call(...)
+                        # fallback below, since neither name is in
+                        # SecurityAgentTools.TOOL_NAMES. A validation
+                        # failure degrades to a normal tool-result
+                        # message (same as _apply_investigation_update's
+                        # own error-string convention) rather than
+                        # raising -- this is a different failure class
+                        # from a malformed top-level response, bounded by
+                        # the existing no-progress/stagnation breaker
+                        # instead of max_malformed_retries.
+                        if call.tool == "update_investigation":
+                            try:
+                                validated_update = UpdateInvestigationAction.model_validate(
+                                    {"action": "update_investigation", **call.args})
+                            except ValidationError as e:
+                                entries.append({"role": "tool", "call_id": call.call_id, "tool": call.tool,
+                                                "content": f"Your update_investigation call did not match "
+                                                           f"the required shape: {e}. Try again with valid "
+                                                           "arguments."})
+                                continue
+                            error = self._apply_investigation_update(state, validated_update)
+                            state.step_count += 1
+                            entries.append({"role": "tool", "call_id": call.call_id, "tool": call.tool,
+                                            "content": f"Investigation-state update "
+                                                       f"{'rejected: ' + error if error else 'recorded.'}"})
+                            self._emit("investigation_updated", {
+                                "rejected_reason": error,
+                                "hypothesis_ids": [h.id for h in validated_update.hypotheses],
+                                "counterexample_attempts": len(validated_update.counterexample_attempts)})
+                            continue
+
+                        if call.tool == "conclude":
+                            try:
+                                validated_conclude = ConcludeAction.model_validate(
+                                    {"action": "conclude", **call.args})
+                            except ValidationError as e:
+                                entries.append({"role": "tool", "call_id": call.call_id, "tool": call.tool,
+                                                "content": f"Your conclude call did not match the required "
+                                                           f"shape: {e}. Try again with valid arguments."})
+                                continue
+                            proposed = state.model_copy(deep=True)
+                            self._apply_conclusion(proposed, property_ids, validated_conclude)
+                            completion = cluster_can_conclude(proposed, reasoning_categories_by_property)
+                            if self.enforce_completion and not completion.ready:
+                                self._apply_conclusion_material(state, validated_conclude)
+                                state.step_count += 1
+                                entries.append({"role": "tool", "call_id": call.call_id, "tool": call.tool,
+                                                "content": "Conclusion rejected by the mechanical completion "
+                                                "gate: " + "; ".join(completion.blocking_reasons)
+                                                + ". Continue investigating and update structured state "
+                                                "before concluding again."})
+                                self._emit("conclusion_rejected", {"blocking_reasons": completion.blocking_reasons})
+                                continue
+                            # Accepted: the cluster is done. Nothing else
+                            # in this turn is processed -- mirrors the
+                            # legacy text-mode conclude path's own
+                            # precedent of never appending to `messages`
+                            # on a successful conclude (nothing reads it
+                            # again after return).
+                            state = proposed
+                            _finish("concluded")
+                            return state
+
                         # Kernel-controlled cached-result replay (found
                         # live, 2026-08-26): an exact-duplicate call (same
                         # tool, same args, already in tool_history) is
                         # replayed from EvidenceStore instead of executed
                         # again -- automatically, with no dependency on
-                        # the model noticing a hint. read_evidence itself
-                        # is excluded: it's already a cheap disk read, and
-                        # its own calls are never persisted to
-                        # EvidenceStore in the first place.
-                        duplicate = (None if call.tool == "read_evidence"
+                        # the model noticing a hint. read_evidence,
+                        # update_investigation, and conclude are all
+                        # excluded: read_evidence is already a cheap disk
+                        # read (never persisted to EvidenceStore in the
+                        # first place); update_investigation/conclude are
+                        # not idempotent reads -- replaying a stale
+                        # "recorded"/rejection message instead of really
+                        # re-running the completion gate against CURRENT
+                        # state would be actively wrong, not just wasteful.
+                        duplicate = (None if call.tool in {"read_evidence", "update_investigation", "conclude"}
                                      else state.find_duplicate_tool_call(call.tool, call.args))
                         if duplicate is not None:
                             state.deduplicated_calls_total += 1
@@ -535,16 +656,31 @@ class SecurityAgentKernel:
         `retries_counter[0]` is incremented on every malformed attempt
         (Part 10 instrumentation) -- a single-element list, not a return
         value, so the caller can still read how many retries happened
-        even when the final attempt also fails and this raises."""
+        even when the final attempt also fails and this raises.
+
+        Adaptive retry (natural-conclusion investigation, 20260826): a
+        generic wrong-shape mistake and GLM-5.2 genuinely exhausting its
+        reasoning budget without emitting content (model_client.py's own
+        incident #2 -- the exact marker text it raises with) are
+        DIFFERENT failure modes and get different retries. Only the
+        latter gets its `max_tokens` bumped to
+        `self.reasoning_budget_retry_max_tokens` -- a wrong-shape mistake
+        keeps the steady-state cap unchanged, since more tokens does
+        nothing to fix a model that simply named the wrong action. Once
+        bumped, stays bumped for the rest of THIS bounded-retry loop (a
+        later different-cause failure in the same loop doesn't undo it)."""
         attempt = messages
+        max_tokens_override: int | None = None
         while True:
             try:
-                return self.model_client.decide(attempt)
+                return self.model_client.decide(attempt, max_tokens=max_tokens_override)
             except MalformedModelResponse as e:
                 self._emit("malformed_model_response", {"errors": e.errors, "raw": e.raw})
                 retries_counter[0] += 1
                 if retries_counter[0] > self.max_malformed_retries:
                     raise
+                if "exhausted its reasoning budget" in e.errors:
+                    max_tokens_override = self.reasoning_budget_retry_max_tokens
                 attempt = messages + [{"role": "user", "content":
                     f"Your last response did not match a required shape ({e.errors}). "
                     "Respond again: either call a tool natively, or if you are not calling a "
@@ -657,6 +793,15 @@ class SecurityAgentKernel:
             state.upsert_evidence(Evidence.model_validate(item.model_dump()))
         for item in conclude.hypotheses:
             state.upsert_hypothesis(Hypothesis.model_validate(item.model_dump()))
+        # Inline counterexample-attempt fallback (root cause #1 fix):
+        # recorded via the SAME state method `_apply_investigation_update`
+        # uses, after hypotheses are upserted above so a referenced
+        # hypothesis_id is guaranteed to already exist. Runs before the
+        # completion gate is checked against the proposed state copy in
+        # `_apply_conclusion`.
+        for attempt in conclude.counterexample_attempts:
+            state.record_counterexample_attempt(
+                attempt.property_id, attempt.hypothesis_id, attempt.attempt, attempt.result)
 
     @staticmethod
     def _apply_forced_conclusion(

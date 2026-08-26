@@ -77,6 +77,56 @@ def test_build_context_evidence_index_omits_raw_excerpt():
     assert "X" * 2000 not in summary
 
 
+def test_build_context_evidence_index_includes_source_contract_and_function():
+    """Evidence carries source_contract/source_function, but the index
+    LINE ITSELF used to drop both -- they only ever surfaced separately,
+    in the coarse, unlinked 'Inspected so far' name sets. Checks the
+    evidence-index bullet specifically (not just "somewhere in the
+    summary"), since add_evidence already populates inspected_functions
+    independently -- that would make this assertion pass even without
+    the evidence-index fix if it only checked the whole summary."""
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.add_evidence(Evidence(id="ev-1", claim="c", source_file="Vault.sol",
+                                source_contract="Vault", source_function="withdraw"))
+    summary = cm.build_context(state, _CONTEXT, recent_turns=[])[2]["content"]
+    evidence_line = next(l for l in summary.splitlines() if l.startswith("- ev-1:"))
+    assert "Vault.withdraw" in evidence_line
+
+
+def test_build_context_state_summary_lets_model_recognize_an_aged_out_tool_call_without_reasking():
+    """The specific gap found via real trajectory analysis
+    (RTF_SECURITY_AGENT_NATURAL_CONCLUSION_INVESTIGATION_20260826.md): once
+    a tool call's own raw turn ages out past RECENT_TURNS_KEPT, nothing in
+    the rendered summary let the model recognize it had already made that
+    exact (tool, args) request -- state.tool_history stores the exact
+    signature but was never rendered at all."""
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    state.record_tool_call("get_function_source", {"contract": "Vault", "function": "withdraw"},
+                           "OK (source)", {"status": "OK", "file": "Vault.sol",
+                                           "contract": "Vault", "name": "withdraw"})
+    # The raw turn that actually made the call above is NOT in
+    # recent_turns at all -- simulating it having already aged out past
+    # RECENT_TURNS_KEPT and been dropped, exactly the real scenario.
+    groups = [[{"role": "user", "content": f"turn-{i}"}] for i in range(cm.RECENT_TURNS_KEPT + 5)]
+    messages = cm.build_context(state, _CONTEXT, recent_turns=groups)
+    summary = messages[2]["content"]
+    tail = messages[3:]
+    assert not any("get_function_source" in str(m.get("content", "")) for m in tail), \
+        "raw turn should be aged out of the tail"
+    assert "get_function_source" in summary
+    assert "Vault" in summary and "withdraw" in summary
+
+
+def test_build_context_tool_query_index_is_bounded():
+    state = ClusterInvestigationState.initial("c1", ["p1"])
+    for i in range(cm.MAX_TOOL_QUERY_INDEX_LINES + 20):
+        state.record_tool_call("search_repository", {"pattern": f"pattern-{i}"}, "OK (hits)",
+                               {"status": "OK", "hits": [{"file": "F.sol", "line": 1, "text": "x"}]})
+    summary = cm.build_context(state, _CONTEXT, recent_turns=[])[2]["content"]
+    query_index_lines = [l for l in summary.splitlines() if l.startswith("- search_repository(")]
+    assert len(query_index_lines) == cm.MAX_TOOL_QUERY_INDEX_LINES
+
+
 def test_build_context_includes_hypotheses_and_next_actions_and_questions():
     state = ClusterInvestigationState.initial("c1", ["p1"])
     state.add_hypothesis(Hypothesis(id="hyp-1", claim="reentrancy possible",

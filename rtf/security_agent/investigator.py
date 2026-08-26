@@ -13,6 +13,7 @@ from a4v.llm import ChatClient
 from rtf.security_agent.evidence_store import EvidenceStore
 from rtf.security_agent.kernel import NATIVE_RESPONSE_MODELS, RESPONSE_MODELS, SecurityAgentKernel
 from rtf.security_agent.model_client import DEFAULT_MAX_COMPLETION_TOKENS, ModelClient
+from rtf.security_agent.response_schema import build_action_tool_schemas
 from rtf.security_agent.responses_client import ResponsesChatClient
 from rtf.security_agent.state import ClusterInvestigationState
 from rtf.security_agent.tools import SecurityAgentTools, build_tool_schemas
@@ -124,6 +125,7 @@ def run_security_agent_bundle(
     reasoning_effort: str = "low",
     max_steps: int | None = None,
     max_cost_usd: float | None = None,
+    max_malformed_retries: int | None = None,
 ) -> SecurityAgentResult:
     """Signature-compatible replacement for `run_arm_g_bundle`.
 
@@ -166,6 +168,14 @@ def run_security_agent_bundle(
     change (the only other bound, `max_wall_clock_s`, is real wall time,
     not spend) -- a caller that raises max_steps should almost always
     also set a per-cluster cost ceiling as a replacement guardrail.
+
+    `max_malformed_retries` (added, natural-conclusion investigation
+    20260826): `SecurityAgentKernel.max_malformed_retries` was already an
+    overridable `__init__` parameter, but this adapter -- the actual live
+    entry point -- never forwarded it, the same gap `max_steps`/
+    `max_cost_usd` had before the fix above. Left at kernel.py's own
+    DEFAULT_MAX_MALFORMED_RETRIES when None (no behavior change for
+    existing callers).
     """
     del codex_bin, python_bin, mcp_server_script, candidate_location, prompt
     started = time.monotonic()
@@ -203,7 +213,18 @@ def run_security_agent_bundle(
             # (2 remaining text shapes) is relied on instead, same as
             # before structured output was ever added.
             session_id=case_id,
-            tools=build_tool_schemas(), tool_choice="auto", parallel_tool_calls=True,
+            # `update_investigation`/`conclude` promoted to native tools
+            # alongside the 13 read-only ones (root cause #1 fix,
+            # natural-conclusion investigation 20260826) -- live-verified
+            # (a cheap standalone script, deleted after use per this
+            # session's convention) against this exact proxy/model: the
+            # model reaches for both natively with correctly-shaped args,
+            # a mixed read-tool + update_investigation turn parses
+            # correctly, and equal tool-affordance does NOT make the
+            # model conclude prematurely (checked both mid-investigation
+            # and on a fresh cluster with zero evidence gathered yet).
+            tools=build_tool_schemas() + build_action_tool_schemas(NATIVE_RESPONSE_MODELS),
+            tool_choice="auto", parallel_tool_calls=True,
         )
     evidence_store = EvidenceStore(case_root)
     build_tools = tools_factory or SecurityAgentTools.build
@@ -228,6 +249,8 @@ def run_security_agent_bundle(
         kernel_overrides["max_steps"] = max_steps
     if max_cost_usd is not None:
         kernel_overrides["max_cost_usd"] = max_cost_usd
+    if max_malformed_retries is not None:
+        kernel_overrides["max_malformed_retries"] = max_malformed_retries
     kernel = SecurityAgentKernel(
         tools, model_client, event_sink=TrajectoryWriter(trajectory_path),
         evidence_store=evidence_store, max_wall_clock_s=DEFAULT_MAX_CLUSTER_WALL_CLOCK_S,

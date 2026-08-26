@@ -21,7 +21,7 @@ import json
 from dataclasses import dataclass
 
 from rtf.security_agent.prompts import build_initial_user_message, build_system_prompt
-from rtf.security_agent.state import ClusterInvestigationState
+from rtf.security_agent.state import ClusterInvestigationState, ToolCallRecord
 
 # Rationale (not arbitrary -- tied to the efficiency investigation's own
 # data): the pathological clusters' prompts were consistently fine under
@@ -36,6 +36,57 @@ from rtf.security_agent.state import ClusterInvestigationState
 SOFT_COMPACTION_TOKENS = 20_000
 HARD_COMPACTION_TOKENS = 60_000
 RECENT_TURNS_KEPT = 4
+MAX_TOOL_QUERY_INDEX_LINES = 40
+"""Bounds the "already asked" index (render_state_summary) the same way
+RECENT_TURNS_KEPT bounds the raw-turn tail: a real gap found via
+trajectory analysis (RTF_SECURITY_AGENT_NATURAL_CONCLUSION_INVESTIGATION_
+20260826.md) is that `state.tool_history` -- which DOES store the exact
+(tool, args) signature of every call ever made -- was never rendered into
+the model-visible context at all once its raw turn aged out of
+RECENT_TURNS_KEPT, so the model had no way to recognize "I already asked
+this" before re-asking (dedup only fires reactively, after the repeat is
+already requested). Named, not claimed final -- same discipline as the
+other constants in this module."""
+
+
+def _evidence_scope(ev) -> str:
+    if ev.source_contract and ev.source_function:
+        return f"{ev.source_contract}.{ev.source_function}"
+    return ev.source_contract or ev.source_function or ""
+
+
+_ARG_VALUE_TRUNCATE_CHARS = 40
+
+
+def _render_tool_query_index(state: ClusterInvestigationState) -> list[str]:
+    """One line per unique (tool, args) signature already tried, so the
+    model can recognize a prior request even after its raw turn has been
+    compacted away -- generic across every tool (not a per-tool
+    heuristic), since it renders whatever args each call actually used
+    rather than guessing at a "salient" key. Deduplicated using the same
+    (tool, json.dumps(args, sort_keys=True)) key scheme
+    `state.progress_fingerprint()` already uses, for consistency. Bounded
+    to the MOST RECENT `MAX_TOOL_QUERY_INDEX_LINES` unique calls -- older
+    ones are the ones most likely already folded into the evidence index
+    above, and recency is what matters most for avoiding an immediate
+    re-ask right after a compaction."""
+    evidence_id_by_tool_call_id = {
+        ev.tool_call_id: eid for eid, ev in state.evidence.items() if ev.tool_call_id
+    }
+    seen: dict[tuple[str, str], ToolCallRecord] = {}
+    for record in state.tool_history:
+        key = (record.tool, json.dumps(record.args, sort_keys=True))
+        seen.setdefault(key, record)
+    kept = list(seen.values())[-MAX_TOOL_QUERY_INDEX_LINES:]
+    lines = []
+    for record in kept:
+        args_str = ", ".join(
+            f"{k}={str(v)[:_ARG_VALUE_TRUNCATE_CHARS]}" for k, v in sorted(record.args.items())
+        )
+        pointer = evidence_id_by_tool_call_id.get(record.id)
+        suffix = f" -> {pointer}" if pointer else f" -> {record.id}"
+        lines.append(f"- {record.tool}({args_str}){suffix}")
+    return lines
 
 
 def estimate_tokens(text: str) -> int:
@@ -97,9 +148,15 @@ def render_state_summary(state: ClusterInvestigationState) -> str:
         for eid in sorted(state.evidence):
             ev = state.evidence[eid]
             location = ev.source_file + (f":{ev.source_lines}" if ev.source_lines else "")
-            lines.append(f"- {eid}: {ev.claim} @ {location}")
+            scope = _evidence_scope(ev)
+            prefix = f"{scope} " if scope else ""
+            lines.append(f"- {eid}: {ev.claim} @ {prefix}{location}")
     else:
         lines.append("(none yet)")
+
+    lines += ["", "### Already asked (avoid repeating these -- nothing new will be learned)"]
+    tool_query_lines = _render_tool_query_index(state)
+    lines += tool_query_lines if tool_query_lines else ["(none yet)"]
 
     lines += ["", "### Hypotheses"]
     if state.hypotheses:

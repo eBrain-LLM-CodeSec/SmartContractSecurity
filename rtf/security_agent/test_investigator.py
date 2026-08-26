@@ -183,6 +183,46 @@ def test_max_cost_usd_override_reaches_the_kernel():
           len(result.investigation_state.tool_history) == 0, len(result.investigation_state.tool_history))
 
 
+class AlwaysMalformedClient:
+    """Every call returns content=None (the same "reasoning budget
+    exhausted" shape model_client.py's own incident #2 describes), so
+    ModelClient.decide always raises MalformedModelResponse. Used to
+    prove max_malformed_retries actually reaches the kernel through this
+    adapter -- before this fix it was pinned at kernel.py's own
+    DEFAULT_MAX_MALFORMED_RETRIES (2) no matter what a caller passed."""
+
+    def __init__(self, *args, **kwargs):
+        self.calls = 0
+
+    def complete(self, messages, temperature=0.0, top_p=None, max_tokens=None):
+        self.calls += 1
+        return ChatResult(None, 10, 5, False, 0.001)
+
+
+def test_max_malformed_retries_override_reaches_the_kernel():
+    """With max_malformed_retries=0, the bounded-retry loop gives up
+    after exactly 1 failed attempt (instead of the real default of 2
+    retries = 3 attempts), plus one forced-conclusion salvage attempt
+    that also fails the same way -- 2 total decide() calls, not 4."""
+    scratch = Path(tempfile.mkdtemp(prefix="security_agent_adapter_test_"))
+    client = AlwaysMalformedClient()
+    run_security_agent_bundle(
+        codex_bin=Path("unused"), python_bin=Path("unused"), mcp_server_script=Path("unused"),
+        api_key="unused", model="fake", case_id="case-5", entry_file=Path("Vault.sol"),
+        repo_root=Path("."), candidate_location="Vault.withdraw",
+        solc_path_dir="/opt/solc-bin", solc_remaps=None, prompt="unused",
+        scratch_root=scratch, timeout_s=5,
+        extra_files={".rtf/context/protocol_context.md": "protocol",
+                     ".rtf/context/requirements/req-parent.md": "requirement",
+                     ".rtf/plans/c1.md": PLAN},
+        compile_via_foundry=False, chat_client_factory=lambda *a, **kw: client,
+        tools_factory=lambda **kw: FakeTools(),
+        max_malformed_retries=0,
+    )
+    check("override reaches the kernel: 1 bounded-retry attempt + 1 forced-conclusion attempt, not 4",
+          client.calls == 2, client.calls)
+
+
 def test_deduplicated_calls_total_surfaces_on_security_agent_result():
     """AlwaysToolCallClient requests the exact same (tool, args) every
     single turn -- turn 1 executes for real, every turn after that is an
