@@ -19,7 +19,19 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-_SUMMARY_PREVIEW_CHARS = 400
+_SUMMARY_PREVIEW_CHARS = 2000
+"""Raised from 400 (found live, 2026-08-26, native-tool-calling canto
+rerun): 400 chars is well under a typical Solidity function body, so
+almost every get_function_source/get_contract_source result got
+truncated -- forcing a SEPARATE read_evidence call just to see what the
+agent had, in effect, already fetched. Quantified in a real cluster: 7
+of 16 tool-call steps (44% of that cluster's entire step budget) were
+pure re-fetch overhead, not new investigation. This was always true
+under the single-tool-per-turn design too, but cost proportionally less
+there (one extra turn either way); under native multi-tool-calling it
+now costs a whole separate round-trip on top of an otherwise-batched
+turn. 2000 chars covers most single-function reads without truncation
+while still bounding a large multi-hit search or whole-contract dump."""
 
 
 class UnknownEvidenceRefError(KeyError):
@@ -95,3 +107,14 @@ class EvidenceStore:
 
     def summary(self, evidence_id: str) -> str | None:
         return self._summaries.get(evidence_id)
+
+    def known_ids(self) -> list[str]:
+        """All evidence ids stored so far, sorted. Used by `read_evidence`
+        to give a self-correcting error message when the model calls it
+        with a missing/wrong id (found live, 2026-08-26: the model called
+        `read_evidence({})` -- no evidence_id at all -- 3 times in one
+        cluster, each one a wasted step, despite the tool schema marking
+        `evidence_id` as required; this proxy does not hard-enforce
+        required-argument completeness the way `strict: true` is
+        documented to)."""
+        return sorted(self._summaries)

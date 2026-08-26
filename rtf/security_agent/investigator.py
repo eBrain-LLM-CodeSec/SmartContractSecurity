@@ -116,6 +116,8 @@ def run_security_agent_bundle(
     tools_factory: Callable[..., SecurityAgentTools] | None = None,
     max_completion_tokens: int = DEFAULT_MAX_COMPLETION_TOKENS,
     reasoning_effort: str = "low",
+    max_steps: int | None = None,
+    max_cost_usd: float | None = None,
 ) -> SecurityAgentResult:
     """Signature-compatible replacement for `run_arm_g_bundle`.
 
@@ -142,6 +144,22 @@ def run_security_agent_bundle(
     `chat_client_factory` remains overridable (tests, or a future
     `ChatClient`-based comparison) -- this default is what real live runs
     should use.
+
+    `max_steps`/`max_cost_usd` (added 2026-08-26, native-tool-calling
+    canto rerun): both None by default, which reproduces prior behavior
+    exactly (kernel.py's own DEFAULT_MAX_STEPS=15, no per-cluster cost
+    ceiling at all). Real gap found live: `SecurityAgentKernel.max_steps`
+    was tuned under the OLD one-tool-call-per-turn design and was never
+    re-checked once a single turn could resolve several tool calls at
+    once -- 3 for 3 real clusters hit it before reaching a conclusion,
+    landing every property INCONCLUSIVE. Exposed here so a caller can
+    raise/remove it for an experiment without changing the tool's global
+    default for every other caller. `max_cost_usd` is offered alongside
+    it deliberately: removing the step count as the binding constraint
+    removes the only per-cluster safety net that existed before this
+    change (the only other bound, `max_wall_clock_s`, is real wall time,
+    not spend) -- a caller that raises max_steps should almost always
+    also set a per-cluster cost ceiling as a replacement guardrail.
     """
     del codex_bin, python_bin, mcp_server_script, candidate_location, prompt
     started = time.monotonic()
@@ -199,9 +217,15 @@ def run_security_agent_bundle(
     # 2 remaining action shapes are ever valid text responses.
     response_models = RESPONSE_MODELS if chat_client_factory is not None else NATIVE_RESPONSE_MODELS
     model_client = ModelClient(chat, response_models, max_tokens=max_completion_tokens)
+    kernel_overrides = {}
+    if max_steps is not None:
+        kernel_overrides["max_steps"] = max_steps
+    if max_cost_usd is not None:
+        kernel_overrides["max_cost_usd"] = max_cost_usd
     kernel = SecurityAgentKernel(
         tools, model_client, event_sink=TrajectoryWriter(trajectory_path),
         evidence_store=evidence_store, max_wall_clock_s=DEFAULT_MAX_CLUSTER_WALL_CLOCK_S,
+        **kernel_overrides,
     )
     state = kernel.run_cluster(
         case_id, property_ids, protocol, requirement_contexts, plan,

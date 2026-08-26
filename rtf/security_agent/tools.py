@@ -401,20 +401,41 @@ class SecurityAgentTools:
             return SearchRepositoryResult(status="NOT_FOUND", reason=f"no matches for {pattern!r}")
         return SearchRepositoryResult(status="OK", hits=hits, truncated=truncated)
 
-    def read_evidence(self, evidence_id: str) -> ReadEvidenceResult:
+    def read_evidence(self, evidence_id: str | None = None) -> ReadEvidenceResult:
         """Retrieves the FULL raw content behind a compact evidence
         summary the kernel showed earlier (RTF_SECURITY_AGENT_CONTEXT_
         MANAGEMENT_DESIGN.md section 4) -- e.g. the complete source of a
         contract that was summarized/truncated in the conversation.
         Returns an ERROR status (not a crash) if no EvidenceStore was
         configured for this investigation, and NOT_FOUND for an unknown
-        evidence_id -- both are normal tool outcomes, not exceptions."""
+        evidence_id -- both are normal tool outcomes, not exceptions.
+
+        `evidence_id` defaults to None (real bug found live, 2026-08-26):
+        the tool schema marks it required, but the model still called
+        this with no arguments at all 3 times in one real cluster --
+        this proxy doesn't hard-enforce required-argument completeness
+        the way `strict: true` is documented to. Previously that produced
+        a hard argument-binding failure with no hint of what to pass
+        instead, so the model just repeated the same empty call. Handling
+        None explicitly here lets the error message list the evidence
+        ids that actually exist, so the model can self-correct on its
+        very next attempt instead of guessing blindly."""
         if self.evidence_store is None:
             return ReadEvidenceResult(status="ERROR", reason="no evidence store configured for this investigation")
+        if evidence_id is None:
+            known = self.evidence_store.known_ids()
+            return ReadEvidenceResult(
+                status="ERROR",
+                reason=f"evidence_id is required. Evidence ids available so far: {known or '(none yet)'}",
+            )
         try:
             content = self.evidence_store.read(evidence_id)
         except UnknownEvidenceRefError:
-            return ReadEvidenceResult(status="NOT_FOUND", reason=f"no stored evidence for id {evidence_id!r}")
+            known = self.evidence_store.known_ids()
+            return ReadEvidenceResult(
+                status="NOT_FOUND",
+                reason=f"no stored evidence for id {evidence_id!r}. Evidence ids available so far: {known or '(none yet)'}",
+            )
         return ReadEvidenceResult(status="OK", evidence_id=evidence_id, content=content)
 
     # -- node -> typed ref helpers --------------------------------------------

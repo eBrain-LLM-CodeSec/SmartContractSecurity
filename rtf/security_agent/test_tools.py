@@ -219,6 +219,55 @@ def test_search_repository_invalid_regex():
     check("status ERROR for invalid regex", result.status == "ERROR", result)
 
 
+# --- read_evidence (graceful missing/unknown id handling) -------------------
+
+def _tools_with_evidence_store() -> SecurityAgentTools:
+    import tempfile
+    from rtf.security_agent.evidence_store import EvidenceStore
+    base = _tools()
+    store_dir = Path(tempfile.mkdtemp(prefix="security_agent_test_evidence_"))
+    return SecurityAgentTools(base.pg, base.repo_root, evidence_store=EvidenceStore(store_dir))
+
+
+def test_read_evidence_with_no_id_lists_known_ids_instead_of_crashing():
+    """Real bug found live (2026-08-26, native-tool-calling canto rerun):
+    the model called read_evidence with NO arguments 3 times in one real
+    cluster, despite evidence_id being schema-required -- this proxy
+    doesn't hard-enforce required-argument completeness. Must degrade to
+    a self-correcting ERROR (listing what IS available), never crash at
+    argument-binding time with no guidance."""
+    tools = _tools_with_evidence_store()
+    tools.evidence_store.store("tool-1", "get_contract_source", {"status": "OK", "file": "Vault.sol"})
+    result = tools.read_evidence()
+    check("status is ERROR, not a crash", result.status == "ERROR", result)
+    check("lists the known evidence id", "tool-1" in (result.reason or ""), result.reason)
+
+
+def test_read_evidence_with_no_id_and_nothing_stored_yet():
+    tools = _tools_with_evidence_store()
+    result = tools.read_evidence()
+    check("status is ERROR", result.status == "ERROR", result)
+    check("says none yet rather than an empty/confusing list", "none yet" in (result.reason or ""), result.reason)
+
+
+def test_read_evidence_with_unknown_id_also_lists_known_ids():
+    tools = _tools()  # cached singleton, no evidence_store -- exercises the "no store configured" path is unaffected
+    result = tools.read_evidence("definitely-not-a-real-id")
+    check("status is ERROR (no evidence store configured for this singleton)", result.status == "ERROR", result)
+
+
+def test_read_evidence_via_generic_call_dispatch_with_empty_args():
+    """The exact real shape the model sent live: a native tool call with
+    an empty args dict, dispatched through the generic call() path (not
+    calling read_evidence directly) -- this is what SecurityAgentKernel's
+    dispatch loop actually does."""
+    tools = _tools_with_evidence_store()
+    tools.evidence_store.store("tool-7", "search_repository", {"status": "OK", "hits": []})
+    result = tools.call("read_evidence", {})
+    check("no crash, a normal ERROR dict result", result.get("status") == "ERROR", result)
+    check("lists the known evidence id via generic dispatch too", "tool-7" in (result.get("reason") or ""), result)
+
+
 # --- generic dispatch (call/describe_tools) --------------------------------
 
 def test_call_dispatches_by_name():

@@ -5,7 +5,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from rtf.security_agent.evidence_store import EvidenceStore, UnknownEvidenceRefError
+from rtf.security_agent.evidence_store import EvidenceStore, UnknownEvidenceRefError, _SUMMARY_PREVIEW_CHARS
 
 
 def _store() -> EvidenceStore:
@@ -25,7 +25,10 @@ def test_summary_is_short_and_carries_location():
     huge_source = "x" * 5000
     result = {"status": "OK", "file": "Float128.sol", "contract": "Float128", "source": huge_source}
     stored = store.store("tool-2", "get_contract_source", result)
-    assert len(stored.summary) < 1000
+    # Bounded relative to the real preview constant (not a hardcoded
+    # number) -- must still be MUCH shorter than the full 5000-char
+    # source, whatever the constant is currently tuned to.
+    assert len(stored.summary) < _SUMMARY_PREVIEW_CHARS + 200
     assert "Float128.sol" in stored.summary
     assert "get_contract_source" in stored.summary
     assert len(store.read("tool-2")) > 4000

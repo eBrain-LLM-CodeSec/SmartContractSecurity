@@ -121,6 +121,68 @@ def test_adapter_returns_live_runner_compatible_result():
           build_args["extra_compile_kwargs"] == {"solc": "/opt/solc-bin/solc"}, build_args)
 
 
+class AlwaysToolCallClient:
+    """Never concludes on its own -- every turn is the same call_tool
+    action. Used to prove max_steps/max_cost_usd overrides actually reach
+    the kernel: with the real DEFAULT_MAX_STEPS (15) this would run 15
+    real tool-call turns before hitting max_steps_exhausted; with an
+    override of 1 it must stop after exactly 1."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def complete(self, messages, temperature=0.0, top_p=None, max_tokens=None):
+        raw = {"action": "call_tool", "tool": "get_function_source",
+               "args": {"contract": "Vault", "function": "withdraw"}, "reasoning": "inspect"}
+        content = "```json\n" + json.dumps(raw) + "\n```"
+        return ChatResult(content, 10, 5, False, 0.001)
+
+
+def test_max_steps_override_reaches_the_kernel():
+    """Real gap found live (2026-08-26, native-tool-calling canto rerun):
+    max_steps was locked to kernel.py's own DEFAULT_MAX_STEPS with no way
+    to override it per call -- added max_steps/max_cost_usd passthrough
+    params. AlwaysToolCallClient never concludes on its own, so the ONLY
+    thing that can stop it is the step cap -- proving the override
+    reaches SecurityAgentKernel (1 tool call recorded), not the real
+    default of 15."""
+    scratch = Path(tempfile.mkdtemp(prefix="security_agent_adapter_test_"))
+    result = run_security_agent_bundle(
+        codex_bin=Path("unused"), python_bin=Path("unused"), mcp_server_script=Path("unused"),
+        api_key="unused", model="fake", case_id="case-2", entry_file=Path("Vault.sol"),
+        repo_root=Path("."), candidate_location="Vault.withdraw",
+        solc_path_dir="/opt/solc-bin", solc_remaps=None, prompt="unused",
+        scratch_root=scratch, timeout_s=5,
+        extra_files={".rtf/context/protocol_context.md": "protocol",
+                     ".rtf/context/requirements/req-parent.md": "requirement",
+                     ".rtf/plans/c1.md": PLAN},
+        compile_via_foundry=False, chat_client_factory=AlwaysToolCallClient,
+        tools_factory=lambda **kw: FakeTools(),
+        max_steps=1,
+    )
+    check("exactly 1 tool call recorded, not the real default of 15",
+          len(result.investigation_state.tool_history) == 1, len(result.investigation_state.tool_history))
+
+
+def test_max_cost_usd_override_reaches_the_kernel():
+    scratch = Path(tempfile.mkdtemp(prefix="security_agent_adapter_test_"))
+    result = run_security_agent_bundle(
+        codex_bin=Path("unused"), python_bin=Path("unused"), mcp_server_script=Path("unused"),
+        api_key="unused", model="fake", case_id="case-3", entry_file=Path("Vault.sol"),
+        repo_root=Path("."), candidate_location="Vault.withdraw",
+        solc_path_dir="/opt/solc-bin", solc_remaps=None, prompt="unused",
+        scratch_root=scratch, timeout_s=5,
+        extra_files={".rtf/context/protocol_context.md": "protocol",
+                     ".rtf/context/requirements/req-parent.md": "requirement",
+                     ".rtf/plans/c1.md": PLAN},
+        compile_via_foundry=False, chat_client_factory=AlwaysToolCallClient,
+        tools_factory=lambda **kw: FakeTools(),
+        max_cost_usd=0.0,
+    )
+    check("max_cost_usd=0.0 tripped the cost breaker before any tool call happened",
+          len(result.investigation_state.tool_history) == 0, len(result.investigation_state.tool_history))
+
+
 # --- root cause 4: verdict-vocabulary mismatch with the legacy harness -----
 
 def test_not_applicable_and_unresolved_verdicts_translated_for_legacy_harness():
