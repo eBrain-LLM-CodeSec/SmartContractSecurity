@@ -97,6 +97,19 @@ class VerdictRecord(BaseModel):
     hypothesis_ids: list[str]
     interpretation: str
     verdict: RequirementResolution
+    original_property_resolved: bool = True
+    """Anti-anchoring self-certification (RTF investigator pipeline,
+    2026-08-27): explicitly whether THIS assessment actually addresses
+    the property's own original claim, not an unrelated finding turned
+    up along the way. Real failure this closes: a real trajectory trace
+    showed the model anchoring on a plausible alternative hypothesis
+    (CEI/reentrancy) for most of an investigation and never returning to
+    re-test the property it was actually asked about, yet still emitting
+    PASS for it. Defaults to True only so FAIL/NOT_APPLICABLE/
+    INCONCLUSIVE assessments (never gated on this field, see
+    completion.py) don't need to set it; a PASS assessment gets no
+    default in the tool-facing schema (kernel.py's PropertyVerdictInput
+    has no default), forcing an explicit answer every time."""
 
 
 class Hypothesis(BaseModel):
@@ -135,6 +148,19 @@ class RequirementState(BaseModel):
     is what later lets a completion check (rtf.security_agent.completion,
     not implemented yet) verify real falsification attempts happened,
     not just that the model asserted PASS."""
+    valid_precondition_counterexample_recorded: bool = False
+    """Anti-anchoring gate (2026-08-27): True once at least one
+    counterexample_attempt for this property was explicitly flagged
+    `preconditions_satisfied=True` (a VALID, precondition-satisfying
+    input/state, not a rejected/malformed/out-of-scope one). Real gap
+    this closes: a real trajectory trace showed a property's 5
+    counterexample attempts were ALL invalid-input-rejection checks (zero
+    address, non-whitelisted caller, zero supply, stale block, overflow)
+    -- none constructed a valid, well-formed scenario, so the existing
+    `counterexample_attempts`-non-empty check was satisfied while the
+    actual obligation (does VALID input compute correctly) was never
+    tested. Sticky once True (an investigation that already did the real
+    work once for this property doesn't need to repeat it every turn)."""
 
 
 class TokenUsage(BaseModel):
@@ -257,15 +283,19 @@ class ClusterInvestigationState(BaseModel):
                 self.requirement_states[pid].hypothesis_ids.append(hypothesis.id)
 
     def record_counterexample_attempt(self, property_id: str, hypothesis_id: str,
-                                      attempt: str, result: str) -> None:
+                                      attempt: str, result: str,
+                                      preconditions_satisfied: bool = False) -> None:
         req_state = self._require_requirement(property_id)
         if hypothesis_id not in self.hypotheses:
             raise KeyError(f"hypothesis_id not in this cluster: {hypothesis_id}")
         if hypothesis_id not in req_state.hypothesis_ids:
             req_state.hypothesis_ids.append(hypothesis_id)
-        record = f"Hypothesis {hypothesis_id} — attempt: {attempt}; result: {result}"
+        validity_tag = "valid-state" if preconditions_satisfied else "invalid/rejected-state"
+        record = f"Hypothesis {hypothesis_id} — attempt: {attempt}; result: {result}; preconditions: {validity_tag}"
         if record not in req_state.counterexample_attempts:
             req_state.counterexample_attempts.append(record)
+        if preconditions_satisfied:
+            req_state.valid_precondition_counterexample_recorded = True
 
     def link_evidence_to_requirement(self, property_id: str, evidence_id: str, *, supports: bool) -> None:
         """The mechanism that makes evidence SHARED rather than
@@ -304,7 +334,7 @@ class ClusterInvestigationState(BaseModel):
 
     def record_verdict(self, property_id: str, *, claim: str,
                        evidence_ids: list[str], hypothesis_ids: list[str], interpretation: str,
-                       verdict: RequirementResolution) -> None:
+                       verdict: RequirementResolution, original_property_resolved: bool = True) -> None:
         """Persist one complete CEIV chain and resolve the property.
 
         Every evidence id must already exist in the shared cluster pool.
@@ -326,6 +356,7 @@ class ClusterInvestigationState(BaseModel):
             hypothesis_ids=list(hypothesis_ids),
             interpretation=interpretation,
             verdict=verdict,
+            original_property_resolved=original_property_resolved,
         )
         self.resolve_requirement(property_id, verdict, reason=interpretation)
 

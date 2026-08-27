@@ -115,6 +115,7 @@ def _responses(case: Case):
         }], "counterexample_attempts": [{
             "property_id": "p1", "hypothesis_id": "h1",
             "attempt": case.counterexample, "result": "the inspected guard refutes the attempted violation",
+            "preconditions_satisfied": True,
         }]})
         hypothesis_status = "REFUTED"
         support, contradict = [], ["ev1"]

@@ -47,6 +47,32 @@ continue investigating. FAIL/NOT_APPLICABLE/INCONCLUSIVE are not subject to \
 this specific gate, but still require cited evidence and a hypothesis \
 (below).
 
+**Before returning PASS for a property, return to that property's OWN \
+original claim -- ignore unrelated vulnerabilities or hypotheses for this \
+one step, even real ones you found along the way. Re-read the primary \
+relevant code and try to construct at least one VALID input or state that \
+satisfies every one of the property's own preconditions and would still \
+violate it. Trace that case concretely through the implementation. Only \
+return PASS if this valid counterexample attempt fails.** The word VALID \
+is load-bearing: a case that itself violates a stated precondition does \
+NOT count, even if it is a real, useful thing to have checked -- a zero \
+address when zero address is invalid, a non-whitelisted caller when \
+whitelisting is required, malformed input, rejected input, an impossible \
+state, or an invalid configuration all test REJECTION of invalid input, \
+not correctness on valid input, and do not by themselves satisfy this \
+requirement. Set `preconditions_satisfied: true` on a counterexample_attempt \
+only when it meets this bar. A PASS is mechanically rejected if none of a \
+property's recorded attempts has `preconditions_satisfied: true`, even if \
+other (invalid-input) attempts exist.
+
+Every property verdict also carries `original_property_resolved`: does \
+THIS assessment actually address the property's own original claim, not \
+an unrelated finding turned up along the way? Discovering another real \
+vulnerability does NOT resolve the property you were asked about -- set \
+this to `false` (and use INCONCLUSIVE, not PASS) if you cannot honestly \
+say you returned to and re-tested the original property. A PASS with \
+`original_property_resolved: false` is mechanically rejected.
+
 Call `update_investigation` to record hypotheses and/or counterexample
 attempts. Start with at least one plausible failure hypothesis per property
 (one hypothesis may span several properties). After inspecting code, record
@@ -91,7 +117,7 @@ one of these two shapes -- nothing else in that response is read:
 {{"action": "update_investigation", "hypotheses": [
   {{"id": "hyp-1", "claim": "<plausible concrete failure mode>", "originating_property_ids": ["<property id>"], "status": "OPEN", "supporting_evidence_ids": [], "contradicting_evidence_ids": [], "next_evidence_needed": "<specific code fact or test needed>"}}
 ], "counterexample_attempts": [
-  {{"property_id": "<property id>", "hypothesis_id": "hyp-1", "attempt": "<specific adversarial scenario tried>", "result": "<what inspection established>"}}
+  {{"property_id": "<property id>", "hypothesis_id": "hyp-1", "attempt": "<specific scenario tried, adversarial OR a valid boundary/edge case>", "result": "<what inspection established>", "preconditions_satisfied": false}}
 ], "unresolved_questions": [
   "<a specific open question you haven't resolved yet, e.g. 'does the oracle ever return 0?'>"
 ], "next_actions": [
@@ -104,9 +130,9 @@ one of these two shapes -- nothing else in that response is read:
 ], "hypotheses": [
   {{"id": "hyp-1", "claim": "<failure mode tested>", "originating_property_ids": ["<property id>"], "status": "REFUTED", "supporting_evidence_ids": [], "contradicting_evidence_ids": ["ev-1"], "next_evidence_needed": null}}
 ], "properties": [
-  {{"property_id": "<id>", "claim": "<security assertion being decided>", "evidence_ids": ["ev-1"], "hypothesis_ids": ["hyp-1"], "interpretation": "<why that evidence establishes or refutes the claim>", "verdict": "PASS"}}
+  {{"property_id": "<id>", "claim": "<security assertion being decided>", "evidence_ids": ["ev-1"], "hypothesis_ids": ["hyp-1"], "interpretation": "<why that evidence establishes or refutes the claim>", "verdict": "PASS", "original_property_resolved": true}}
 ], "counterexample_attempts": [
-  {{"property_id": "<property id>", "hypothesis_id": "hyp-1", "attempt": "<specific adversarial scenario tried>", "result": "<what inspection established>"}}
+  {{"property_id": "<property id>", "hypothesis_id": "hyp-1", "attempt": "<a VALID input/state satisfying every precondition, that could still violate the property>", "result": "<traced concretely through the implementation>", "preconditions_satisfied": true}}
 ]}}
 ```
 """

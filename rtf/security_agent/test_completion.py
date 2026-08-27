@@ -30,7 +30,8 @@ def _pass_state(attempt: str = "unauthorized caller invokes the owner-only funct
         originating_property_ids=["p1"], status=HypothesisStatus.REFUTED,
         contradicting_evidence_ids=["ev1"],
     ))
-    state.record_counterexample_attempt("p1", "h1", attempt, "onlyOwner rejects the call")
+    state.record_counterexample_attempt("p1", "h1", attempt, "onlyOwner rejects the call",
+                                        preconditions_satisfied=True)
     state.record_verdict(
         "p1", claim="oracle changes are access controlled", evidence_ids=["ev1"],
         hypothesis_ids=["h1"], interpretation="modifier refutes unauthorized access",
@@ -83,6 +84,66 @@ def test_complete_access_control_pass_is_ready():
     state = _pass_state()
     result = cluster_can_conclude(state, {"p1": ReasoningCategory.ACCESS_PRIVILEGE_CONTROL})
     check("complete access-control PASS accepted", result.ready, result)
+
+
+# --- anti-anchoring gate (2026-08-27): VALID counterexample + original-property-resolved ---
+
+def test_pass_rejects_only_invalid_precondition_counterexamples():
+    """Test A: real trajectory evidence showed 5 counterexample attempts
+    (zero address, non-whitelisted caller, zero supply, stale block,
+    overflow) that were ALL invalid/rejected-input checks -- satisfying
+    the OLD "a resolved attempt exists" gate while never testing
+    correctness on a VALID input. Simulated directly: a real, resolved
+    counterexample_attempts entry is on file (the old gate alone would
+    accept this), but valid_precondition_counterexample_recorded is
+    False because that attempt never used a valid, precondition-
+    satisfying state."""
+    state = _pass_state()
+    state.requirement_states["p1"].valid_precondition_counterexample_recorded = False
+    result = check_property_completion(state, "p1")
+    check("PASS blocked -- old counterexample-exists check alone is not enough", not result.ready and
+          "pass_without_valid_precondition_counterexample" in result.blocking_reasons, result)
+
+
+def test_pass_accepted_with_a_real_valid_precondition_counterexample():
+    """Test B: a counterexample attempt explicitly marked
+    preconditions_satisfied=True (a valid, well-formed state satisfying
+    every precondition, not a rejected/malformed one) satisfies the new
+    gate."""
+    state = _pass_state()
+    check("valid_precondition_counterexample_recorded is set by _pass_state's own attempt",
+          state.requirement_states["p1"].valid_precondition_counterexample_recorded is True)
+    result = check_property_completion(state, "p1")
+    check("PASS not blocked by the anti-anchoring gate when a real valid-state attempt is on file",
+          "pass_without_valid_precondition_counterexample" not in result.blocking_reasons, result)
+
+
+def test_pass_rejected_when_original_property_not_resolved():
+    """Test C: discovering another real vulnerability (e.g. CEI/
+    reentrancy) does not resolve the property actually being
+    investigated. A model that explicitly self-certifies
+    original_property_resolved=False (e.g. because it anchored on a
+    different hypothesis and never returned to re-test this property)
+    must not be allowed to PASS it."""
+    state = _pass_state()
+    state.requirement_states["p1"].final_assessment.original_property_resolved = False
+    result = check_property_completion(state, "p1")
+    check("PASS blocked when the model admits the original property was never resolved",
+          not result.ready and "pass_without_original_property_resolved" in result.blocking_reasons, result)
+
+
+def test_pass_still_accepted_normally_when_both_new_self_certifications_are_true():
+    """Test D: the new gate only tightens what counts as evidence for
+    PASS -- it must not turn a genuinely well-supported PASS into a
+    rejection. _pass_state()'s own fixture already sets both new fields
+    correctly (preconditions_satisfied=True on its attempt,
+    original_property_resolved defaults to True) -- this test exists so
+    a future change to either default is caught immediately if it
+    regresses this specific case, independent of
+    test_complete_access_control_pass_is_ready's broader assertion."""
+    state = _pass_state()
+    result = check_property_completion(state, "p1")
+    check("legitimate PASS is not blocked by either new anti-anchoring check", result.ready, result)
 
 
 def test_fail_needs_ceiv_but_not_pass_counterexample_gate():

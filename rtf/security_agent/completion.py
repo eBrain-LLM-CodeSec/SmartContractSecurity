@@ -77,6 +77,27 @@ def check_property_completion(
         reasons.append("pass_without_counterexample_attempt")
     elif not resolved_attempts:
         reasons.append("pass_without_resolved_counterexample_result")
+    # Anti-anchoring gate (RTF investigator pipeline, 2026-08-27): closes
+    # the specific gap a real trajectory trace found -- 5 counterexample
+    # attempts on one property, all of them invalid/rejected-input checks
+    # (zero address, non-whitelisted caller, zero supply, stale block,
+    # overflow), satisfied the two checks above while never testing
+    # whether the property holds on a VALID, precondition-satisfying
+    # input/state -- which is where the real bug (an epoch-boundary
+    # miscalculation on ordinary, well-formed use) actually lived. Only
+    # applies to PASS -- FAIL/NOT_APPLICABLE/INCONCLUSIVE are unaffected,
+    # same asymmetry as every other PASS-only check in this function.
+    if not req.valid_precondition_counterexample_recorded:
+        reasons.append("pass_without_valid_precondition_counterexample")
+    # Second half of the same fix: "discovering another real
+    # vulnerability does not resolve the requested property." A model
+    # that anchors on a different, genuinely real finding (e.g. a CEI/
+    # reentrancy issue in the same function) must not be allowed to PASS
+    # the property it was actually asked about without ever returning to
+    # it -- this is the model's own explicit self-certification that it
+    # did.
+    if assessment is not None and not assessment.original_property_resolved:
+        reasons.append("pass_without_original_property_resolved")
     valid_tool_ids = {call.id for call in state.tool_history}
     for evidence_id in assessment.evidence_ids if assessment else ():
         evidence = state.evidence.get(evidence_id)

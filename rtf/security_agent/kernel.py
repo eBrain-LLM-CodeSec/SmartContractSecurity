@@ -69,6 +69,18 @@ class PropertyVerdictInput(BaseModel):
     hypothesis_ids: list[str] = Field(min_length=1)
     interpretation: str
     verdict: Literal["PASS", "FAIL", "NOT_APPLICABLE", "INCONCLUSIVE"]
+    original_property_resolved: bool = True
+    """Anti-anchoring self-certification (RTF investigator pipeline,
+    2026-08-27): does THIS assessment actually address this property's
+    OWN original claim, not an unrelated finding turned up while
+    investigating (e.g. a real CEI/reentrancy issue found in the same
+    function, which does not by itself resolve an input-validation
+    property). Defaults True so FAIL/NOT_APPLICABLE/INCONCLUSIVE (never
+    gated on this field -- see completion.py) don't need to set it
+    explicitly; a PASS is mechanically rejected if this is False (see
+    check_property_completion's `pass_without_original_property_resolved`
+    reason) -- discovering another real vulnerability does not resolve
+    the requested property."""
 
 
 class EvidenceInput(BaseModel):
@@ -97,6 +109,25 @@ class CounterexampleAttemptInput(BaseModel):
     hypothesis_id: str
     attempt: str = Field(min_length=1)
     result: str = Field(min_length=1)
+    preconditions_satisfied: bool = False
+    """Anti-anchoring self-certification (RTF investigator pipeline,
+    2026-08-27): True only if `attempt` used a VALID input/state that
+    satisfies every one of the property's own stated preconditions -- NOT
+    a case that violates them. A zero address when zero address is
+    invalid, a non-whitelisted caller when whitelisting is required,
+    malformed input, rejected input, an impossible state, or an invalid
+    configuration must all be marked False here even if they were a
+    genuinely useful thing to check -- they test REJECTION of invalid
+    input, not correctness on valid input, and do not, by themselves,
+    satisfy a property's obligation to compute correctly on well-formed
+    input. Defaults False (fail-closed): a PASS is mechanically rejected
+    unless at least one recorded attempt for that property has this set
+    True (see completion.py's `pass_without_valid_precondition_
+    counterexample`). Real gap this closes: a real trajectory trace
+    showed 5 counterexample attempts on one property, ALL of them
+    invalid/rejected-input checks, satisfying the OLD "an attempt exists"
+    gate while the actual valid-input correctness question was never
+    tested."""
 
 
 class UpdateInvestigationAction(BaseModel):
@@ -780,6 +811,7 @@ class SecurityAgentKernel:
                 hypothesis_ids=entry.hypothesis_ids,
                 interpretation=entry.interpretation,
                 verdict=RequirementResolution(entry.verdict),
+                original_property_resolved=entry.original_property_resolved,
             )
         missing = set(property_ids) - seen
         if missing:
@@ -801,7 +833,8 @@ class SecurityAgentKernel:
         # `_apply_conclusion`.
         for attempt in conclude.counterexample_attempts:
             state.record_counterexample_attempt(
-                attempt.property_id, attempt.hypothesis_id, attempt.attempt, attempt.result)
+                attempt.property_id, attempt.hypothesis_id, attempt.attempt, attempt.result,
+                preconditions_satisfied=attempt.preconditions_satisfied)
 
     @staticmethod
     def _apply_forced_conclusion(
@@ -832,6 +865,7 @@ class SecurityAgentKernel:
                 hypothesis_ids=entry.hypothesis_ids,
                 interpretation=entry.interpretation,
                 verdict=RequirementResolution(entry.verdict),
+                original_property_resolved=entry.original_property_resolved,
             )
             if entry.verdict == "PASS":
                 check = check_property_completion(state, entry.property_id, categories.get(entry.property_id))
@@ -878,7 +912,8 @@ class SecurityAgentKernel:
             state.upsert_hypothesis(Hypothesis.model_validate(item.model_dump()))
         for attempt in update.counterexample_attempts:
             state.record_counterexample_attempt(
-                attempt.property_id, attempt.hypothesis_id, attempt.attempt, attempt.result)
+                attempt.property_id, attempt.hypothesis_id, attempt.attempt, attempt.result,
+                preconditions_satisfied=attempt.preconditions_satisfied)
         # Closes a real gap found live (2026-08-26): these two state
         # fields (and set_next_actions) already existed and were already
         # rendered in the compacted state summary, but nothing wrote to

@@ -733,13 +733,17 @@ def test_completion_gate_rejects_premature_pass_then_accepts_grounded_pass():
         "contradicting_evidence_ids": ["ev-shared"],
     }], "counterexample_attempts": [
         {"property_id": "p1", "hypothesis_id": "hyp-shared",
-         "attempt": "adversarial caller tries the protected path", "result": "guard rejects it"},
+         "attempt": "a valid, whitelisted caller uses the protected path at the boundary condition",
+         "result": "guard still correctly applies", "preconditions_satisfied": True},
         {"property_id": "p2", "hypothesis_id": "hyp-shared",
-         "attempt": "boundary path tries to bypass the guard", "result": "guard still applies"},
+         "attempt": "a valid, well-formed request at the boundary condition",
+         "result": "guard still applies", "preconditions_satisfied": True},
     ]}, None)
     grounded = ({"action": "conclude", "properties": [
-        {"property_id": "p1", "verdict": "PASS", "reasoning": "guard blocks adversary"},
-        {"property_id": "p2", "verdict": "PASS", "reasoning": "guard covers boundary"},
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "guard blocks adversary",
+         "original_property_resolved": True},
+        {"property_id": "p2", "verdict": "PASS", "reasoning": "guard covers boundary",
+         "original_property_resolved": True},
     ]}, None)
     kernel, fake = _kernel([premature, inspect, falsify, grounded], enforce_completion=True)
     state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
@@ -749,6 +753,91 @@ def test_completion_gate_rejects_premature_pass_then_accepts_grounded_pass():
         for message in fake.calls[1]))
     check("grounded PASS accepted after inspection and falsification", all(
         state.requirement_states[pid].status == RequirementResolution.PASS for pid in _PROPERTY_IDS))
+
+
+# --- anti-anchoring gate (2026-08-27): VALID counterexample + original-property-resolved --
+
+def test_anti_anchoring_gate_rejects_invalid_only_attempts_then_accepts_valid_precondition_attempt():
+    """End-to-end Test A + Test D: a premature PASS backed ONLY by
+    invalid/rejected-input counterexample attempts (mirrors the real
+    trajectory finding: zero address, non-whitelisted caller, etc.) is
+    mechanically rejected even though the OLD gate (an attempt exists,
+    is resolved) is already satisfied. A subsequent turn that records a
+    genuine VALID-precondition attempt is then accepted -- the gate
+    tightens what counts, it does not make PASS unreachable."""
+    # premature FIRST (as in test_completion_gate_rejects_premature_pass_
+    # then_accepts_grounded_pass): its rejection still preserves the
+    # conclude's MATERIAL (evidence/hypotheses, via
+    # _apply_conclusion_material) into real state even though the
+    # verdict itself is rejected -- registering "ev-shared"/"hyp-shared"
+    # for later steps to safely reference.
+    premature = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "looks safe"},
+        {"property_id": "p2", "verdict": "PASS", "reasoning": "looks safe"},
+    ]}, None)
+    inspect = ({"action": "call_tool", "tool": "get_contract_source",
+                "args": {"contract": "Vault"}, "reasoning": "inspect before PASS"}, None)
+    invalid_only = ({"action": "update_investigation", "hypotheses": [{
+        "id": "hyp-shared", "claim": "the relevant controls can be bypassed",
+        "originating_property_ids": ["p1", "p2"], "status": "REFUTED",
+        "contradicting_evidence_ids": ["ev-shared"],
+    }], "counterexample_attempts": [
+        {"property_id": "p1", "hypothesis_id": "hyp-shared", "attempt": "zero address caller",
+         "result": "reverted", "preconditions_satisfied": False},
+        {"property_id": "p2", "hypothesis_id": "hyp-shared", "attempt": "non-whitelisted caller",
+         "result": "reverted", "preconditions_satisfied": False},
+    ]}, None)
+    valid_attempt = ({"action": "update_investigation", "counterexample_attempts": [
+        {"property_id": "p1", "hypothesis_id": "hyp-shared",
+         "attempt": "a valid, well-formed request right at the boundary condition",
+         "result": "the property still holds", "preconditions_satisfied": True},
+        {"property_id": "p2", "hypothesis_id": "hyp-shared",
+         "attempt": "a valid, well-formed request right at the boundary condition",
+         "result": "the property still holds", "preconditions_satisfied": True},
+    ]}, None)
+    grounded = ({"action": "conclude", "properties": [
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "guard blocks it"},
+        {"property_id": "p2", "verdict": "PASS", "reasoning": "guard blocks it"},
+    ]}, None)
+    kernel, fake = _kernel([premature, inspect, invalid_only, valid_attempt, grounded], enforce_completion=True)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("premature PASS rejected, then invalid-only attempts STILL rejected, causing 3 more turns",
+          len(fake.calls) == 5, len(fake.calls))
+    check("rejection after the invalid-only attempts cites the anti-anchoring reason specifically", any(
+        "pass_without_valid_precondition_counterexample" in str(m.get("content", ""))
+        for m in fake.calls[3]), fake.calls[3])
+    check("PASS accepted once a real valid-precondition attempt is on file", all(
+        state.requirement_states[pid].status == RequirementResolution.PASS for pid in _PROPERTY_IDS))
+
+
+def test_forced_conclusion_downgrades_pass_to_inconclusive_when_original_property_not_resolved():
+    """Test C, at the forced-conclusion salvage path specifically: this
+    path is never rejected wholesale (no budget left to keep iterating),
+    but reuses check_property_completion per-property, so a PASS the
+    model marks original_property_resolved=False (discovered something
+    else instead, e.g. CEI/reentrancy, but never returned to re-test
+    THIS property) is downgraded to INCONCLUSIVE, not silently accepted
+    -- even under budget pressure."""
+    script = [({"action": "call_tool", "tool": "get_contract_source", "args": {"contract": f"Vault{i}"},
+                "reasoning": "r"}, None) for i in range(3)] + [
+        ({"action": "conclude", "properties": [
+            {"property_id": "p1", "verdict": "PASS", "reasoning": "found something else instead",
+             "original_property_resolved": False},
+            {"property_id": "p2", "verdict": "PASS", "reasoning": "actually resolved this one"},
+        ], "counterexample_attempts": [
+            {"property_id": "p2", "hypothesis_id": "hyp-shared", "attempt": "a valid boundary case",
+             "result": "still holds", "preconditions_satisfied": True},
+        ]}, None),
+    ]
+    kernel, fake = _kernel(script, max_steps=3)
+    state = kernel.run_cluster("c1", _PROPERTY_IDS, *_CONTEXT)
+    check("p1 downgraded to INCONCLUSIVE (original property never resolved)",
+          state.requirement_states["p1"].status == RequirementResolution.INCONCLUSIVE,
+          state.requirement_states["p1"])
+    check("p1's reason cites the anti-anchoring gate", "pass_without_original_property_resolved" in
+          (state.requirement_states["p1"].resolution_reason or ""), state.requirement_states["p1"].resolution_reason)
+    check("p2 (a real, resolved PASS) is NOT collaterally downgraded",
+          state.requirement_states["p2"].status == RequirementResolution.PASS, state.requirement_states["p2"])
 
 
 # --- root cause #1 fix: PASS gate reachability (native tools + inline fallback) --
@@ -773,10 +862,13 @@ def test_native_conclude_with_inline_counterexample_attempts_passes_without_upda
                         "next_evidence_needed": None}],
         "properties": [{"property_id": "p1", "claim": "withdraw is owner-only",
                         "evidence_ids": ["ev-1"], "hypothesis_ids": ["hyp-1"],
-                        "interpretation": "guard blocks non-owner", "verdict": "PASS"}],
+                        "interpretation": "guard blocks non-owner", "verdict": "PASS",
+                        "original_property_resolved": True}],
         "counterexample_attempts": [{"property_id": "p1", "hypothesis_id": "hyp-1",
-                                     "attempt": "called withdraw as a non-owner",
-                                     "result": "reverted, confirming the guard holds"}],
+                                     "attempt": "a valid, whitelisted owner calls withdraw normally, "
+                                                "then a valid non-owner address calls it",
+                                     "result": "reverted for the non-owner, confirming the guard holds",
+                                     "preconditions_satisfied": True}],
     }
     script = [(NativeCalls([("get_contract_source", {"contract": "Vault"}), ("conclude", conclude_args)]), None)]
     kernel, fake = _kernel(script, enforce_completion=True)
@@ -799,10 +891,12 @@ def test_legacy_text_conclude_with_inline_counterexample_attempts_passes_on_firs
     inspect = ({"action": "call_tool", "tool": "get_contract_source",
                 "args": {"contract": "Vault"}, "reasoning": "inspect before PASS"}, None)
     conclude = ({"action": "conclude", "properties": [
-        {"property_id": "p1", "verdict": "PASS", "reasoning": "guard blocks non-owner"},
+        {"property_id": "p1", "verdict": "PASS", "reasoning": "guard blocks non-owner",
+         "original_property_resolved": True},
     ], "counterexample_attempts": [
         {"property_id": "p1", "hypothesis_id": "hyp-shared",
-         "attempt": "called withdraw as a non-owner", "result": "reverted, confirming the guard holds"},
+         "attempt": "a valid non-owner address calls withdraw", "result": "reverted, confirming the guard holds",
+         "preconditions_satisfied": True},
     ]}, None)
     kernel, fake = _kernel([inspect, conclude], enforce_completion=True)
     state = kernel.run_cluster("c1", ["p1"], *_CONTEXT)
@@ -824,8 +918,9 @@ def test_native_update_investigation_then_native_conclude_still_reaches_pass():
                         "supporting_evidence_ids": [], "contradicting_evidence_ids": [],
                         "next_evidence_needed": None}],
         "counterexample_attempts": [{"property_id": "p1", "hypothesis_id": "hyp-1",
-                                     "attempt": "called withdraw as a non-owner",
-                                     "result": "reverted, confirming the guard holds"}],
+                                     "attempt": "a valid non-owner address calls withdraw",
+                                     "result": "reverted, confirming the guard holds",
+                                     "preconditions_satisfied": True}],
         "unresolved_questions": [], "next_actions": [],
     }
     conclude_args = {
@@ -839,7 +934,8 @@ def test_native_update_investigation_then_native_conclude_still_reaches_pass():
                         "next_evidence_needed": None}],
         "properties": [{"property_id": "p1", "claim": "withdraw is owner-only",
                         "evidence_ids": ["ev-1"], "hypothesis_ids": ["hyp-1"],
-                        "interpretation": "guard blocks non-owner", "verdict": "PASS"}],
+                        "interpretation": "guard blocks non-owner", "verdict": "PASS",
+                        "original_property_resolved": True}],
     }
     script = [
         (NativeCalls([("get_contract_source", {"contract": "Vault"}), ("update_investigation", update_args)]), None),
