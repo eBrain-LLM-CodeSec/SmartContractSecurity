@@ -303,16 +303,27 @@ def rank_evidence(
     output order is fully reproducible across runs given identical
     input, not just "deterministic in principle."
 
-    `scope_files`, when given, inserts an intermediate tiebreak BETWEEN
-    score and location: an item whose location is in the audit's own
-    declared scope (`is_in_declared_scope`) sorts before an equally-
-    scored item that isn't. Purely additive -- omitting `scope_files`
-    (the default) reproduces the exact prior sort, byte for byte; this
-    exists because `score_evidence_item`'s own scoring has no signal
-    that discriminates within "every non-vendored contract in this
-    repo" (see `is_in_declared_scope`'s docstring for the real case that
-    motivated this -- an in-scope location losing a top-N cut to a
-    same-scored, alphabetically-earlier, OUT-of-scope sibling contract).
+    `scope_files`, when given, also DROPS every item NOT in the audit's
+    own declared scope (`is_in_declared_scope`) -- not just re-ranking
+    them after in-scope items, which is what this parameter did before
+    (real pipeline bug, found live 2026-08-27: a requirement whose
+    underlying predicate scans the WHOLE compiled project -- unavoidable
+    once `compile_via_foundry=True` makes vendored libraries/test
+    files/cheatcode interfaces all visible to Slither -- could produce a
+    `candidate_locations` field bloated with hundreds of irrelevant
+    entries purely because out-of-scope items were still being CARRIED,
+    just sorted last; confirmed on a real canto property, whose own
+    field reached ~9,643 characters, ~55% of its whole cluster's plan
+    text being this kind of noise, none of it useful since those
+    locations are never investigated -- an audit scoped to particular
+    files has no use for a candidate location outside them). Out-of-
+    scope here means `is_in_declared_scope` returned `False` OR `None`
+    (unknown) -- the SAME equivalence class the pre-existing tiebreak
+    already used (both sorted last before this fix); this drops that
+    same class instead of merely deprioritizing it, introducing no new
+    scope policy. Purely additive -- omitting `scope_files` (the
+    default, and every caller except `live_runner.py`'s own) reproduces
+    the exact prior behavior, unchanged.
     """
     seen: set[tuple] = set()
     ranked: list[RankedEvidence] = []
@@ -323,14 +334,10 @@ def rank_evidence(
         seen.add(key)
         ranked.append(score_evidence_item(item, repo_root))
 
-    def sort_key(r: RankedEvidence) -> tuple:
-        if scope_files is None:
-            return (-r.score, r.item.location)
-        in_scope = is_in_declared_scope(r.item.location, repo_root, scope_files)
-        scope_rank = 0 if in_scope else 1  # True -> 0 (first), False/None -> 1
-        return (-r.score, scope_rank, r.item.location)
+    if scope_files is not None:
+        ranked = [r for r in ranked if is_in_declared_scope(r.item.location, repo_root, scope_files) is True]
 
-    ranked.sort(key=sort_key)
+    ranked.sort(key=lambda r: (-r.score, r.item.location))
     return ranked
 
 

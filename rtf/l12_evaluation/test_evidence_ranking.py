@@ -88,7 +88,7 @@ def test_is_in_declared_scope_distinguishes_scope_files_from_siblings() -> None:
               is_in_declared_scope("Ledger.record", None, ["src/Ledger.sol"]) is None)
 
 
-def test_rank_evidence_scope_tiebreak_is_opt_in_and_backward_compatible() -> None:
+def test_rank_evidence_scope_filter_is_opt_in_and_backward_compatible() -> None:
     # The real bug this closes: is_priority_contract alone can't
     # distinguish two same-repo, non-vendored contracts, so equally-
     # scored items fall through to the alphabetical location tiebreak --
@@ -96,7 +96,14 @@ def test_rank_evidence_scope_tiebreak_is_opt_in_and_backward_compatible() -> Non
     # audit relevance (confirmed live: canto's in-scope LendingLedger.
     # update_market lost req-2-block-data-misuse's top-N cut entirely to
     # several same-scored, alphabetically-earlier, declared-OUT-of-scope
-    # GaugeController locations).
+    # GaugeController locations). Originally fixed as a re-ranking
+    # tiebreak; upgraded (2026-08-27) to an actual FILTER after a second
+    # real bug was found: re-ranking alone still let hundreds of
+    # genuinely out-of-scope items (vendored libraries, test/cheatcode
+    # interfaces -- unavoidable once compile_via_foundry=True compiles
+    # the whole project) survive into candidate_locations, just sorted
+    # last -- one real property's own field reached ~9,643 characters of
+    # this kind of noise.
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         _write(root, "src/AAAOutOfScope.sol", "contract AAAOutOfScope { function f() public {} }")
@@ -106,15 +113,18 @@ def test_rank_evidence_scope_tiebreak_is_opt_in_and_backward_compatible() -> Non
         in_scope_item = EvidenceItem(predicate="p", location="ZZZInScope.g", detail="reads block.timestamp")
 
         without_scope = rank_evidence([out_of_scope_item, in_scope_item], repo_root=root)
-        check("rank_evidence: WITHOUT scope_files, tied scores fall back to alphabetical location (prior behavior, unchanged)",
-              without_scope[0].item.location == "AAAOutOfScope.f", [(r.item.location, r.score) for r in without_scope])
+        check("rank_evidence: WITHOUT scope_files, both items survive, tied scores fall back to alphabetical "
+              "location (prior behavior, unchanged)",
+              len(without_scope) == 2 and without_scope[0].item.location == "AAAOutOfScope.f",
+              [(r.item.location, r.score) for r in without_scope])
 
         with_scope = rank_evidence([out_of_scope_item, in_scope_item], repo_root=root, scope_files=["src/ZZZInScope.sol"])
-        check("rank_evidence: WITH scope_files, a declared-in-scope item outranks a same-scored, alphabetically-earlier out-of-scope one",
-              with_scope[0].item.location == "ZZZInScope.g", [(r.item.location, r.score) for r in with_scope])
+        check("rank_evidence: WITH scope_files, the out-of-scope item is DROPPED entirely, not just outranked",
+              [r.item.location for r in with_scope] == ["ZZZInScope.g"],
+              [(r.item.location, r.score) for r in with_scope])
 
-        check("rank_evidence: scope tiebreak does not change the underlying numeric score itself",
-              {r.item.location: r.score for r in with_scope} == {r.item.location: r.score for r in without_scope})
+        check("rank_evidence: filtering does not change the surviving item's own underlying numeric score",
+              with_scope[0].score == next(r.score for r in without_scope if r.item.location == "ZZZInScope.g"))
 
 
 def test_structured_specificity_ordering() -> None:
@@ -279,7 +289,7 @@ def main() -> int:
         test_is_priority_contract_distinguishes_src_from_lib,
         test_is_priority_contract_returns_none_without_repo_root,
         test_is_in_declared_scope_distinguishes_scope_files_from_siblings,
-        test_rank_evidence_scope_tiebreak_is_opt_in_and_backward_compatible,
+        test_rank_evidence_scope_filter_is_opt_in_and_backward_compatible,
         test_structured_specificity_ordering,
         test_concrete_operation_named_uses_structured_then_keyword_fallback,
         test_rank_evidence_dedupes_exact_duplicates,
