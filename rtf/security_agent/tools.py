@@ -501,12 +501,26 @@ def build_tool_schemas() -> list[dict]:
     calling shape, live-verified against z-ai/glm-5.2 in Part 0 of the
     native-tool-calling migration) per whitelisted tool, derived from the
     real method signature -- same "never a hand-maintained parallel
-    copy" discipline as `describe_tools()`. Every whitelisted tool's
-    params are required-positional `str` EXCEPT two keyword-only-with-
-    default cases (`get_state_writes.include_transitive: bool = True`,
-    `search_repository.file_glob: str = "*.sol"`), both correctly
-    excluded from `required` here via `param.default is inspect.
-    Parameter.empty`."""
+    copy" discipline as `describe_tools()`.
+
+    Every declared parameter is listed in `required` unconditionally,
+    including the two keyword-only-with-default cases
+    (`get_state_writes.include_transitive: bool = True`,
+    `search_repository.file_glob: str = "*.sol"`) -- NOT a change to what
+    values are valid or what `SecurityAgentTools.call`'s own defaults are,
+    only to whether the model may omit the key entirely. Real,
+    live-blocking incompatibility found during the GPT-5.6 Sol controlled
+    test (2026-08-27): OpenAI/Azure's own strict-mode function-calling
+    validator rejects a `strict: true` schema that excludes any declared
+    property from `required` outright (`400 invalid_function_parameters`,
+    "'required' is required to be... an array including every key in
+    properties") -- z-ai/glm-5.2/5.3 tolerate the omission loosely, but
+    that is provider leniency, not a documented guarantee. This fix was
+    first validated in isolation (a throwaway pinned checkout used for
+    the GLM-5.3/GPT-5.6-Sol capability-test harness) before being applied
+    here, permanently, to the committed kernel -- a wire-contract change
+    with no effect on tool semantics or defaults, needed for ANY
+    OpenAI-family model (including Sol) to run against this kernel at all."""
     schemas = []
     for name in sorted(SecurityAgentTools.TOOL_NAMES):
         method = getattr(SecurityAgentTools, name)
@@ -518,8 +532,7 @@ def build_tool_schemas() -> list[dict]:
                 continue
             json_type = _JSON_SCHEMA_TYPE_BY_ANNOTATION.get(str(param.annotation), "string")
             properties[pname] = {"type": json_type}
-            if param.default is inspect.Parameter.empty:
-                required.append(pname)
+            required.append(pname)
         doc = (method.__doc__ or "").strip().splitlines()[0] if method.__doc__ else ""
         schemas.append({
             "type": "function",

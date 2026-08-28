@@ -331,27 +331,32 @@ def test_build_tool_schemas_marks_required_positional_str_params_required():
           and params["properties"]["function"] == {"type": "string"}, params)
 
 
-def test_build_tool_schemas_excludes_keyword_only_defaulted_params_from_required():
+def test_build_tool_schemas_requires_every_declared_param_including_defaulted_ones():
     """The two non-trivial cases in the whitelist: `get_state_writes`'s
     `include_transitive: bool = True` and `search_repository`'s
-    `file_glob: str = "*.sol"` -- both keyword-only WITH a default, so
-    neither belongs in `required` (live-verified, Part 5: OpenRouter's
-    proxy accepts `strict: true` with a genuinely optional property, no
-    need to force every property required)."""
+    `file_glob: str = "*.sol"` -- both keyword-only WITH a Python default,
+    but BOTH must still appear in the wire schema's `required` list (real,
+    live-blocking incompatibility found during the GPT-5.6 Sol controlled
+    test, 2026-08-27: OpenAI/Azure's strict-mode validator rejects any
+    schema that excludes a declared property from `required`, unlike
+    OpenRouter's GLM-family proxy, which tolerates the omission). This is
+    a wire-contract change only -- `SecurityAgentTools.call`'s own Python
+    defaults are untouched; the model must now always pass an explicit
+    value rather than being allowed to omit the key."""
     schemas = {s["name"]: s for s in build_tool_schemas()}
 
     gsw_params = schemas["get_state_writes"]["parameters"]
-    check("include_transitive is declared but NOT required",
+    check("include_transitive is declared AND required",
           "include_transitive" in gsw_params["properties"]
-          and "include_transitive" not in gsw_params["required"], gsw_params)
+          and "include_transitive" in gsw_params["required"], gsw_params)
     check("include_transitive typed as boolean",
           gsw_params["properties"]["include_transitive"] == {"type": "boolean"}, gsw_params)
     check("contract/function still required for get_state_writes",
           {"contract", "function"} <= set(gsw_params["required"]), gsw_params)
 
     sr_params = schemas["search_repository"]["parameters"]
-    check("file_glob is declared but NOT required",
-          "file_glob" in sr_params["properties"] and "file_glob" not in sr_params["required"], sr_params)
+    check("file_glob is declared AND required",
+          "file_glob" in sr_params["properties"] and "file_glob" in sr_params["required"], sr_params)
     check("file_glob typed as string",
           sr_params["properties"]["file_glob"] == {"type": "string"}, sr_params)
     check("pattern still required for search_repository",
