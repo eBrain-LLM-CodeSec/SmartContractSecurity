@@ -100,6 +100,15 @@ def _canto_gate_evaluator(state_path: Path, property_id: str) -> tuple[bool, Cou
 
 SUCCESS_EVALUATORS = {
     ("2024-01-canto-rootcause-fix-full-rerun", "req-3-implement-as-documented::loc0"): _canto_gate_evaluator,
+    # Added 2026-08-28: the property Sol's own full-audit run actually
+    # traced the target bug through (req-3-all-valid-inputs::loc0), NOT
+    # the one every single-property capability test above used --
+    # registered so a candidate model can be gated against the
+    # better-fitting property directly, separating "wrong property
+    # framing" from "model can't do this reasoning at all."
+    # `_canto_gate_evaluator` already takes `property_id` as a parameter
+    # with no hardcoding, so no new function is needed.
+    ("2024-01-canto-rootcause-fix-full-rerun", "req-3-all-valid-inputs::loc0"): _canto_gate_evaluator,
 }
 
 

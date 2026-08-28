@@ -137,6 +137,7 @@ def run_simple_baseline_audit(
     scratch_root: Path,
     artifacts_dir: Path,
     timeout_s: int = 1800,
+    reasoning_effort: str | None = None,
 ) -> dict:
     """One autonomous, single-shot, full-repo Codex audit session -- the
     "simple baseline" comparison point against the RTF pipeline. No cost
@@ -167,6 +168,7 @@ def run_simple_baseline_audit(
         case_id=f"{audit_id}__baseline", repetition=1,
         investigation_dir=investigation_dir, prompt=_DETECT_MD_PROMPT,
         unresolved_facts=[], scratch_root=scratch_root, timeout_s=timeout_s,
+        reasoning_effort=reasoning_effort,
     )
 
     audit_md = render_baseline_audit_md(result, audit_title=audit_id)

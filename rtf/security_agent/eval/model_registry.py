@@ -89,6 +89,18 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
               "if reproducibility against a moving default becomes a "
               "concern later.",
     ),
+    "deepseek-v4-pro-0813": ModelConfig(
+        key="deepseek-v4-pro-0813", openrouter_model_id="deepseek/deepseek-v4-pro-0813",
+        display_name="DeepSeek V4 Pro (0813 dated pin)", tier=1,
+        fallback_api_key_env="DEEPSEEK_API_KEY", context_length=1048576,
+        notes="Dated pin (2026-08-13), distinct from the bare 'deepseek-v4-pro' "
+              "entry above -- that unpinned slug's own OpenRouter listing name is "
+              "'DeepSeek V4 Pro 0423' (April), a DIFFERENT, older snapshot, "
+              "confirmed live via /api/v1/models. Added specifically to check "
+              "whether the newer dated build changes the Canto gate result "
+              "(all 3 prior DeepSeek experiments this session used the 0423 "
+              "default, not this one).",
+    ),
     "kimi-k3": ModelConfig(
         key="kimi-k3", openrouter_model_id="moonshotai/kimi-k3",
         display_name="Kimi K3", tier=2,

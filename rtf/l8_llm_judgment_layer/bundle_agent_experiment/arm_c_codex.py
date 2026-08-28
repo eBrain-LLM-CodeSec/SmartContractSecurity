@@ -200,7 +200,18 @@ class ArmCResult:
 
 def run_arm_c_bundle(*, codex_bin: Path, api_key: str, model: str, case_id: str, repetition: int,
                       investigation_dir: Path, prompt: str, unresolved_facts: list[str],
-                      scratch_root: Path, timeout_s: int = 480) -> ArmCResult:
+                      scratch_root: Path, timeout_s: int = 480,
+                      reasoning_effort: str | None = None) -> ArmCResult:
+    """`reasoning_effort` (added for the GPT-5.2 "high" baseline comparison,
+    2026-08-28): Codex CLI has no dedicated flag for this -- forwarded via
+    its generic `-c key=value` config-override mechanism as
+    `-c model_reasoning_effort=<value>`, the same mechanism this project's
+    worker-container path already relies on
+    (`INSTANCER_EVM_BENCH_CODEX_REASONING_EFFORT`, see CLAUDE.md's
+    pipeline_lite validation history for the live confirmation that Codex
+    CLI accepts this override). `None` (the default) omits the flag
+    entirely, reproducing prior behavior exactly -- Codex's own default
+    effort applies, unchanged for every existing caller."""
     home = scratch_root / f"{case_id}_r{repetition}_home"
     if home.exists():
         shutil.rmtree(home)
@@ -220,8 +231,10 @@ def run_arm_c_bundle(*, codex_bin: Path, api_key: str, model: str, case_id: str,
         "--skip-git-repo-check",
         "-C", str(investigation_dir),
         "-o", str(out_path), "--json",
-        prompt,
     ]
+    if reasoning_effort is not None:
+        cmd += ["-c", f"model_reasoning_effort={reasoning_effort}"]
+    cmd.append(prompt)
     env = {"HOME": str(home), "OPENAI_API_KEY": api_key, "CODEX_API_KEY": api_key,
            "PATH": "/usr/bin:/bin"}
 
