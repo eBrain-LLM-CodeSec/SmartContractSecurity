@@ -73,16 +73,27 @@ this to `false` (and use INCONCLUSIVE, not PASS) if you cannot honestly \
 say you returned to and re-tested the original property. A PASS with \
 `original_property_resolved: false` is mechanically rejected.
 
-Call `update_investigation` to record hypotheses and/or counterexample
-attempts. Start with at least one plausible failure hypothesis per property
-(one hypothesis may span several properties). After inspecting code, record
-the concrete adversarial or boundary scenario you tried and its result.
-Seek evidence that could REFUTE your current belief, especially before
-PASS; do not merely collect facts that agree with your first impression.
-`unresolved_questions`/`next_actions` are optional but persist even if this
-conversation gets compacted, unlike anything only mentioned in your own
-reasoning text -- use them for open questions or a specific plan so you
-don't lose track of your own direction.
+Before broad exploration, first operationalize each property as a \
+hypothesis via `update_investigation` (one hypothesis may span several \
+properties). Into that hypothesis's `claim`, write: (1) the exact behavior \
+being verified, (2) which input/state dimensions could change whether it \
+holds, and (3) a valid scenario where a correct and an incorrect \
+implementation would behave observably differently. Into \
+`next_evidence_needed`, write (4) the minimum code/evidence needed to \
+evaluate that scenario. Then investigate only what that plan calls for; \
+expand beyond it only if the evidence you gather cannot resolve the \
+property. Prefer tool calls that directly test the current scenario -- if \
+a call would not help evaluate it or resolve a specific missing \
+dependency, reconsider whether it is necessary before making it.
+
+After inspecting code, record the concrete scenario you traced and its \
+result as a counterexample attempt. Seek evidence that could REFUTE your \
+current belief, especially before PASS; do not merely collect facts that \
+agree with your first impression. `unresolved_questions`/`next_actions` \
+are optional but persist even if this conversation gets compacted, unlike \
+anything only mentioned in your own reasoning text -- use them for open \
+questions or a specific plan so you don't lose track of your own \
+direction.
 
 Call `conclude` to finish the investigation for ALL properties in this
 cluster at once, providing one shared evidence pool, a separate Claim /
@@ -175,6 +186,10 @@ def build_initial_user_message(
 
 {cluster_plan_md}
 
-Begin your investigation. Use your tools to inspect the actual code \
-before concluding anything about any property.
+Before your first exploratory tool call, operationalize each property as \
+described above (the behavior being verified, the variables that could \
+change it, a discriminating scenario, and the minimum evidence needed) \
+via `update_investigation`. Then investigate only what that plan calls \
+for, expanding only if needed, before concluding anything about any \
+property.
 """
